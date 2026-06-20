@@ -5,11 +5,12 @@ Thin layer over ``heatguard.service``.
 """
 from __future__ import annotations
 
+import os
 from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import service
 from .types import MetabolicCategory
@@ -20,9 +21,12 @@ app = FastAPI(
     description="Adaptive WBGT-driven work-rest-hydration scheduler for Gulf outdoor crews.",
 )
 
+# Permissive by default for the local Vite dev server; lock down in production via
+# HEATGUARD_CORS_ORIGINS="https://app.example.com,https://..." (comma-separated).
+_cors_origins = [o.strip() for o in os.environ.get("HEATGUARD_CORS_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # dev: allow the Vite dev server
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -102,23 +106,26 @@ def compliance_export(site_key: str, fmt: str = Query("csv", pattern="^(csv|json
 
 class DecideRequest(BaseModel):
     site_key: str = "riyadh"
-    tdb: float
-    rh: float
-    wind: float = 2.0
-    solar: float = 800.0
-    hour: int = 12
+    tdb: float = Field(..., ge=-10, le=60, description="air temperature degC")
+    rh: float = Field(..., ge=0, le=100, description="relative humidity %")
+    wind: float = Field(2.0, ge=0, le=40, description="wind speed m/s")
+    solar: float = Field(800.0, ge=0, le=1400, description="shortwave radiation W/m2")
+    hour: int = Field(12, ge=0, le=23)
     intensity: str = "heavy"
-    days_on_job: int = 120
+    days_on_job: int = Field(120, ge=0, le=3650)
     acclimatized: bool = True
     experienced: bool = False
-    measured_wbgt: float | None = None
+    measured_wbgt: float | None = Field(None, ge=0, le=60)
 
 
 @app.post("/decide")
 def decide(req: DecideRequest) -> dict:
     if req.intensity not in {m.value for m in MetabolicCategory}:
         raise HTTPException(400, f"intensity must be one of {[m.value for m in MetabolicCategory]}")
-    return service.decide_one(
-        req.site_key, req.tdb, req.rh, req.wind, req.solar, req.hour, req.intensity,
-        req.days_on_job, req.acclimatized, req.experienced, req.measured_wbgt,
-    )
+    try:
+        return service.decide_one(
+            req.site_key, req.tdb, req.rh, req.wind, req.solar, req.hour, req.intensity,
+            req.days_on_job, req.acclimatized, req.experienced, req.measured_wbgt,
+        )
+    except KeyError as exc:
+        raise HTTPException(404, f"Unknown site '{req.site_key}'") from exc

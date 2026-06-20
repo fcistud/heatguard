@@ -16,7 +16,7 @@ app, and a validation **Jupyter notebook**.
 
 ```bash
 pip install -e . && pip install -r requirements.txt
-pytest -q                 # 59 tests, incl. the Nicaragua back-test
+pytest -q                 # 72 tests, incl. the Nicaragua back-test
 heatguard fetch-demo      # cache real Open-Meteo weather (committed; run once)
 scripts/run_demo.sh       # API + dashboard in one command  →  http://localhost:5173
 ```
@@ -474,7 +474,7 @@ All five share the engine via `service.py`.
 ```bash
 pip install -e .                 # the `heatguard` CLI + engine
 pip install -r requirements.txt  # interface deps
-pytest -q                        # 59 tests
+pytest -q                        # 72 tests
 heatguard fetch-demo             # cache real Open-Meteo data (committed)
 
 scripts/run_demo.sh --setup      # one command: installs deps + starts API + dashboard
@@ -489,7 +489,7 @@ src/heatguard/      the engine (17 modules) + service + cli + api
 data/locales.json           demo sites
 data/nicaragua_baseline.json · data/economics.json   tunable assumptions
 data/cache/*.json           committed Open-Meteo weather (offline demo)
-tests/                      pytest suite (59)
+tests/                      pytest suite (72)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
