@@ -1,0 +1,50 @@
+# HeatGuard — shared Conda environment (cross-platform)
+# ======================================================
+# Works with Miniforge, Miniconda, Anaconda, or Mambaforge on macOS, Linux, and Windows.
+# Python 3.11 from conda-forge (osx-arm64, osx-64, linux-64, win-64).
+#
+# SETUP (run from the repository root — the folder that contains this file)
+# -------------------------------------------------------------------------
+#   git clone <repo-url> && cd heatguard
+#   conda env create -f environment.yml
+#   conda activate heatguard
+#
+# Mamba users: replace `conda` with `mamba` (same file, faster solves).
+#
+# VERIFY
+# ------
+#   pytest -q                 # expect 59 passed
+#   heatguard sites
+#   heatguard demo dubai
+#
+# FULL DEMO (API + React dashboard — needs Node.js 18+ separately)
+# ---------------------------------------------------------------
+#   uvicorn heatguard.api:app --reload          # http://localhost:8000
+#   cd web && npm install && npm run dev        # http://localhost:5173
+#   # or: scripts/run_demo.sh
+#
+# RECREATE ENV FROM SCRATCH
+# -------------------------
+#   conda env remove -n heatguard -y
+#   conda env create -f environment.yml
+#
+# TROUBLESHOOTING
+# ---------------
+# - Run create/update from the repo root (paths below are relative to this file).
+# - Use Python 3.11 only — 3.14 is not supported by the pinned numpy/scipy stack yet.
+# - If `heatguard` is missing after activate: pip install -e .
+# - No Conda? Use a venv instead: python3.11 -m venv .venv && pip install -r requirements.txt && pip install -e .
+#
+name: heatguard
+channels:
+  - conda-forge
+channel_priority: strict
+dependencies:
+  - python=3.11
+  - pip>=24
+  - setuptools>=68
+  - wheel
+  - pip:
+      # Order: runtime/interface deps first, then editable package (registers CLI).
+      - -r requirements.txt
+      - -e .
