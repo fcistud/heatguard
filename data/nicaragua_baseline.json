@@ -1,0 +1,24 @@
+{
+  "source": "La Isla Network / Adelante Initiative, Ingenio San Antonio (ISA), Nicaragua; effect sizes per the 2024 ILO report on the Water-Rest-Shade (WRS) intervention.",
+  "intervention": "Water-Rest-Shade (WRS): mandated breaks, shade tents, and purified water with electrolytes.",
+  "outcomes": {
+    "aki_reduction": 0.94,
+    "productivity_gain_lo": 0.10,
+    "productivity_gain_hi": 0.20,
+    "note": "Acute kidney injury (AKI) reduced ~94%; productivity increased 10-20% despite reduced functional working time, so total productivity is maintained or raised."
+  },
+  "crew_reference": {
+    "workers": 100,
+    "season_days": 150,
+    "note": "Illustrative reference crew for the back-test (sugarcane harvest season)."
+  },
+  "baseline_aki_incidence_per_worker_season": 0.10,
+  "baseline_aki_note": "Per-worker-season AKI incidence without intervention. Tunable; transferred from Mesoamerican agriculture to Gulf construction with uncertainty. 0.10 is a conservative default (some sugarcane cohorts reported markedly higher acute kidney-injury markers).",
+  "cost_items_usd": [
+    {"item": "Electrolyte solution (per worker, per season)", "usd": 15, "type": "recurring"},
+    {"item": "Equipment for new workers: hat, thermos, shade-tent + water-reserve share", "usd": 45, "type": "capital"},
+    {"item": "Worker training", "usd": 10, "type": "capital"},
+    {"item": "Program staff (amortised per worker)", "usd": 25, "type": "recurring"}
+  ],
+  "cost_note": "Illustrative figures derived from the published Adelante cost-component list; mostly small one-time capital. The economic finding is that the intervention pays for itself because productivity is maintained while injury and downtime fall."
+}

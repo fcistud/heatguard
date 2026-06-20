@@ -1,0 +1,22 @@
+{
+  "note": "Illustrative, conservative, and TUNABLE assumptions for the HeatGuard business case. All USD. These exist to make the productivity + compliance economics explicit for a pitch; every figure is labelled and adjustable, and the headline ROI is shown on a conservative subset (productivity + AKI + fines + recovered safe work) that excludes the death and turnover terms.",
+  "daily_value_per_worker_usd": 30.0,
+  "daily_value_note": "Loaded value of a worker-day to the contractor (wage + overhead + output), deliberately conservative for low-wage Gulf construction labour.",
+  "work_hours_per_day": 8.0,
+
+  "aki_case_cost_usd": 1200.0,
+  "aki_case_cost_note": "Medical care + lost work + temporary replacement per acute-kidney-injury case avoided.",
+
+  "heat_death_cost_usd": 150000.0,
+  "heat_death_per_aki_case": 0.005,
+  "heat_death_note": "Compensation/settlement + investigation + reputational cost per heat death. Deaths-per-AKI-case is a conservative severity ratio. Excluded from the headline ROI; shown separately.",
+
+  "fine_per_worker_usd": 1361.0,
+  "fine_per_worker_note": "AED 5,000 (UAE midday-ban fine per worker) in USD.",
+  "fine_probability_per_season": 0.03,
+  "fine_note": "Expected per-season probability of a fine the tamper-evident compliance log helps avoid.",
+
+  "turnover_cost_per_worker_usd": 150.0,
+  "turnover_reduction": 0.10,
+  "turnover_note": "Recruitment/onboarding cost and the share reduced by better conditions. Excluded from the headline ROI; shown separately."
+}

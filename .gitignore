@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Node / web
+web/node_modules/
+web/dist/
+node_modules/
+
+# OS
+.DS_Store
+
+# NOTE: data/cache/*.json IS committed on purpose — the demo runs offline.

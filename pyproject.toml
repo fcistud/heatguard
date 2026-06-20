@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "heatguard"
+version = "0.1.0"
+description = "Adaptive WBGT-driven work-rest-hydration scheduler for outdoor labour crews in the Gulf"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pythermalcomfort==4.0.1",
+    "thermofeel>=2.2.0",
+    "numpy>=1.24",
+    "httpx>=0.24",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.110", "uvicorn[standard]>=0.27"]
+demo = ["streamlit>=1.30", "pandas>=2.0", "altair>=5.0"]
+dev = ["pytest>=7", "pytest-cov"]
+
+[project.scripts]
+heatguard = "heatguard.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+markers = ["network: tests that hit the public internet (skipped by default)"]
+addopts = "-m 'not network'"
+testpaths = ["tests"]
