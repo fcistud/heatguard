@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import date, datetime
 
-from . import calendar_ban, economics, impact
+from . import calendar_ban, economics, impact, scale
 from .compliance import ComplianceLog
 from .scheduler import live_signal, schedule
 from .sites import get_site, load_sites
@@ -184,6 +184,12 @@ def business_case(site_key: str, crew: int = 100) -> dict:
 def impact_sensitivity(site_key: str, crew: int = 100) -> list[dict]:
     hourly, days = _season_hourly(site_key)
     return impact.sensitivity(hourly, crew, days)
+
+
+def scale_projection(site_key: str, workforce: int = 5000, crew: int = 100) -> dict:
+    """Project the per-crew season impact up to a workforce (the scale / lives-saved story)."""
+    report = season_impact_report(site_key, crew)
+    return scale.project(report, workforce).to_dict()
 
 
 def compliance_for_day(site_key: str, day: date) -> ComplianceLog:

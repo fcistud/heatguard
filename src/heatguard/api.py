@@ -129,6 +129,22 @@ def sensitivity(site_key: str, crew: int = Query(100, ge=1, le=100000)) -> list[
     return service.impact_sensitivity(site_key, crew)
 
 
+@app.get("/scale/{site_key}")
+def scale(
+    site_key: str,
+    workforce: int = Query(5000, ge=1, le=50_000_000, description="workers to project the impact to"),
+) -> dict:
+    if site_key not in service.DEMOS:
+        raise HTTPException(404, f"Unknown demo '{site_key}'.")
+    from .scale import SCALE_CONTEXT, WORKFORCE_PRESETS
+
+    return {
+        "projection": service.scale_projection(site_key, workforce),
+        "presets": WORKFORCE_PRESETS,
+        "context": SCALE_CONTEXT,
+    }
+
+
 @app.get("/backtest")
 def backtest() -> dict:
     return service.backtest()

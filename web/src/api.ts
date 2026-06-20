@@ -7,6 +7,7 @@ import type {
   DemoPayload,
   HourAdvisory,
   ImpactReport,
+  ScaleResponse,
   SensitivityRow,
   SiteSummary,
   Timeline,
@@ -101,6 +102,8 @@ export const api = {
     getJSON<BusinessCase>(`/economics/${siteKey}?crew=${crew}`),
   sensitivity: (siteKey: string, crew = 100) =>
     getJSON<SensitivityRow[]>(`/sensitivity/${siteKey}?crew=${crew}`),
+  scale: (siteKey: string, workforce = 5000) =>
+    getJSON<ScaleResponse>(`/scale/${siteKey}?workforce=${workforce}`),
   backtest: () => getJSON<Backtest>("/backtest"),
   decide: (req: DecideRequest) =>
     getJSON<DecideResponse>("/decide", {

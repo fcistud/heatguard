@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HeatGuard — Adaptive heat-safety scheduling for outdoor crews</title>
+<meta name="description" content="HeatGuard replaces the Gulf's blunt midday work ban with a condition-responsive, WBGT-driven, standards-based work-rest-hydration scheduler. Provable lives saved, kidney injuries averted, and positive ROI." />
+<meta property="og:title" content="HeatGuard — Adaptive heat-safety scheduling" />
+<meta property="og:description" content="A condition-responsive, provable replacement for the Gulf's blunt midday work ban." />
+<meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Base — deep slate / charcoal */
+    --bg:        #0b1016;
+    --bg-2:      #0f1620;
+    --panel:     #141d29;
+    --panel-2:   #18222f;
+    --border:    #25323f;
+    --ink:       #eef3f8;
+    --ink-soft:  #aebccb;
+    --ink-dim:   #7d8da0;
+
+    /* Heat accents */
+    --heat-red:    #dc2626;
+    --heat-orange: #ff7a18;
+    --heat-amber:  #f59e0b;
+    --heat-glow:   #ff5a1f;
+
+    /* Deck palette nods */
+    --blue: #4285F4;
+    --orange: #FFAB40;
+    --teal: #0097A7;
+
+    /* Signal colors */
+    --sig-work:  #16a34a;
+    --sig-rest:  #f59e0b;
+    --sig-drink: #0ea5e9;
+    --sig-stop:  #dc2626;
+
+    --maxw: 1140px;
+    --radius: 16px;
+    --shadow: 0 24px 60px -20px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, .display { font-family: "Space Grotesk", "Inter", system-ui, sans-serif; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    font-size: .72rem;
+    font-weight: 700;
+    color: var(--heat-amber);
+    margin: 0 0 14px;
+  }
+  .section-title {
+    font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+    line-height: 1.15;
+    margin: 0 0 16px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .lede { font-size: 1.12rem; color: var(--ink-soft); max-width: 70ch; }
+
+  section { padding: 86px 0; position: relative; }
+  .divider { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0; }
+
+  /* ---------- Top nav ---------- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11,16,22,.78);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-family: "Space Grotesk", sans-serif; font-size: 1.15rem; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: radial-gradient(circle at 32% 28%, #ffd27a, var(--heat-orange) 45%, var(--heat-red) 92%);
+    box-shadow: 0 0 22px -2px var(--heat-glow);
+    display: grid; place-items: center; font-size: 1.05rem;
+  }
+  .brand b { color: var(--heat-orange); }
+  .nav-links { display: flex; align-items: center; gap: 26px; font-size: .92rem; font-weight: 500; }
+  .nav-links a { color: var(--ink-soft); text-decoration: none; transition: color .2s; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    background: var(--heat-orange); color: #1a0d00 !important; font-weight: 700;
+    padding: 9px 16px; border-radius: 10px; box-shadow: 0 0 0 1px rgba(255,122,24,.35);
+  }
+  @media (max-width: 760px) { .nav-links a:not(.nav-cta) { display: none; } }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    padding: 96px 0 70px;
+    overflow: hidden;
+    background:
+      radial-gradient(1100px 520px at 78% -8%, rgba(255,90,31,.30), transparent 60%),
+      radial-gradient(900px 480px at 8% 8%, rgba(220,38,38,.18), transparent 58%),
+      linear-gradient(180deg, var(--bg-2), var(--bg));
+  }
+  .heat-haze {
+    position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background: repeating-linear-gradient(115deg, rgba(255,171,64,.05) 0 2px, transparent 2px 22px);
+    mask-image: radial-gradient(60% 70% at 70% 0%, #000, transparent 75%);
+  }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 52px; align-items: center; }
+  @media (max-width: 920px) { .hero-grid { grid-template-columns: 1fr; gap: 36px; } }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 4.3rem);
+    line-height: 1.02; letter-spacing: -.02em; margin: 14px 0 18px; font-weight: 700;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(100deg, #ffd27a, var(--heat-orange) 42%, var(--heat-red));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.tag { font-size: 1.18rem; color: var(--ink-soft); max-width: 56ch; margin: 0 0 30px; }
+  .hero-badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; }
+  .pill {
+    font-size: .76rem; font-weight: 600; letter-spacing: .02em;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--ink-soft);
+  }
+  .pill .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  .cta-row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 1rem;
+    text-decoration: none; transition: transform .15s ease, box-shadow .2s ease; cursor: pointer;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary {
+    background: linear-gradient(100deg, var(--heat-orange), var(--heat-red));
+    color: #fff; box-shadow: 0 14px 34px -10px rgba(255,90,31,.65);
+  }
+  .btn-ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--heat-orange); }
+
+  /* Signal demo card in hero */
+  .signal-demo {
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 22px; position: relative;
+  }
+  .signal-demo .sd-head { display: flex; justify-content: space-between; align-items: center; color: var(--ink-dim); font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; margin-bottom: 16px; }
+  .signal-big {
+    border-radius: 12px; padding: 22px 22px 18px; color: #fff;
+    background: linear-gradient(135deg, var(--sig-work), #0f7a37);
+    transition: background .6s ease;
+  }
+  .signal-big.work  { background: linear-gradient(135deg, #1fae5a, #0f7a37); }
+  .signal-big.rest  { background: linear-gradient(135deg, #fbb236, #c9760a); }
+  .signal-big.drink { background: linear-gradient(135deg, #29b6f6, #0277bd); }
+  .signal-big.stop  { background: linear-gradient(135deg, #ef4444, #991b1b); }
+  .signal-big .lbl { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; opacity: .85; font-weight: 700; }
+  .signal-big .word { font-family: "Space Grotesk", sans-serif; font-size: 2.6rem; font-weight: 700; line-height: 1; margin: 6px 0 14px; }
+  .signal-big .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .signal-big .cell { background: rgba(255,255,255,.16); border-radius: 8px; padding: 8px 10px; }
+  .signal-big .cell small { display: block; font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+  .signal-big .cell span { font-weight: 700; font-size: .95rem; }
+  .sd-foot { display: flex; gap: 7px; margin-top: 14px; flex-wrap: wrap; }
+  .sd-chip { font-size: .68rem; font-weight: 700; letter-spacing: .04em; padding: 5px 9px; border-radius: 7px; color: #06121d; }
+  .sd-chip.work  { background: var(--sig-work); color: #eafff1; }
+  .sd-chip.rest  { background: var(--sig-rest); color: #2b1a00; }
+  .sd-chip.drink { background: var(--sig-drink); color: #04222e; }
+  .sd-chip.stop  { background: var(--sig-stop); color: #fff; }
+
+  /* ---------- Marquee stat strip ---------- */
+  .strip {
+    background: linear-gradient(180deg, #1a0b06, #120a0a);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    padding: 30px 0;
+  }
+  .strip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; text-align: center; }
+  @media (max-width: 760px) { .strip-grid { grid-template-columns: 1fr 1fr; gap: 28px 16px; } }
+  .strip .num { font-family: "Space Grotesk", sans-serif; font-size: clamp(1.7rem, 4vw, 2.5rem); font-weight: 700; color: var(--heat-orange); line-height: 1; }
+  .strip .num.red { color: var(--heat-red); }
+  .strip .lab { font-size: .82rem; color: var(--ink-soft); margin-top: 8px; }
+
+  /* ---------- Danger section ---------- */
+  .danger { background: linear-gradient(180deg, var(--bg), #130b0b 70%, var(--bg)); }
+  .danger-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+  @media (max-width: 900px) { .danger-cards { grid-template-columns: 1fr; } }
+  .dcard {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px; position: relative; overflow: hidden;
+  }
+  .dcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--heat-red); }
+  .dcard .big { font-family: "Space Grotesk", sans-serif; font-size: 2.4rem; font-weight: 700; color: #fff; line-height: 1; }
+  .dcard .unit { color: var(--heat-amber); font-size: 1.1rem; font-weight: 600; }
+  .dcard h3 { margin: 8px 0 8px; font-size: 1.04rem; }
+  .dcard p { margin: 0; color: var(--ink-soft); font-size: .94rem; }
+
+  /* Ban-fails callout */
+  .ban-fail {
+    margin-top: 42px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+  }
+  @media (max-width: 760px) { .ban-fail { grid-template-columns: 1fr; } }
+  .ban-fail > div { padding: 26px 28px; }
+  .ban-fail .miss { background: linear-gradient(180deg, rgba(220,38,38,.12), transparent); border-right: 1px solid var(--border); }
+  .ban-fail .over { background: linear-gradient(180deg, rgba(245,158,11,.10), transparent); }
+  @media (max-width: 760px) { .ban-fail .miss { border-right: 0; border-bottom: 1px solid var(--border); } }
+  .ban-fail h4 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 9px; }
+  .ban-fail h4 .tagx { font-size: .62rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; letter-spacing: .05em; }
+  .tag-miss { background: var(--heat-red); color: #fff; }
+  .tag-over { background: var(--heat-amber); color: #2b1a00; }
+  .ban-fail ul { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: .94rem; }
+  .ban-fail li { margin-bottom: 7px; }
+
+  /* ---------- Solution ---------- */
+  .sol-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 42px; }
+  @media (max-width: 900px) { .sol-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 540px) { .sol-grid { grid-template-columns: 1fr; } }
+  .scard { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+  .scard .ic { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; font-size: 1.3rem; margin-bottom: 14px; background: rgba(255,122,24,.13); border: 1px solid rgba(255,122,24,.3); }
+  .scard h3 { margin: 0 0 7px; font-size: 1.06rem; }
+  .scard p { margin: 0; color: var(--ink-soft); font-size: .92rem; }
+  .scard .step-n { font-size: .7rem; font-weight: 800; letter-spacing: .14em; color: var(--heat-amber); text-transform: uppercase; }
+
+  /* ---------- Screenshot showcase ---------- */
+  .shot {
+    margin-top: 40px; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    background: var(--panel);
+  }
+  .shot img { width: 100%; }
+  .shot .cap { padding: 14px 20px; font-size: .88rem; color: var(--ink-soft); border-top: 1px solid var(--border); background: var(--panel-2); }
+  .shot .cap b { color: var(--ink); }
+  .shot-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 40px; }
+  @media (max-width: 820px) { .shot-2 { grid-template-columns: 1fr; } }
+  .shot-2 .shot { margin-top: 0; }
+
+  /* ---------- Impact (the emotional centerpiece) ---------- */
+  .impact { background: radial-gradient(900px 500px at 50% -10%, rgba(255,90,31,.16), transparent 60%), var(--bg-2); }
+  .hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 44px; }
+  @media (max-width: 760px) { .hero-stats { grid-template-columns: 1fr; } }
+  .hstat {
+    border-radius: 20px; padding: 38px 34px; position: relative; overflow: hidden;
+    border: 1px solid var(--border);
+    background: linear-gradient(160deg, var(--panel), #1a131a);
+  }
+  .hstat.lives { background: linear-gradient(160deg, #1d0f12, #160d10); border-color: rgba(220,38,38,.4); }
+  .hstat.aki   { background: linear-gradient(160deg, #1a130c, #15110b); border-color: rgba(245,158,11,.4); }
+  .hstat .glow { position: absolute; width: 220px; height: 220px; border-radius: 50%; filter: blur(70px); opacity: .5; right: -40px; top: -60px; }
+  .hstat.lives .glow { background: var(--heat-red); }
+  .hstat.aki .glow { background: var(--heat-amber); }
+  .hstat .k { position: relative; font-size: .76rem; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: var(--ink-soft); }
+  .hstat .v { position: relative; font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: clamp(3.2rem, 8vw, 5rem); line-height: .95; margin: 8px 0 6px; }
+  .hstat.lives .v { color: #ff6b6b; }
+  .hstat.aki .v { color: var(--heat-amber); }
+  .hstat .sub { position: relative; color: var(--ink-soft); font-size: .98rem; }
+
+  .scale-tabs { display: flex; gap: 8px; margin: 40px 0 22px; flex-wrap: wrap; }
+  .scale-tab {
+    border: 1px solid var(--border); background: var(--panel); color: var(--ink-soft);
+    padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: .9rem; cursor: pointer;
+    transition: all .18s ease; font-family: inherit;
+  }
+  .scale-tab[aria-selected="true"] { background: linear-gradient(100deg, var(--heat-orange), var(--heat-red)); color: #fff; border-color: transparent; }
+  .scale-tab:hover { color: var(--ink); }
+
+  .scale-panel { display: none; }
+  .scale-panel.active { display: block; }
+  .scale-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 820px) { .scale-grid { grid-template-columns: 1fr 1fr; } }
+  .mini {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+  }
+  .mini .mv { font-family: "Space Grotesk", sans-serif; font-size: 1.9rem; font-weight: 700; line-height: 1; }
+  .mini.lives .mv { color: #ff6b6b; }
+  .mini.aki .mv { color: var(--heat-amber); }
+  .mini.hrs .mv { color: var(--heat-orange); }
+  .mini.val .mv { color: var(--teal); }
+  .mini .ml { color: var(--ink-soft); font-size: .82rem; margin-top: 7px; }
+
+  .crew100 { margin-top: 40px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px; }
+  .crew100 h3 { margin: 0 0 4px; font-size: 1.25rem; }
+  .crew100 .sub { color: var(--ink-soft); font-size: .9rem; margin-bottom: 22px; }
+  .crew-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  @media (max-width: 820px) { .crew-grid { grid-template-columns: 1fr 1fr; } }
+  .cg { text-align: left; }
+  .cg .v { font-family: "Space Grotesk", sans-serif; font-size: 1.7rem; font-weight: 700; color: var(--heat-orange); }
+  .cg .l { color: var(--ink-soft); font-size: .8rem; margin-top: 4px; }
+
+  .illus-note { font-size: .8rem; color: var(--ink-dim); margin-top: 18px; font-style: italic; }
+
+  /* ---------- ROI ---------- */
+  .roi-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
+  @media (max-width: 880px) { .roi-grid { grid-template-columns: 1fr; } }
+  .roi-num { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: clamp(3rem, 9vw, 5.4rem); line-height: .9; background: linear-gradient(100deg, var(--heat-amber), var(--heat-orange), var(--heat-red)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .roi-bullets { list-style: none; padding: 0; margin: 24px 0 0; }
+  .roi-bullets li { display: flex; gap: 12px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .roi-bullets li:last-child { border-bottom: 0; }
+  .roi-bullets .b { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 1.25rem; color: var(--heat-orange); min-width: 110px; }
+  .roi-bullets .t { color: var(--ink-soft); }
+
+  /* ---------- Credibility ---------- */
+  .cred-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+  @media (max-width: 900px) { .cred-grid { grid-template-columns: 1fr; } }
+  .ccard { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+  .ccard h3 { margin: 0 0 10px; font-size: 1.05rem; display: flex; align-items: center; gap: 9px; }
+  .ccard p { margin: 0; color: var(--ink-soft); font-size: .92rem; }
+  .ccard .chk { color: var(--sig-work); }
+  .std-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+  .std { font-size: .8rem; font-weight: 600; padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--ink-soft); }
+  .honest { margin-top: 32px; background: var(--panel-2); border: 1px dashed var(--border); border-radius: var(--radius); padding: 22px 26px; }
+  .honest h4 { margin: 0 0 8px; font-size: .98rem; color: var(--heat-amber); }
+  .honest p { margin: 0; color: var(--ink-soft); font-size: .9rem; }
+
+  /* ---------- How it works pipeline ---------- */
+  .pipe { display: flex; align-items: stretch; gap: 0; margin-top: 40px; flex-wrap: wrap; }
+  .pstep {
+    flex: 1 1 0; min-width: 150px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 20px 18px; position: relative;
+  }
+  .pstep:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .pstep:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  @media (max-width: 820px) { .pstep { flex-basis: 47%; border-radius: 12px !important; } }
+  .pstep .n { font-size: .68rem; font-weight: 800; letter-spacing: .12em; color: var(--heat-amber); }
+  .pstep h4 { margin: 8px 0 5px; font-size: .98rem; }
+  .pstep p { margin: 0; color: var(--ink-soft); font-size: .82rem; }
+  .pstep .arr { position: absolute; right: -11px; top: 50%; transform: translateY(-50%); z-index: 2; color: var(--heat-orange); font-size: 1.2rem; }
+  @media (max-width: 820px) { .pstep .arr { display: none; } }
+  .stack-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+  .stack { font-size: .82rem; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: rgba(66,133,244,.12); border: 1px solid rgba(66,133,244,.3); color: #9cc0ff; }
+
+  /* ---------- Final CTA ---------- */
+  .final {
+    text-align: center;
+    background: radial-gradient(700px 400px at 50% 0%, rgba(255,90,31,.25), transparent 65%), var(--bg-2);
+    border-top: 1px solid var(--border);
+  }
+  .final h2 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 0 0 16px; }
+  .final p { color: var(--ink-soft); font-size: 1.1rem; max-width: 60ch; margin: 0 auto 30px; }
+  .final .cta-row { justify-content: center; }
+
+  /* ---------- Footer ---------- */
+  footer { padding: 44px 0; border-top: 1px solid var(--border); background: var(--bg); }
+  .foot-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+  footer .note { color: var(--ink-dim); font-size: .86rem; }
+  footer a { color: var(--heat-orange); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  .disclaimer { margin-top: 14px; color: var(--ink-dim); font-size: .8rem; }
+
+  .count { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<!-- ===================== NAV ===================== -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <div class="brand"><span class="logo">🌡️</span> Heat<b>Guard</b></div>
+    <nav class="nav-links">
+      <a href="#danger">The danger</a>
+      <a href="#solution">Solution</a>
+      <a href="#impact">Impact</a>
+      <a href="#credible">Why it's credible</a>
+      <a class="nav-cta" href="http://localhost:5173">Live dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero" style="padding-top:96px;">
+  <div class="heat-haze"></div>
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">Adaptive occupational heat safety</p>
+      <h1>The midday ban is a <span class="grad">calendar</span>. Heat is not.</h1>
+      <p class="tag">HeatGuard is adaptive heat-safety scheduling that replaces the Gulf's blunt midday work ban with a condition-responsive, provable system.</p>
+      <div class="hero-badges">
+        <span class="pill"><span class="dot" style="background:var(--sig-work)"></span>WORK</span>
+        <span class="pill"><span class="dot" style="background:var(--sig-rest)"></span>REST IN SHADE</span>
+        <span class="pill"><span class="dot" style="background:var(--sig-drink)"></span>DRINK NOW</span>
+        <span class="pill"><span class="dot" style="background:var(--sig-stop)"></span>STOP</span>
+      </div>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="http://localhost:5173">▶ Live dashboard</a>
+        <a class="btn btn-ghost" href="https://github.com/fcistud/heatguard">★ GitHub</a>
+      </div>
+    </div>
+
+    <!-- live-ish signal card -->
+    <div class="signal-demo">
+      <div class="sd-head"><span>Live signal · Dubai · 08:00</span><span>WBGT 26.4 °C</span></div>
+      <div class="signal-big work" id="signalBig">
+        <div class="lbl" id="sigLbl">Acclimatized worker · moderate</div>
+        <div class="word" id="sigWord">WORK</div>
+        <div class="row3">
+          <div class="cell"><small>Work / Rest</small><span id="sigCycle">60 min · 0 min</span></div>
+          <div class="cell"><small>Hydration</small><span id="sigHyd">2.0 cups / h</span></div>
+          <div class="cell"><small>Max continuous</small><span id="sigMax">364 min</span></div>
+        </div>
+      </div>
+      <div class="sd-foot">
+        <span class="sd-chip work">WORK</span>
+        <span class="sd-chip rest">REST IN SHADE</span>
+        <span class="sd-chip drink">DRINK NOW</span>
+        <span class="sd-chip stop">STOP</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SCALE STRIP ===================== -->
+<div class="strip">
+  <div class="wrap strip-grid">
+    <div>
+      <div class="num count" data-target="24" data-suffix="M">0</div>
+      <div class="lab">migrant workers in the Arab States — 41.4%, the highest share of any world region</div>
+    </div>
+    <div>
+      <div class="num red">50&nbsp;°C+</div>
+      <div class="lab">Gulf summers, with WBGT routinely past the limits of human thermoregulation</div>
+    </div>
+    <div>
+      <div class="num red count" data-target="10000" data-suffix="">0</div>
+      <div class="lab">migrant deaths per year (all-cause); &gt;50% certified with no underlying cause</div>
+    </div>
+    <div>
+      <div class="num">1 of 19</div>
+      <div class="lab">migrant-worker heat studies worldwide came from the Gulf — a near-total evidence void</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== THE DANGER ===================== -->
+<section class="danger" id="danger">
+  <div class="wrap">
+    <p class="eyebrow">The danger &amp; the scale</p>
+    <h2 class="section-title">A heat crisis hidden behind a blunt clock</h2>
+    <p class="lede">Millions of people do heavy outdoor labour where the heat now exceeds what a human body can shed. The only widespread control is a fixed calendar ban — and it is wrong in both directions.</p>
+
+    <div class="danger-cards">
+      <div class="dcard">
+        <div class="big">24<span class="unit">M</span></div>
+        <h3>Workers in harm's way</h3>
+        <p>Migrant workers across the Arab States — the highest migrant-worker share of any region on Earth (41.4%).</p>
+      </div>
+      <div class="dcard">
+        <div class="big">~10,000<span class="unit">/yr</span></div>
+        <h3>Deaths, cause hidden</h3>
+        <p>All-cause migrant deaths per year. Over half are certified with no underlying cause — so heat-attributable mortality stays invisible.</p>
+      </div>
+      <div class="dcard">
+        <div class="big">1<span class="unit">&nbsp;of 19</span></div>
+        <h3>An evidence void</h3>
+        <p>Only one of nineteen migrant-worker heat studies worldwide came from the Gulf. The danger is unmeasured where it's worst.</p>
+      </div>
+    </div>
+
+    <div class="ban-fail">
+      <div class="miss">
+        <h4><span class="tagx tag-miss">TOO PERMISSIVE</span> It misses real danger</h4>
+        <ul>
+          <li>Starts too late — extreme heat now arrives in <b>May</b>, before any ban is in force.</li>
+          <li>Misses humid mornings &amp; evenings outside the noon window — WBGT can be lethal at 9 a.m.</li>
+          <li>Ignores the worker — an unacclimatized newcomer gets the same protection as a veteran.</li>
+        </ul>
+      </div>
+      <div class="over">
+        <h4><span class="tagx tag-over">TOO RESTRICTIVE</span> It stops safe work</h4>
+        <ul>
+          <li>A cool, breezy noon is banned even when conditions are genuinely workable.</li>
+          <li>It needlessly destroys safe, productive hours — which is why employers resent and evade it.</li>
+          <li>A fixed rule can't be both safe and efficient: the risk isn't fixed (e.g. Saudi 12:00–15:00, 15 Jun–15 Sep).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ===================== THE SOLUTION ===================== -->
+<section id="solution">
+  <div class="wrap">
+    <p class="eyebrow">The solution</p>
+    <h2 class="section-title">Sense the conditions. Schedule the work. Prove it happened.</h2>
+    <p class="lede">A site-level, WBGT-driven work–rest–hydration scheduler for the supervisor — not a wearable. One sensor per site, near-zero cost per worker, riding on infrastructure crews already have.</p>
+
+    <div class="sol-grid">
+      <div class="scard">
+        <div class="ic">🌡️</div>
+        <div class="step-n">01 · Sense</div>
+        <h3>Read the real heat</h3>
+        <p>Estimate WBGT from weather, or take one on-site reading from a ~$300 meter — per ISO 7243.</p>
+      </div>
+      <div class="scard">
+        <div class="ic">📋</div>
+        <div class="step-n">02 · Schedule</div>
+        <h3>The actual cycle</h3>
+        <p>Outputs the real ACGIH/ISO 7243 work-rest cycle + ISO 7933 hydration target for these conditions and this job.</p>
+      </div>
+      <div class="scard">
+        <div class="ic">📣</div>
+        <div class="step-n">03 · Signal</div>
+        <h3>One clear order</h3>
+        <p>Broadcasts a single signal everyone understands: <b>WORK · REST IN SHADE · DRINK NOW · STOP</b>. Plus a NIOSH ramp for new arrivals.</p>
+      </div>
+      <div class="scard">
+        <div class="ic">🔒</div>
+        <div class="step-n">04 · Verify</div>
+        <h3>Provable record</h3>
+        <p>Logs every decision to a tamper-evident, hash-chained, privacy-by-design worker-protection record — a compliance shield.</p>
+      </div>
+    </div>
+
+    <!-- centerpiece screenshot -->
+    <div class="shot">
+      <img src="img/03_timeline.png" alt="HeatGuard timeline: the fixed calendar ban (grey) versus HeatGuard's hour-by-hour adaptive signal (green WORK, amber REST, red STOP), showing the gap hours the ban missed." loading="lazy" />
+      <div class="cap"><b>Calendar ban vs HeatGuard.</b> The grey ban window is blind to conditions; HeatGuard's coloured row schedules each hour to the real WBGT and the worker — catching the danger hours the ban misses.</div>
+    </div>
+
+    <div class="shot-2">
+      <div class="shot">
+        <img src="img/02_top.png" alt="HeatGuard dashboard: a green WORK signal tile with work/rest cycle and hydration, beside a WBGT gauge reading 26.4 with air temperature and humidity." loading="lazy" />
+        <div class="cap"><b>The live signal + WBGT gauge.</b> Dubai, May 2025 — extreme heat arrived before the calendar ban even started.</div>
+      </div>
+      <div class="shot">
+        <img src="img/10_measured.png" alt="HeatGuard dashboard with the Estimated to Measured toggle, showing an on-site meter reading driving the same engine." loading="lazy" />
+        <div class="cap"><b>Estimated ⟷ Measured.</b> Swap in a real on-site meter reading and watch the same engine recompute the signal — the approximation is never hidden.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ===================== IMPACT ===================== -->
+<section class="impact" id="impact">
+  <div class="wrap">
+    <p class="eyebrow">Impact</p>
+    <h2 class="section-title">The headline isn't dollars. It's people.</h2>
+    <p class="lede">Modelled on a real intervention (La Isla / Adelante, Nicaragua): acute kidney injury down ~94%, productivity up 10–20%. Below: a regional slice of the Dubai season — <em>illustrative, conservative</em>.</p>
+
+    <div class="hero-stats">
+      <div class="hstat lives">
+        <div class="glow"></div>
+        <div class="k">Lives saved (regional slice)</div>
+        <div class="v count" data-target="1900" data-prefix="~" data-suffix="">~0</div>
+        <div class="sub">across a 5,000,000-worker regional slice for one Dubai season — illustrative / conservative.</div>
+      </div>
+      <div class="hstat aki">
+        <div class="glow"></div>
+        <div class="k">Kidney-injury (AKI) cases averted</div>
+        <div class="v count" data-target="383500" data-prefix="~" data-suffix="">~0</div>
+        <div class="sub">acute kidney injuries prevented across the same regional slice — the disease this hidden epidemic is built on.</div>
+      </div>
+    </div>
+
+    <!-- per-crew: the verifiable unit -->
+    <div class="crew100">
+      <h3>Per 100-worker crew · one Dubai season</h3>
+      <div class="sub">The verifiable unit the whole model scales from.</div>
+      <div class="crew-grid">
+        <div class="cg"><div class="v count" data-target="1237" data-suffix="">0</div><div class="l">danger-hours the ban missed</div></div>
+        <div class="cg"><div class="v">7.7</div><div class="l">AKI cases averted vs ban</div></div>
+        <div class="cg"><div class="v">3.3–5.3×</div><div class="l">return on investment</div></div>
+        <div class="cg"><div class="v count" data-target="41" data-suffix="">0</div><div class="l">day payback</div></div>
+        <div class="cg"><div class="v">+10–20%</div><div class="l">productivity maintained / raised</div></div>
+      </div>
+    </div>
+
+    <!-- impact screenshot -->
+    <div class="shot">
+      <img src="img/04_impact.png" alt="HeatGuard season impact and ROI panel: danger-hours protected, AKI cases averted, and the business case with an AKI sensitivity range." loading="lazy" />
+      <div class="cap"><b>Season impact &amp; the business case</b>, computed from real Open-Meteo weather — with the uncertain baseline shown as a sensitivity range, not a single point.</div>
+    </div>
+
+    <!-- impact at scale tabs -->
+    <h3 style="margin:54px 0 0; font-size:1.4rem;">Impact at scale <span style="color:var(--ink-dim); font-size:.9rem; font-weight:400;">(Dubai season, illustrative / conservative)</span></h3>
+    <div class="scale-tabs" role="tablist" aria-label="Impact at scale">
+      <button class="scale-tab" role="tab" aria-selected="true" data-scale="0">Large contractor · 5,000</button>
+      <button class="scale-tab" role="tab" aria-selected="false" data-scale="1">Gulf megaproject · 100,000</button>
+      <button class="scale-tab" role="tab" aria-selected="false" data-scale="2">Regional slice · 5,000,000</button>
+    </div>
+
+    <div class="scale-panel active" data-panel="0">
+      <div class="scale-grid">
+        <div class="mini lives"><div class="mv">~2</div><div class="ml">lives saved</div></div>
+        <div class="mini aki"><div class="mv">384</div><div class="ml">AKI cases averted</div></div>
+        <div class="mini hrs"><div class="mv">6.2M</div><div class="ml">danger-hours protected</div></div>
+        <div class="mini val"><div class="mv">$1.6–2.5M</div><div class="ml">value created</div></div>
+      </div>
+    </div>
+    <div class="scale-panel" data-panel="1">
+      <div class="scale-grid">
+        <div class="mini lives"><div class="mv">~38</div><div class="ml">lives saved</div></div>
+        <div class="mini aki"><div class="mv">7,670</div><div class="ml">AKI cases averted</div></div>
+        <div class="mini hrs"><div class="mv">124M</div><div class="ml">danger-hours protected</div></div>
+        <div class="mini val"><div class="mv">$32–50M</div><div class="ml">value created</div></div>
+      </div>
+    </div>
+    <div class="scale-panel" data-panel="2">
+      <div class="scale-grid">
+        <div class="mini lives"><div class="mv">~1,900</div><div class="ml">lives saved</div></div>
+        <div class="mini aki"><div class="mv">~383,500</div><div class="ml">AKI cases averted</div></div>
+        <div class="mini hrs"><div class="mv">—</div><div class="ml">danger-hours protected</div></div>
+        <div class="mini val"><div class="mv">$1.6–2.5B</div><div class="ml">value created</div></div>
+      </div>
+    </div>
+    <p class="illus-note">Scale figures are illustrative and conservative, extrapolated from the per-crew model on real weather. The per-100-crew unit and the Nicaragua back-test are the verifiable backbone.</p>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ===================== ROI ===================== -->
+<section>
+  <div class="wrap roi-grid">
+    <div>
+      <p class="eyebrow">The business case</p>
+      <h2 class="section-title">Not a safety cost. A productivity gain with a 6-week payback.</h2>
+      <p class="lede">The headline benefit deliberately <b>excludes</b> the lives-saved and turnover terms, so it can't be accused of inflation — and it still pays for itself fast, plus a compliance shield against fines.</p>
+      <div class="std-row" style="margin-top:26px;">
+        <span class="std">Productivity value</span>
+        <span class="std">Recovered safe work</span>
+        <span class="std">AKI value</span>
+        <span class="std">Fines avoided</span>
+      </div>
+    </div>
+    <div>
+      <div class="roi-num">3.3–5.3×</div>
+      <ul class="roi-bullets">
+        <li><span class="b">~41 days</span><span class="t">payback on a Dubai crew of 100</span></li>
+        <li><span class="b">~$95</span><span class="t">program cost per worker, per season</span></li>
+        <li><span class="b">+10–20%</span><span class="t">productivity maintained or raised, despite breaks</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ===================== NEWCOMER DANGER ===================== -->
+<section style="background:var(--bg-2);">
+  <div class="wrap roi-grid">
+    <div>
+      <p class="eyebrow">The deadliest group</p>
+      <h2 class="section-title">Newcomers die first. HeatGuard ramps them in safely.</h2>
+      <p class="lede">A newly-arrived, unacclimatized worker is the group that actually dies — and the cheapest to protect, because it is pure scheduling. HeatGuard applies the NIOSH graded re-entry ramp and screens against the stricter Action-Limit table while a new worker acclimatizes, then relaxes as they adapt.</p>
+    </div>
+    <div class="shot" style="margin-top:0;">
+      <img src="img/09_riyadh_newcomer.png" alt="HeatGuard with a new-worker (day 0) selected: the acclimatization tracker caps the work cycle and the timeline tightens to protect the unacclimatized newcomer." loading="lazy" />
+      <div class="cap"><b>New worker, day 0.</b> The acclimatization tracker caps exposure and the schedule tightens — protection the calendar ban can't give an individual.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ===================== WHY CREDIBLE ===================== -->
+<section id="credible">
+  <div class="wrap">
+    <p class="eyebrow">Why it's credible</p>
+    <h2 class="section-title">Standards-based, back-tested, and honest about its limits.</h2>
+    <div class="cred-grid">
+      <div class="ccard">
+        <h3><span class="chk">✓</span> Built on published standards</h3>
+        <p>ISO 7243, ISO 7933, ACGIH and NIOSH — WBGT via the validated Liljegren model. Nothing invented; the science is the cheap, proven part.</p>
+      </div>
+      <div class="ccard">
+        <h3><span class="chk">✓</span> Reproduces a real intervention</h3>
+        <p>The impact model reproduces the La Isla / Adelante (Nicaragua) outcome — AKI −94%, productivity +10–20% — as a back-test that fails loudly if anyone changes an effect size.</p>
+      </div>
+      <div class="ccard">
+        <h3><span class="chk">✓</span> Tested &amp; green CI</h3>
+        <p>79 automated tests with green continuous integration cover the table values, WBGT sanity, the scheduler logic, the hash chain, and the economics.</p>
+      </div>
+    </div>
+
+    <div class="std-row">
+      <span class="std">ISO 7243</span>
+      <span class="std">ISO 7933 PHS</span>
+      <span class="std">ACGIH TLV / Action Limit</span>
+      <span class="std">NIOSH ramp</span>
+      <span class="std">Liljegren WBGT</span>
+      <span class="std">79 tests · green CI</span>
+    </div>
+
+    <div class="honest">
+      <h4>Honest about limits</h4>
+      <p>WBGT estimate vs on-site meter; effect-size transfer from Nicaragua agriculture to Gulf construction carries uncertainty; the cost/value assumptions are illustrative and deliberately conservative. The genuinely hard problem is adoption — which is why HeatGuard leads with productivity and the compliance shield.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ===================== HOW IT WORKS ===================== -->
+<section style="background:var(--bg-2);">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2 class="section-title">One deterministic engine, five interfaces.</h2>
+    <p class="lede">Weather in, a provable schedule out — computed in exactly one place.</p>
+
+    <div class="pipe">
+      <div class="pstep">
+        <div class="n">INPUT</div>
+        <h4>Open-Meteo weather</h4>
+        <p>Free historical archive + forecast; cached for an offline demo.</p>
+        <span class="arr">→</span>
+      </div>
+      <div class="pstep">
+        <div class="n">SENSE</div>
+        <h4>Liljegren WBGT</h4>
+        <p>Validated outdoor heat-stress index, with a Stull night fallback.</p>
+        <span class="arr">→</span>
+      </div>
+      <div class="pstep">
+        <div class="n">SCHEDULE</div>
+        <h4>ACGIH + ISO 7933</h4>
+        <p>Work-rest cycle + PHS hydration target for these conditions.</p>
+        <span class="arr">→</span>
+      </div>
+      <div class="pstep">
+        <div class="n">OUTPUT</div>
+        <h4>Signal + hashed log</h4>
+        <p>One broadcast signal and a hash-chained, tamper-evident record.</p>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <span class="stack">Python engine</span>
+      <span class="stack">FastAPI</span>
+      <span class="stack">React</span>
+      <span class="stack">Streamlit</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FINAL CTA ===================== -->
+<section class="final">
+  <div class="wrap">
+    <h2>Stop scheduling heat safety by the calendar.</h2>
+    <p>See the live dashboard run real Gulf weather through the engine — the signal, the timeline, the impact, and the ROI.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="http://localhost:5173">▶ Open the live dashboard</a>
+      <a class="btn btn-ghost" href="https://github.com/fcistud/heatguard">★ View on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer>
+  <div class="wrap">
+    <div class="foot-inner">
+      <div class="brand"><span class="logo">🌡️</span> Heat<b>Guard</b></div>
+      <div class="note">
+        <a href="https://github.com/fcistud/heatguard">github.com/fcistud/heatguard</a> · MIT-licensed
+      </div>
+    </div>
+    <p class="disclaimer">A prototype, not certified safety equipment. The engine is standards-based and unit-tested; scale figures are illustrative and conservative.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---- Count-up animation (runs when a stat scrolls into view) ---- */
+  function formatNum(n) {
+    return Math.round(n).toLocaleString("en-US");
+  }
+  function animate(el) {
+    var target = parseFloat(el.getAttribute("data-target")) || 0;
+    var prefix = el.getAttribute("data-prefix") || "";
+    var suffix = el.getAttribute("data-suffix");
+    if (suffix === null) suffix = "";
+    var dur = 1500, start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      var p = Math.min((ts - start) / dur, 1);
+      // easeOutCubic
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = prefix + formatNum(target * eased) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = prefix + formatNum(target) + suffix;
+    }
+    requestAnimationFrame(step);
+  }
+
+  var counts = Array.prototype.slice.call(document.querySelectorAll(".count"));
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { animate(e.target); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.4 });
+    counts.forEach(function (el) { io.observe(el); });
+  } else {
+    // graceful fallback: just show final numbers
+    counts.forEach(animate);
+  }
+
+  /* ---- Impact-at-scale tabs ---- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".scale-tab"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".scale-panel"));
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var idx = tab.getAttribute("data-scale");
+      tabs.forEach(function (t) { t.setAttribute("aria-selected", t === tab ? "true" : "false"); });
+      panels.forEach(function (p) {
+        p.classList.toggle("active", p.getAttribute("data-panel") === idx);
+      });
+    });
+  });
+
+  /* ---- Gentle hero signal cycle (demonstrates the four signals) ---- */
+  var states = [
+    { cls: "work",  word: "WORK",          lbl: "Acclimatized worker · moderate", cycle: "60 min · 0 min",  hyd: "2.0 cups / h", max: "364 min", head: "08:00", wbgt: "26.4 °C" },
+    { cls: "drink", word: "DRINK NOW",     lbl: "Hydration pulse",                cycle: "45 min · 15 min", hyd: "3.1 cups / h", max: "210 min", head: "11:00", wbgt: "29.8 °C" },
+    { cls: "rest",  word: "REST IN SHADE", lbl: "Acclimatized worker · moderate", cycle: "30 min · 30 min", hyd: "3.6 cups / h", max: "120 min", head: "13:00", wbgt: "31.6 °C" },
+    { cls: "stop",  word: "STOP",          lbl: "WBGT above the limit",           cycle: "0 min · full",    hyd: "shade + fluids", max: "0 min",   head: "14:00", wbgt: "33.4 °C" }
+  ];
+  var big = document.getElementById("signalBig");
+  var elWord = document.getElementById("sigWord");
+  var elLbl  = document.getElementById("sigLbl");
+  var elCyc  = document.getElementById("sigCycle");
+  var elHyd  = document.getElementById("sigHyd");
+  var elMax  = document.getElementById("sigMax");
+  var head   = document.querySelector(".signal-demo .sd-head");
+  var i = 0;
+  if (big && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    setInterval(function () {
+      i = (i + 1) % states.length;
+      var s = states[i];
+      big.className = "signal-big " + s.cls;
+      elWord.textContent = s.word;
+      elLbl.textContent = s.lbl;
+      elCyc.textContent = s.cycle;
+      elHyd.textContent = s.hyd;
+      elMax.textContent = s.max;
+      if (head) head.innerHTML = "<span>Live signal · Dubai · " + s.head + "</span><span>WBGT " + s.wbgt + "</span>";
+    }, 3200);
+  }
+})();
+</script>
+</body>
+</html>

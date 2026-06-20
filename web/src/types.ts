@@ -181,6 +181,44 @@ export interface SensitivityRow {
   aki_cases_averted_heatguard: number;
 }
 
+export interface ScaleProjection {
+  workforce: number;
+  season_days: number;
+  danger_hours_protected: number; // worker-hours of danger the ban missed
+  aki_cases_averted: number;
+  lives_saved: number; // illustrative (AKI averted x severity ratio)
+  productivity_worker_hours_lo: number;
+  productivity_worker_hours_hi: number;
+  value_usd_lo: number;
+  value_usd_hi: number;
+  program_cost_usd: number;
+  cost_per_worker_usd: number;
+  assumptions: {
+    basis: string;
+    lives_saved_model: string;
+    value: string;
+    note: string;
+  };
+}
+
+export interface ScaleResponse {
+  projection: ScaleProjection;
+  presets: {
+    contractor: number;
+    megaproject: number;
+    gulf_outdoor: number;
+  };
+  context: {
+    arab_states_migrant_workers: number;
+    migrant_share_pct: number;
+    gulf_summer_peak_c: number;
+    migrant_deaths_per_year: number;
+    deaths_caveat: string;
+    ban_blind_spots: string;
+    gulf_studies_note: string;
+  };
+}
+
 export interface DemoPayload {
   site: { key: string; name: string; country: string; lat: number; lon: number };
   headline: string;

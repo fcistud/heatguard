@@ -135,6 +135,23 @@ def test_hour_no_weather_404():
     assert client.get("/hour/dubai/1999-01-01/12").status_code == 404
 
 
+# ---- scale / lives-saved projection -----------------------------------------
+def test_scale_projection():
+    r = client.get("/scale/dubai?workforce=100000").json()
+    p = r["projection"]
+    assert p["workforce"] == 100000
+    assert p["aki_cases_averted"] > 0 and p["lives_saved"] > 0
+    assert p["value_usd_hi"] >= p["value_usd_lo"] > 0
+    assert "presets" in r
+    assert r["context"]["arab_states_migrant_workers"] > 0
+
+
+def test_scale_scales_with_workforce():
+    a = client.get("/scale/dubai?workforce=1000").json()["projection"]
+    b = client.get("/scale/dubai?workforce=10000").json()["projection"]
+    assert b["aki_cases_averted"] > a["aki_cases_averted"] * 8  # ~10x
+
+
 # ---- compliance reframe (worker-protective + privacy) -----------------------
 def test_compliance_summary_has_privacy_block():
     s = client.get("/demo/dubai").json()["compliance"]["summary"]

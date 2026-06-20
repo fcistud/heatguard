@@ -18,6 +18,7 @@ import { BanVsAdaptiveTimeline } from "./components/BanVsAdaptiveTimeline";
 import { AcclimatizationTracker } from "./components/AcclimatizationTracker";
 import { ComplianceFeed } from "./components/ComplianceFeed";
 import { ImpactPanel } from "./components/ImpactPanel";
+import { ScalePanel } from "./components/ScalePanel";
 import { EconomicsPanel } from "./components/EconomicsPanel";
 import { WhatIfPanel } from "./components/WhatIfPanel";
 import { SIGNAL_SHORT } from "./lib/signals";
@@ -392,6 +393,15 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {/* 1b. Danger & scale — why this matters beyond one crew. */}
+            <Card
+              title="The danger & the scale"
+              subtitle="what this prevents, projected to a workforce"
+              className="border-rose-200"
+            >
+              <ScalePanel siteKey={siteKey} fetchScale={api.scale} />
+            </Card>
 
             {/* 2-3. Hero row: signal tile + gauge */}
             <div className="grid gap-6 lg:grid-cols-3">
