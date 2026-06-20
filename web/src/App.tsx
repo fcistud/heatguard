@@ -655,11 +655,16 @@ export default function App() {
             </Card>
 
             {/* 5. Acclimatization tracker */}
-            <Card title="Acclimatization tracker" subtitle="NIOSH staged re-entry">
+            <Card
+              title="Acclimatization tracker"
+              subtitle="NIOSH staged re-entry · click a day to protect a new arrival"
+            >
               <AcclimatizationTracker
                 worker={worker}
                 newcomerAdvisory={newcomerAdvisory}
                 newcomerDays={newcomerDays}
+                onSelectDay={setNewcomerDays}
+                onSelectWorker={setWorker}
               />
             </Card>
 

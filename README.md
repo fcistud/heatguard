@@ -429,6 +429,9 @@ Riyadh is higher because the blunt ban there *also* destroys safe work that Heat
 recovers. The pitch line: **it is not a safety cost — it is productivity-positive with a
 ~6-week payback, plus a compliance shield.**
 
+> **Every ROI term, assumption, and landing-page claim — with how it's calculated and how
+> certain it is — is documented in [`docs/ROI_AND_CLAIMS.md`](docs/ROI_AND_CLAIMS.md).**
+
 ---
 
 ## 9. Validation & testing
@@ -498,6 +501,7 @@ tests/                      pytest suite (72)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
+docs/ROI_AND_CLAIMS.md          how every ROI / landing-page number is calculated
 ```
 
 ---
