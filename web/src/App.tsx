@@ -394,6 +394,54 @@ export default function App() {
               </div>
             </div>
 
+            {/* 1a. Plain-language explainer — how to read the whole dashboard. */}
+            <Card
+              title="How to read this dashboard"
+              subtitle="HeatGuard turns the live conditions into one hourly safety call for the whole site"
+            >
+              <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <div className="font-semibold text-slate-800">1 · Conditions → WBGT</div>
+                  <p className="mt-1 text-slate-500">
+                    WBGT is the heat-stress index — it blends temperature, humidity, sun and wind,
+                    so it tells you far more than air temperature alone. Higher = more dangerous.
+                  </p>
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-800">2 · One signal for the crew</div>
+                  <p className="mt-1 text-slate-500">Each hour, a single instruction is broadcast:</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {([["WORK", "#16a34a"], ["REST", "#f59e0b"], ["DRINK", "#0ea5e9"], ["STOP", "#dc2626"]] as const).map(
+                      ([label, color]) => (
+                        <span
+                          key={label}
+                          className="rounded px-1.5 py-0.5 text-[11px] font-semibold text-white"
+                          style={{ backgroundColor: color }}
+                        >
+                          {label}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-800">3 · Calendar ban vs HeatGuard</div>
+                  <p className="mt-1 text-slate-500">
+                    The timeline compares the Gulf's fixed midday ban (a clock window) with HeatGuard's
+                    condition-based call, hour by hour. A red <span className="font-semibold text-rose-600">⚠</span>{" "}
+                    marks dangerous hours the calendar ban misses.
+                  </p>
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-800">4 · What it's worth</div>
+                  <p className="mt-1 text-slate-500">
+                    The impact and business-case panels total the season vs the calendar ban, then scale
+                    it to a whole workforce — danger averted, lives saved, and ROI.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
             {/* 1b. Danger & scale — why this matters beyond one crew. */}
             <Card
               title="The danger & the scale"
@@ -423,7 +471,7 @@ export default function App() {
               </div>
               <Card
                 title="WBGT & conditions"
-                subtitle="current selected hour"
+                subtitle="the heat-stress index (heat + humidity + sun + wind) for the selected hour"
                 right={
                   <div
                     role="group"
@@ -527,7 +575,7 @@ export default function App() {
             {/* 4. The centerpiece timeline */}
             <Card
               title="Calendar ban vs HeatGuard"
-              subtitle="hourly · click an hour to inspect it"
+              subtitle="each hour: what the fixed ban allows vs HeatGuard's call · ⚠ = danger the ban misses · click an hour"
               right={
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
