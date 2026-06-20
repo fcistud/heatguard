@@ -57,14 +57,55 @@ def demo(site_key: str, crew: int = Query(100, ge=1, le=100000)) -> dict:
         raise HTTPException(503, "Demo weather not cached. Run `heatguard fetch-demo`.")
 
 
+_INTENSITIES = {m.value for m in MetabolicCategory}
+
+
+def _check_intensity(intensity: str | None) -> None:
+    if intensity is not None and intensity not in _INTENSITIES:
+        raise HTTPException(400, f"intensity must be one of {sorted(_INTENSITIES)}")
+
+
 @app.get("/timeline/{site_key}/{day}")
-def timeline(site_key: str, day: str) -> dict:
+def timeline(
+    site_key: str,
+    day: str,
+    intensity: str | None = Query(None, description="light|moderate|heavy|very_heavy (default: demo's)"),
+    newcomer_days: int = Query(0, ge=0, le=14, description="days-on-job for the new-worker lane"),
+) -> dict:
     if site_key not in service.DEMOS:
         raise HTTPException(404, f"Unknown demo '{site_key}'.")
+    _check_intensity(intensity)
     try:
-        return service.timeline_for_day(site_key, date.fromisoformat(day))
+        return service.timeline_for_day(site_key, date.fromisoformat(day), intensity, newcomer_days)
     except ValueError:
         raise HTTPException(400, "day must be YYYY-MM-DD")
+
+
+@app.get("/hour/{site_key}/{day}/{hour}")
+def hour(
+    site_key: str,
+    day: str,
+    hour: int,
+    worker: str = Query("veteran", pattern="^(veteran|newcomer)$"),
+    newcomer_days: int = Query(0, ge=0, le=14),
+    intensity: str | None = Query(None),
+    measured_wbgt: float | None = Query(None, ge=0, le=60, description="on-site meter reading degC; overrides the estimate"),
+) -> dict:
+    """One hour's advisory for a chosen worker/intensity, optionally using a
+    measured WBGT instead of the model estimate (returns both for comparison)."""
+    if site_key not in service.DEMOS:
+        raise HTTPException(404, f"Unknown demo '{site_key}'.")
+    if not 0 <= hour <= 23:
+        raise HTTPException(400, "hour must be 0..23")
+    _check_intensity(intensity)
+    try:
+        return service.hour_advisory(
+            site_key, date.fromisoformat(day), hour, worker, newcomer_days, intensity, measured_wbgt
+        )
+    except ValueError:
+        raise HTTPException(400, "day must be YYYY-MM-DD")
+    except KeyError as exc:
+        raise HTTPException(404, str(exc).strip('"')) from exc
 
 
 @app.get("/impact/{site_key}")
