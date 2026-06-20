@@ -13,6 +13,7 @@ from .compliance import ComplianceLog
 from .scheduler import live_signal, schedule
 from .sites import get_site, load_sites
 from .types import MetabolicCategory, Signal, Weather, Worker
+from .wbgt import estimate_wbgt
 from .weather import daytime, fetch_archive, replay_worker
 
 _PROTECTIVE = (Signal.STOP, Signal.REST_IN_SHADE)
@@ -43,8 +44,19 @@ def _veteran() -> Worker:
     return Worker("veteran", days_on_job=120, acclimatized=True)
 
 
-def _newcomer() -> Worker:
-    return Worker("newcomer-day0", days_on_job=0, acclimatized=False)
+def _newcomer(days_on_job: int = 0) -> Worker:
+    return Worker(f"newcomer-day{days_on_job}", days_on_job=days_on_job, acclimatized=False)
+
+
+def _intensity(intensity: str | None, cfg: dict) -> MetabolicCategory:
+    """Resolve a work-intensity string to a category, defaulting to the demo's."""
+    if not intensity:
+        return cfg["intensity"]
+    return MetabolicCategory(intensity)
+
+
+def _worker_for(kind: str, newcomer_days: int = 0) -> Worker:
+    return _newcomer(newcomer_days) if kind == "newcomer" else _veteran()
 
 
 def list_sites() -> list[dict]:
@@ -89,10 +101,12 @@ def _row(w: Weather, site, cat, veteran, newcomer) -> dict:
     }
 
 
-def timeline_for_day(site_key: str, day: date) -> dict:
+def timeline_for_day(
+    site_key: str, day: date, intensity: str | None = None, newcomer_days: int = 0
+) -> dict:
     cfg, site, season = load_season(site_key)
-    cat = cfg["intensity"]
-    veteran, newcomer = _veteran(), _newcomer()
+    cat = _intensity(intensity, cfg)
+    veteran, newcomer = _veteran(), _newcomer(newcomer_days)
     rows = [
         _row(w, site, cat, veteran, newcomer)
         for w in season
@@ -102,8 +116,43 @@ def timeline_for_day(site_key: str, day: date) -> dict:
         "site": site.name,
         "country": site.country,
         "date": str(day),
+        "intensity": cat.value,
+        "newcomer_days": newcomer_days,
         "rows": rows,
         "gap_hours": sum(r["gap"] for r in rows),
+    }
+
+
+def hour_advisory(
+    site_key: str,
+    day: date,
+    hour: int,
+    worker_kind: str = "veteran",
+    newcomer_days: int = 0,
+    intensity: str | None = None,
+    measured_wbgt: float | None = None,
+) -> dict:
+    """Recompute one hour's advisory for a specific worker/intensity, optionally
+    overriding the estimated WBGT with an on-site meter reading. Returns the
+    advisory plus the model ESTIMATE for a sensor-vs-estimate comparison."""
+    cfg, site, season = load_season(site_key)
+    cat = _intensity(intensity, cfg)
+    w = next(
+        (x for x in season if x.timestamp.date() == day and x.timestamp.hour == hour),
+        None,
+    )
+    if w is None:
+        raise KeyError(f"No weather for {site_key} {day} {hour:02d}:00")
+    worker = _worker_for(worker_kind, newcomer_days)
+    est = estimate_wbgt(w, site)  # always compute the estimate, for comparison
+    adv = schedule(w, site, worker, cat, measured_wbgt_c=measured_wbgt)
+    return {
+        "advisory": adv.to_dict(),
+        "estimated_wbgt_c": round(est.wbgt_c, 1),
+        "estimated_source": est.source,
+        "measured": measured_wbgt is not None,
+        "banned": calendar_ban.is_banned(site.country, w.timestamp, adv.wbgt_c),
+        "live": [live_signal(adv, m).value for m in range(60)],
     }
 
 

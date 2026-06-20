@@ -65,6 +65,18 @@ export interface Timeline {
   date: string;
   gap_hours: number;
   rows: TimelineRow[];
+  intensity?: string;
+  newcomer_days?: number;
+}
+
+/** Response of GET /hour/{site}/{day}/{hour} — a single recomputed hour. */
+export interface HourAdvisory {
+  advisory: Advisory;
+  estimated_wbgt_c: number;
+  estimated_source: string;
+  measured: boolean;
+  banned: boolean;
+  live: Signal[]; // 60 minute-by-minute signals
 }
 
 export interface ComplianceRecord {
@@ -90,6 +102,12 @@ export interface ComplianceSummary {
   head_hash: string;
   verified: boolean;
   signal_counts: Partial<Record<Signal, number>>;
+  purpose?: string;
+  privacy?: {
+    records: string;
+    does_not_record: string;
+    identifier: string;
+  };
 }
 
 export interface Compliance {

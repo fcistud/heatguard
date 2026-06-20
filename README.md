@@ -455,12 +455,15 @@ All five share the engine via `service.py`.
 - **CLI** — `heatguard demo dubai|riyadh` (the narrative), `roi`, `backtest`, `decide`,
   `fetch` / `fetch-demo`, `sites`.
 - **FastAPI** (`uvicorn heatguard.api:app`) — `/sites`, `/demo/{site}`,
-  `/timeline/{site}/{date}`, `/impact/{site}`, `/economics/{site}`, `/sensitivity/{site}`,
-  `/backtest`, `/compliance/{site}/export`, `POST /decide`.
+  `/timeline/{site}/{date}` (with `?intensity=&newcomer_days=`), `/hour/{site}/{date}/{hour}`
+  (per-worker recompute, optional `?measured_wbgt=`), `/impact/{site}`, `/economics/{site}`,
+  `/sensitivity/{site}`, `/backtest`, `/compliance/{site}/export`, `POST /decide`.
 - **React dashboard** (`web/`, Vite + TS + Tailwind) — the primary pitch UI: live signal
-  tile, WBGT gauge, the **calendar-ban-vs-HeatGuard timeline** with a day scrubber and a
-  veteran/new-worker toggle, acclimatization tracker, season impact, the **business-case /
-  ROI panel** with an AKI sensitivity chart, the compliance feed, and a live what-if. See
+  tile, WBGT gauge with an **Estimated ⟷ Measured (on-site meter)** toggle, the
+  **calendar-ban-vs-HeatGuard timeline** with a day scrubber, a veteran/new-worker toggle, and
+  **per-worker controls** (work intensity + new-worker tenure), the acclimatization tracker,
+  season impact, the **business-case / ROI panel** with an AKI sensitivity chart, the
+  **worker-protection record** (privacy-by-design), and a live what-if. See
   [`docs/DASHBOARD_WALKTHROUGH.md`](docs/DASHBOARD_WALKTHROUGH.md) for a presenter's guide.
 - **Streamlit** (`streamlit run streamlit_app.py`) — a pure-Python, no-build version of the
   same story.
@@ -501,12 +504,16 @@ docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
 
 - **WBGT estimation is approximate** without an on-site black-globe sensor (we use the
   validated Liljegren model from reanalysis, with a Stull night fallback). The production
-  system measures directly with a ~$300 meter — the engine already accepts a `measured`
-  reading that bypasses estimation.
+  system measures directly with a ~$300 meter — the engine accepts a `measured` reading that
+  bypasses estimation, and the dashboard exposes a first-class **Estimated ⟷ Measured** toggle
+  so you can run the same engine on a meter reading and see how the signal changes.
 - **Effect sizes transfer** from Mesoamerican agriculture to Gulf construction with
   uncertainty; the baseline AKI incidence is a tunable assumption surfaced via
   `impact.EffectSizes` and shown as a sensitivity range.
-- **Work intensity** (light/moderate/heavy/very-heavy, ISO 8996) is a supervisor input.
+- **Work intensity** (light/moderate/heavy/very-heavy, ISO 8996) is a supervisor input,
+  **selectable per worker** in the dashboard/API (`/timeline?intensity=`, `/hour`), alongside
+  the new-worker acclimatization tenure — the schedule individualises by job and by worker,
+  not one crew-wide setting.
 - **The ROI** rests on illustrative, deliberately conservative cost/value assumptions
   (`data/economics.json`); the headline excludes the death-averted and turnover terms.
 - The genuinely hard problem is **adoption**, which is why HeatGuard leads with the

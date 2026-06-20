@@ -3,6 +3,7 @@ import type { Advisory } from "../types";
 interface Props {
   worker: "veteran" | "newcomer";
   newcomerAdvisory?: Advisory;
+  newcomerDays?: number;
 }
 
 const RAMP = [
@@ -13,9 +14,14 @@ const RAMP = [
   { day: 4, pct: 100 },
 ];
 
-export function AcclimatizationTracker({ worker, newcomerAdvisory }: Props) {
-  // Veteran is fully acclimatized (day 4+); newcomer is day 0.
-  const activeDay = worker === "newcomer" ? 0 : 4;
+export function AcclimatizationTracker({
+  worker,
+  newcomerAdvisory,
+  newcomerDays = 0,
+}: Props) {
+  // Veteran is fully acclimatized (day 4+); newcomer is at the chosen tenure.
+  // Days >= 4 are fully ramped, so clamp the highlighted stage at day 4.
+  const activeDay = worker === "newcomer" ? Math.min(newcomerDays, 4) : 4;
   const capped = newcomerAdvisory?.cycle.capped_by_acclimatization;
   const acclimFrac = newcomerAdvisory?.acclim_fraction;
 
@@ -59,7 +65,7 @@ export function AcclimatizationTracker({ worker, newcomerAdvisory }: Props) {
       {worker === "newcomer" ? (
         <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm">
           <div className="font-semibold text-indigo-800">
-            New worker (day 0) selected
+            New worker (day {newcomerDays}) selected
           </div>
           <p className="mt-1 text-indigo-700">
             Exposure capped at{" "}
