@@ -23,6 +23,10 @@ heatguard fetch-demo      # cache real Open-Meteo weather (committed; run once)
 scripts/run_demo.sh       # API + dashboard in one command  →  http://localhost:5173
 ```
 
+> 📖 **New here?** The [**Handbook**](docs/HANDBOOK.md) explains everything (plain-language +
+> technical), with an FAQ and a detailed roadmap (cheap wearables, demographic
+> personalisation, heart-rate/sweat integration).
+
 ---
 
 ## Table of contents
@@ -501,6 +505,7 @@ tests/                      pytest suite (72)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
+docs/HANDBOOK.md                the complete handbook — explainers, FAQ, roadmap
 docs/ROI_AND_CLAIMS.md          how every ROI / landing-page number is calculated
 ```
 
