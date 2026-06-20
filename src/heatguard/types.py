@@ -9,9 +9,19 @@ audit trail is immutable.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+
+
+def _num(x: float | None, ndigits: int) -> float | None:
+    """Round, but coerce non-finite values (NaN/inf from PHS) to None so the
+    output is valid JSON for every consumer (browsers and strict parsers reject
+    the bare ``NaN`` token)."""
+    if x is None or not math.isfinite(x):
+        return None
+    return round(x, ndigits)
 
 
 class MetabolicCategory(str, Enum):
@@ -172,11 +182,11 @@ class Advisory:
                 "capped_by_acclimatization": self.cycle.capped_by_acclimatization,
             },
             "hydration": {
-                "sweat_loss_g_per_h": round(self.hydration.sweat_loss_g_per_h, 1),
-                "water_ml_per_h": round(self.hydration.water_ml_per_h, 1),
-                "cups_250ml_per_h": round(self.hydration.cups_250ml_per_h, 2),
-                "max_exposure_min": round(self.hydration.max_exposure_min, 1),
-                "core_temp_c": round(self.hydration.core_temp_c, 2),
+                "sweat_loss_g_per_h": _num(self.hydration.sweat_loss_g_per_h, 1),
+                "water_ml_per_h": _num(self.hydration.water_ml_per_h, 1),
+                "cups_250ml_per_h": _num(self.hydration.cups_250ml_per_h, 2),
+                "max_exposure_min": _num(self.hydration.max_exposure_min, 1),
+                "core_temp_c": _num(self.hydration.core_temp_c, 2),
                 "phs_valid": self.hydration.phs_valid,
             },
             "acclim_fraction": self.acclim_fraction,
