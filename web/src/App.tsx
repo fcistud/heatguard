@@ -663,6 +663,7 @@ export default function App() {
                 worker={worker}
                 newcomerAdvisory={newcomerAdvisory}
                 newcomerDays={newcomerDays}
+                time={currentRow?.time}
                 onSelectDay={setNewcomerDays}
                 onSelectWorker={setWorker}
               />
