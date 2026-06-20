@@ -4,6 +4,7 @@ interface Props {
   worker: "veteran" | "newcomer";
   newcomerAdvisory?: Advisory;
   newcomerDays?: number;
+  time?: string; // selected hour, e.g. "07:00"
   onSelectDay?: (day: number) => void;
   onSelectWorker?: (w: "veteran" | "newcomer") => void;
 }
@@ -20,6 +21,7 @@ export function AcclimatizationTracker({
   worker,
   newcomerAdvisory,
   newcomerDays = 0,
+  time,
   onSelectDay,
   onSelectWorker,
 }: Props) {
@@ -27,6 +29,8 @@ export function AcclimatizationTracker({
   const activeDay = worker === "newcomer" ? Math.min(newcomerDays, 4) : 4;
   const capped = newcomerAdvisory?.cycle.capped_by_acclimatization;
   const acclimFrac = newcomerAdvisory?.acclim_fraction;
+  const capPct = acclimFrac != null ? Math.round(acclimFrac * 100) : RAMP[activeDay].pct;
+  const fullyAcclimatized = capPct >= 100; // day 4+ — the ramp is done, no cap can bind
   const interactive = !!onSelectDay;
 
   const pick = (day: number) => {
@@ -100,18 +104,30 @@ export function AcclimatizationTracker({
 
       {worker === "newcomer" ? (
         <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm">
-          <div className="font-semibold text-indigo-800">
-            New worker · day {newcomerDays} — exposure capped at{" "}
-            <span className="tabular-nums">
-              {acclimFrac != null ? `${Math.round(acclimFrac * 100)}%` : `${RAMP[activeDay].pct}%`}
-            </span>{" "}
-            of the acclimatized cycle
-          </div>
-          <p className="mt-1 text-indigo-700">
-            {capped
-              ? "Right now this cap is the binding limit on the selected hour."
-              : "On the selected hour the heat itself is the binding limit, so the cap isn't reducing work further."}
-          </p>
+          {fullyAcclimatized ? (
+            <>
+              <div className="font-semibold text-indigo-800">
+                New worker · day {newcomerDays} — fully acclimatized, no exposure cap
+              </div>
+              <p className="mt-1 text-indigo-700">
+                After ~4 days of graded exposure the ramp is complete — the schedule is now driven
+                entirely by the heat, exactly like a veteran. (Pick day 0–3 to see the cap bite.)
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="font-semibold text-indigo-800">
+                New worker · day {newcomerDays} — exposure capped at{" "}
+                <span className="tabular-nums">{capPct}%</span> of normal
+              </div>
+              <p className="mt-1 text-indigo-700">
+                {time ? `At ${time}, ` : ""}
+                {capped
+                  ? `this ${capPct}% acclimatization cap is the binding limit — it holds work below what the heat alone would allow.`
+                  : "the heat is the stricter limit here, so the cap isn't the binding one. Pick a cooler morning hour on the timeline to see the cap take over."}
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
