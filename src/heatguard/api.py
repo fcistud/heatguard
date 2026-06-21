@@ -120,6 +120,23 @@ def policy_corpus() -> list[dict]:
     ]
 
 
+@app.get("/policy/demo-questions")
+def policy_demo_questions() -> list[str]:
+    return service.policy_demo_questions()
+
+
+class PolicyQueryRequest(BaseModel):
+    question: str
+    top_k: int = 3
+
+
+@app.post("/policy/query")
+def policy_query(req: PolicyQueryRequest) -> dict:
+    if not req.question.strip():
+        raise HTTPException(400, "question must not be empty")
+    return service.policy_query(req.question.strip(), top_k=req.top_k)
+
+
 @app.get("/compliance/{site_key}/export")
 def compliance_export(site_key: str, fmt: str = Query("csv", pattern="^(csv|jsonl)$")) -> Response:
     if site_key not in service.DEMOS:

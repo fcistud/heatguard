@@ -209,6 +209,20 @@ def cmd_backtest(args) -> int:
     return 0 if bt["passed"] else 1
 
 
+def cmd_policy_query(args) -> int:
+    from .policy_rag import query_policy
+
+    ans = query_policy(args.question, top_k=args.top_k)
+    print(f"\nQ: {ans.question}\n")
+    print(ans.answer)
+    if ans.sources:
+        print("\nSources:")
+        for s in ans.sources:
+            print(f"  [{s.score:.3f}] {s.title} ({s.path})")
+    print()
+    return 0
+
+
 # ---- parser -----------------------------------------------------------------
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="heatguard", description="Adaptive heat-safety scheduler for Gulf outdoor crews.")
@@ -256,6 +270,11 @@ def build_parser() -> argparse.ArgumentParser:
     ro.set_defaults(func=cmd_roi)
 
     sub.add_parser("backtest", help="reproduce the Nicaragua effect sizes").set_defaults(func=cmd_backtest)
+
+    pq = sub.add_parser("policy-query", help="query the GCC/ILO policy RAG corpus")
+    pq.add_argument("question")
+    pq.add_argument("--top-k", type=int, default=3, dest="top_k")
+    pq.set_defaults(func=cmd_policy_query)
     return p
 
 
