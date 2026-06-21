@@ -13,6 +13,7 @@ from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from . import service
@@ -272,17 +273,45 @@ def decide(req: DecideRequest) -> dict:
         raise HTTPException(404, f"Unknown site '{req.site_key}'") from exc
 
 
+def _resolve_static_dirs() -> tuple[str | None, str | None]:
+    """Landing + dashboard static dirs from env, or repo defaults for local dev."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+
+    landing = os.environ.get("HEATGUARD_LANDING_DIR")
+    if landing:
+        landing = landing if Path(landing).is_dir() else None
+    else:
+        candidate = root / "landing"
+        landing = str(candidate) if candidate.is_dir() else None
+
+    static = os.environ.get("HEATGUARD_STATIC_DIR")
+    if static:
+        static = static if Path(static).is_dir() else None
+    else:
+        candidate = root / "web" / "dist"
+        static = str(candidate) if candidate.is_dir() else None
+
+    return landing, static
+
+
 def _mount_optional_static() -> None:
-    """Serve built dashboard (and optional landing) when env dirs are set (Cloud Run / Docker)."""
+    """Serve built dashboard (and optional landing) when dirs exist (Cloud Run / Docker / dev)."""
     from pathlib import Path
 
     from fastapi.staticfiles import StaticFiles
 
-    landing_dir = os.environ.get("HEATGUARD_LANDING_DIR")
-    if landing_dir and Path(landing_dir).is_dir():
+    landing_dir, static_dir = _resolve_static_dirs()
+
+    if landing_dir:
+        # /landing without trailing slash 404s on StaticFiles — redirect explicitly.
+        @app.get("/landing", include_in_schema=False)
+        def _landing_redirect() -> RedirectResponse:
+            return RedirectResponse(url="/landing/", status_code=308)
+
         app.mount("/landing", StaticFiles(directory=landing_dir, html=True), name="landing")
 
-    static_dir = os.environ.get("HEATGUARD_STATIC_DIR")
     if static_dir and Path(static_dir).is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="dashboard")
 

@@ -43,7 +43,7 @@ GCP_PROJECT=my-project GCP_REGION=europe-west2 ./scripts/deploy-gcp.sh
 
 The script enables APIs, creates an Artifact Registry repo if needed, runs Cloud Build, and deploys to Cloud Run.
 
-When finished, open the printed URL (dashboard at `/`, landing at `/landing/`).
+When finished, open the printed URL (dashboard at `/`, landing at `/landing/` — trailing slash required unless you have the latest API redirect fix).
 
 ---
 
