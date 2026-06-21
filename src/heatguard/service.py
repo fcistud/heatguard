@@ -190,11 +190,24 @@ def decide_one(
     acclimatized: bool = True,
     experienced: bool = False,
     measured_wbgt: float | None = None,
+    weight_kg: float = 75.0,
+    height_m: float = 1.75,
+    age: int = 30,
+    has_comorbidity: bool = False,
 ) -> dict:
     site = get_site(site_key)
     ts = datetime.now().astimezone().replace(hour=hour, minute=0, second=0, microsecond=0)
     w = Weather(ts, tdb, rh, wind, solar, solar * 0.85, tdb - 15, 1013.0)
-    worker = Worker("api", days_on_job=days_on_job, acclimatized=acclimatized, experienced_elsewhere=experienced)
+    worker = Worker(
+        "api",
+        days_on_job=days_on_job,
+        acclimatized=acclimatized,
+        experienced_elsewhere=experienced,
+        weight_kg=weight_kg,
+        height_m=height_m,
+        age=age,
+        has_comorbidity=has_comorbidity,
+    )
     av = schedule(w, site, worker, MetabolicCategory(intensity), measured_wbgt_c=measured_wbgt)
     return {
         "advisory": av.to_dict(),

@@ -143,6 +143,10 @@ class DecideRequest(BaseModel):
     acclimatized: bool = True
     experienced: bool = False
     measured_wbgt: float | None = None
+    weight_kg: float = 75.0
+    height_m: float = 1.75
+    age: int = 30
+    has_comorbidity: bool = False
 
 
 @app.post("/decide")
@@ -152,4 +156,5 @@ def decide(req: DecideRequest) -> dict:
     return service.decide_one(
         req.site_key, req.tdb, req.rh, req.wind, req.solar, req.hour, req.intensity,
         req.days_on_job, req.acclimatized, req.experienced, req.measured_wbgt,
+        req.weight_kg, req.height_m, req.age, req.has_comorbidity,
     )
