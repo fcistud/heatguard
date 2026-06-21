@@ -15,9 +15,26 @@ function fmtTime(iso: string): string {
 
 export function ComplianceFeed({ compliance, siteKey }: Props) {
   const { summary, records } = compliance;
+  const privacy = summary.privacy;
 
   return (
     <div>
+      {/* Privacy by design — surfaces what the record does and does not capture. */}
+      {(privacy || summary.purpose) && (
+        <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            <span aria-hidden="true">🔒</span>
+            Privacy by design
+          </div>
+          {privacy?.does_not_record && (
+            <p className="mt-1 text-slate-600">{privacy.does_not_record}</p>
+          )}
+          {summary.purpose && (
+            <p className="mt-1 text-xs text-slate-500">{summary.purpose}</p>
+          )}
+        </div>
+      )}
+
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {summary.verified ? (

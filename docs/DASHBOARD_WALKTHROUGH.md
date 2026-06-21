@@ -91,6 +91,12 @@ temperature, humidity, wind, and solar radiation via Liljegren (daytime) with a 
 fallback at night. The badge keeps the approximation honest — provenance is carried all
 the way into the audit log.
 
+**Interact — the sensor answer:** flip the **Estimated ⟷ Measured (on-site meter)** toggle
+and enter a meter reading. The gauge, the signal, and the rationale recompute on the *same
+engine* with `source = measured`, and a caption shows **"estimate X°C → meter Y°C"**. This is
+the direct answer to "your WBGT is approximate": in production you drop in a ~$300 meter and
+nothing else changes. Show a value that flips REST → STOP for drama.
+
 ---
 
 ## 5. Calendar ban vs HeatGuard — the timeline (centerpiece)
@@ -114,7 +120,11 @@ it *is* the argument.
 **Interact:**
 1. Drag the **day scrubber** past 15 June → dark **BAN** cells appear (the ban "switches
    on" for the season) — proving the lane renders.
-2. **The money move:** switch **Site → Riyadh**, then toggle **New worker (day 0)**.
+2. Change the **work-intensity** selector (Light → Very heavy): the HeatGuard lane tightens as
+   the job gets harder — it's *individualised to the work*, not one crew-wide rule.
+3. With **New worker** selected, drag the **"day N"** control 0 → 5: watch the morning protection
+   relax as the worker acclimatises (the NIOSH ramp, live).
+4. **The money move:** switch **Site → Riyadh**, then toggle **New worker (day 0)**.
 
 ---
 
@@ -202,16 +212,18 @@ productive hours, accounting for breaks — that's why it's not over-claimed).
 
 ---
 
-## 11. Compliance log (the shield)
+## 11. Worker protection record (dual-purpose, privacy by design)
 
 **On screen:** An hour-by-hour table (time · signal · WBGT · work/rest · water), a
-**"✓ chain verified — tamper-evident"** badge with the head hash, and a **Download CSV**
-button.
+**"✓ chain verified — tamper-evident"** badge with the head hash, a **"Privacy by design"**
+note, and a **Download CSV** button.
 
-**Say:** "Every reading and break is hash-chained, like a mini-ledger. Edit one row and the
-whole chain breaks. That's the **compliance shield** — verifiable proof for an inspector
-that conditions were monitored and breaks and water were provided. In the UAE that's
-AED 5,000 per worker in fines it helps avoid."
+**Say:** "Every reading and break is hash-chained, like a mini-ledger — edit one row and the
+whole chain breaks. It works **both ways**: it's the *worker's* own proof they were protected
+— their heat-safety history for a health or grievance claim — *and* the employer's shield
+against fines (AED 5,000/worker in the UAE) and liability. And it's **privacy by design**: it
+records site conditions and protective actions, **not** location, biometrics, or worker
+tracking — which defuses the surveillance objection a labour-rights reviewer would raise."
 
 **Under the hood:** SHA-256, each record commits to the previous (`prev_hash`); a single
 mutation or deletion fails `verify_chain()`. Exports to CSV/JSONL for the audit binder.

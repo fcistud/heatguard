@@ -19,3 +19,8 @@ node_modules/
 .DS_Store
 
 # NOTE: data/cache/*.json IS committed on purpose — the demo runs offline.
+
+# coverage
+.coverage
+htmlcov/
+.coverage.*

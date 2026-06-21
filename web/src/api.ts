@@ -5,12 +5,26 @@ import type {
   DecideRequest,
   DecideResponse,
   DemoPayload,
+  HourAdvisory,
   ImpactReport,
   PolicyAnswer,
+  ScaleResponse,
   SensitivityRow,
   SiteSummary,
   Timeline,
 } from "./types";
+
+type WorkerKey = "veteran" | "newcomer";
+
+/** Build a query string from defined params only (omits undefined/null). */
+function qs(params: Record<string, string | number | undefined>): string {
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) usp.set(k, String(v));
+  }
+  const s = usp.toString();
+  return s ? `?${s}` : "";
+}
 
 export const API_BASE: string =
   (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8000";
@@ -53,14 +67,44 @@ export const api = {
   demos: () => getJSON<string[]>("/demos"),
   demo: (siteKey: string, crew = 100) =>
     getJSON<DemoPayload>(`/demo/${siteKey}?crew=${crew}`),
-  timeline: (siteKey: string, day: string) =>
-    getJSON<Timeline>(`/timeline/${siteKey}/${day}`),
+  timeline: (
+    siteKey: string,
+    day: string,
+    opts: { intensity?: string; newcomerDays?: number } = {},
+  ) =>
+    getJSON<Timeline>(
+      `/timeline/${siteKey}/${day}${qs({
+        intensity: opts.intensity,
+        newcomer_days: opts.newcomerDays,
+      })}`,
+    ),
+  hour: (
+    siteKey: string,
+    day: string,
+    hour: number,
+    opts: {
+      worker: WorkerKey;
+      measuredWbgt?: number;
+      intensity?: string;
+      newcomerDays?: number;
+    },
+  ) =>
+    getJSON<HourAdvisory>(
+      `/hour/${siteKey}/${day}/${hour}${qs({
+        worker: opts.worker,
+        measured_wbgt: opts.measuredWbgt,
+        intensity: opts.intensity,
+        newcomer_days: opts.newcomerDays,
+      })}`,
+    ),
   impact: (siteKey: string, crew = 100) =>
     getJSON<ImpactReport>(`/impact/${siteKey}?crew=${crew}`),
   economics: (siteKey: string, crew = 100) =>
     getJSON<BusinessCase>(`/economics/${siteKey}?crew=${crew}`),
   sensitivity: (siteKey: string, crew = 100) =>
     getJSON<SensitivityRow[]>(`/sensitivity/${siteKey}?crew=${crew}`),
+  scale: (siteKey: string, workforce = 5000) =>
+    getJSON<ScaleResponse>(`/scale/${siteKey}?workforce=${workforce}`),
   backtest: () => getJSON<Backtest>("/backtest"),
   decide: (req: DecideRequest) =>
     getJSON<DecideResponse>("/decide", {

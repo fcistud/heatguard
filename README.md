@@ -1,5 +1,7 @@
 # HeatGuard 🌡️
 
+[![CI](https://github.com/fcistud/heatguard/actions/workflows/ci.yml/badge.svg)](https://github.com/fcistud/heatguard/actions/workflows/ci.yml)
+
 **An adaptive, WBGT-driven work–rest–hydration scheduler that replaces the Gulf's blunt
 calendar-based midday work ban with a condition-responsive, standards-based, and
 *provable* heat-safety system for outdoor labour crews.**
@@ -21,8 +23,13 @@ overrides the regulatory signal.
 pip install -e . && pip install -r requirements.txt
 pytest -q                 # 91 tests, incl. Nicaragua back-test + API/demo/policy/ML
 heatguard fetch-datasets  # cache weather + forecasts (committed; run once if missing)
+heatguard fetch-demo      # cache the two demo archives (committed; run once if missing)
 scripts/run_demo.sh       # API + dashboard in one command  →  http://localhost:5173
 ```
+
+> 📖 **New here?** The [**Handbook**](docs/HANDBOOK.md) explains everything (plain-language +
+> technical), with an FAQ and a detailed roadmap (cheap wearables, demographic
+> personalisation, heart-rate/sweat integration).
 
 ---
 
@@ -433,6 +440,9 @@ Riyadh is higher because the blunt ban there *also* destroys safe work that Heat
 recovers. The pitch line: **it is not a safety cost — it is productivity-positive with a
 ~6-week payback, plus a compliance shield.**
 
+> **Every ROI term, assumption, and landing-page claim — with how it's calculated and how
+> certain it is — is documented in [`docs/ROI_AND_CLAIMS.md`](docs/ROI_AND_CLAIMS.md).**
+
 ---
 
 ## 9. Validation & testing
@@ -463,17 +473,20 @@ All five share the engine via `service.py`.
 - **CLI** — `heatguard demo dubai|riyadh` (the narrative), `roi`, `backtest`, `decide`,
   `fetch` / `fetch-demo` / `fetch-datasets`, `policy-query`, `sites`.
 - **FastAPI** (`uvicorn heatguard.api:app`) — `/sites`, `/demo/{site}`,
-  `/timeline/{site}/{date}`, `/impact/{site}`, `/economics/{site}`, `/sensitivity/{site}`,
-  `/backtest`, `/datasets`, `/forecast/{site}`, `/policy/corpus`, `/policy/demo-questions`,
-  `POST /policy/query`, `/compliance/{site}/export`, `POST /decide` (optional worker age,
-  weight, comorbidity for personal-risk overlay).
+  `/timeline/{site}/{date}` (with `?intensity=&newcomer_days=`), `/hour/{site}/{date}/{hour}`
+  (per-worker recompute, optional `?measured_wbgt=`), `/impact/{site}`, `/economics/{site}`,
+  `/sensitivity/{site}`, `/backtest`, `/datasets`, `/forecast/{site}`, `/policy/corpus`,
+  `/policy/demo-questions`, `POST /policy/query`, `/compliance/{site}/export`, `POST /decide`
+  (optional worker age, weight, comorbidity for personal-risk overlay).
 - **React dashboard** (`web/`, Vite + TS + Tailwind) — the primary pitch UI: live signal
-  tile (with **personal-risk badges**), WBGT gauge, the **calendar-ban-vs-HeatGuard timeline**
-  with a day scrubber and a veteran/new-worker toggle, acclimatization tracker, season
-  impact, the **business-case / ROI panel** with an AKI sensitivity chart, the compliance
-  feed, a live what-if (age/weight/comorbidity), and the **Policy gap auditor** (RAG over
-  GCC bans + ILO WRS). See [`docs/DASHBOARD_WALKTHROUGH.md`](docs/DASHBOARD_WALKTHROUGH.md)
-  for a presenter's guide.
+  tile (with **personal-risk badges**), WBGT gauge with an **Estimated ⟷ Measured
+  (on-site meter)** toggle, the
+  **calendar-ban-vs-HeatGuard timeline** with a day scrubber, a veteran/new-worker toggle, and
+  **per-worker controls** (work intensity + new-worker tenure), the acclimatization tracker,
+  season impact, the **business-case / ROI panel** with an AKI sensitivity chart, the
+  **worker-protection record** (privacy-by-design), a live what-if (age/weight/comorbidity),
+  and the **Policy gap auditor** (RAG over GCC bans + ILO WRS). See
+  [`docs/DASHBOARD_WALKTHROUGH.md`](docs/DASHBOARD_WALKTHROUGH.md) for a presenter's guide.
 - **Streamlit** (`streamlit run streamlit_app.py`) — a pure-Python, no-build version of the
   same story.
 - **Notebook** (`notebooks/heatguard_validation.ipynb`) — the narrated back-test, the
@@ -488,6 +501,7 @@ conda env create -f environment.yml && conda activate heatguard   # Python 3.11
 # or: pip install -e . && pip install -r requirements.txt
 pytest -q                        # 91 tests
 heatguard fetch-datasets         # cache all archives + forecasts (also committed)
+heatguard fetch-demo             # cache the two demo archives (also committed)
 heatguard policy-query "When does the UAE ban start?"
 
 scripts/run_demo.sh --setup      # one command: installs deps + starts API + dashboard
@@ -508,9 +522,13 @@ data/models/                personal risk classifier (PHS-labelled training)
 data/cache/*.json           committed Open-Meteo weather (offline demo)
 docs/DATA.md                dataset guide for teammates
 tests/                      pytest suite (91)
+docs/DATA.md                dataset guide for teammates
+tests/                      pytest suite (91)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
+docs/HANDBOOK.md                the complete handbook — explainers, FAQ, roadmap
+docs/ROI_AND_CLAIMS.md          how every ROI / landing-page number is calculated
 ```
 
 **AI layer:** `risk_model.py` adds gradient-boosting personal risk stratification using PHS-derived labels on real cached weather; `policy_rag.py` retrieves cited excerpts from `data/policy/`. Neither overrides ISO/ACGIH signals. Retrain risk model: `python scripts/train_risk_model.py`. Query policy: `heatguard policy-query "…"`.
@@ -521,12 +539,16 @@ docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
 
 - **WBGT estimation is approximate** without an on-site black-globe sensor (we use the
   validated Liljegren model from reanalysis, with a Stull night fallback). The production
-  system measures directly with a ~$300 meter — the engine already accepts a `measured`
-  reading that bypasses estimation.
+  system measures directly with a ~$300 meter — the engine accepts a `measured` reading that
+  bypasses estimation, and the dashboard exposes a first-class **Estimated ⟷ Measured** toggle
+  so you can run the same engine on a meter reading and see how the signal changes.
 - **Effect sizes transfer** from Mesoamerican agriculture to Gulf construction with
   uncertainty; the baseline AKI incidence is a tunable assumption surfaced via
   `impact.EffectSizes` and shown as a sensitivity range.
-- **Work intensity** (light/moderate/heavy/very-heavy, ISO 8996) is a supervisor input.
+- **Work intensity** (light/moderate/heavy/very-heavy, ISO 8996) is a supervisor input,
+  **selectable per worker** in the dashboard/API (`/timeline?intensity=`, `/hour`), alongside
+  the new-worker acclimatization tenure — the schedule individualises by job and by worker,
+  not one crew-wide setting.
 - **The ROI** rests on illustrative, deliberately conservative cost/value assumptions
   (`data/economics.json`); the headline excludes the death-averted and turnover terms.
 - The genuinely hard problem is **adoption**, which is why HeatGuard leads with the
