@@ -7,8 +7,8 @@ import pytest
 
 from heatguard import risk_model
 from heatguard.risk_model import assess, feature_vector, model_path, phs_elevated_label
-from heatguard.scheduler import build_conditions, decide, schedule
-from heatguard.types import MetabolicCategory, Worker
+from heatguard.scheduler import build_conditions, schedule
+from heatguard.types import MetabolicCategory, PersonalRisk, Worker
 from heatguard.weather import fetch_archive
 
 TZ4 = timezone(timedelta(hours=4))
@@ -44,6 +44,33 @@ def test_decide_attaches_personal_risk_without_changing_signal(dubai_hot_hour, d
     d = adv.to_dict()
     assert "personal_risk_score" in d
     assert "elevated_risk" in d
+
+
+def test_ml_overlay_never_changes_regulatory_signal(dubai_hot_hour, dubai, monkeypatch):
+    """Personal risk is advisory-only — signal and cycle must not depend on ML output."""
+    worker = Worker(
+        "n",
+        days_on_job=0,
+        acclimatized=False,
+        weight_kg=95.0,
+        height_m=1.70,
+        age=55,
+        has_comorbidity=True,
+    )
+    baseline = schedule(dubai_hot_hour, dubai, worker, MetabolicCategory.HEAVY)
+
+    monkeypatch.setattr(
+        risk_model,
+        "assess",
+        lambda c, w: PersonalRisk(score=1.0, elevated=True, note="forced high risk"),
+    )
+    forced = schedule(dubai_hot_hour, dubai, worker, MetabolicCategory.HEAVY)
+
+    assert baseline.signal == forced.signal
+    assert baseline.cycle == forced.cycle
+    assert baseline.hydration.sweat_loss_g_per_h == forced.hydration.sweat_loss_g_per_h
+    assert forced.elevated_risk is True
+    assert forced.personal_risk_score == 1.0
 
 
 def test_feature_vector_length_matches_names(dubai_hot_hour, dubai, veteran):

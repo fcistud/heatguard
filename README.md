@@ -495,7 +495,7 @@ data/epidemiology/          published aggregate heat-risk constants
 data/models/                personal risk classifier (PHS-labelled training)
 data/cache/*.json           committed Open-Meteo weather (offline demo)
 docs/DATA.md                dataset guide for teammates
-tests/                      pytest suite (70)
+tests/                      pytest suite (91)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
