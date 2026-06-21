@@ -1,6 +1,6 @@
 # HeatGuard datasets
 
-Real and curated data used by the engine, demos, and (future) policy RAG.  
+Real and curated data used by the engine, demos, policy RAG, and personal-risk training.  
 **Manifest:** `data/datasets.json`
 
 ## Quick start
