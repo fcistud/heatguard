@@ -39,7 +39,7 @@ function minuteSignals(adv: Advisory): Signal[] {
   return out;
 }
 
-const STEP_MS = 110; // ~6.5s for the full hour
+const STEP_MS = 110; // ~6.6s for the full hour
 
 export function SignalTile({ advisory, time, workerLabel }: SignalTileProps) {
   const minutes = useMemo(() => minuteSignals(advisory), [advisory]);
