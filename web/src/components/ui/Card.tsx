@@ -19,18 +19,20 @@ export function Card({
 }: CardProps) {
   return (
     <section
-      className={`rounded-2xl border border-slate-200 bg-white shadow-card ${className}`}
+      className={`rounded-2xl border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900 ${className}`}
     >
       {(title || right) && (
-        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <div>
             {title && (
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">
                 {title}
               </h2>
             )}
             {subtitle && (
-              <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                {subtitle}
+              </p>
             )}
           </div>
           {right && <div className="shrink-0">{right}</div>}

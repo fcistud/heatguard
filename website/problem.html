@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — The problem</title>
+  <meta name="description" content="The Gulf calendar work ban is wrong in both directions; the danger and scale of occupational heat exposure; and the AKI / heat science." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a class="active" href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">The problem</p>
+        <h1>A calendar can't keep a working body safe</h1>
+        <p class="lead">
+          Every Gulf state controls outdoor heat with a fixed clock window on fixed dates. The
+          underlying risk isn't fixed — it depends on the weather, the job, and the worker — so
+          the calendar is simultaneously too permissive and too restrictive.
+        </p>
+
+        <h2 id="who-where">Who and where <a class="anchor" href="#who-where">#</a></h2>
+        <p>
+          Millions of migrant workers do outdoor manual labour across the Gulf — construction,
+          infrastructure, delivery. Summers there routinely push past the limits of human
+          thermoregulation. The Arab States host <strong>~24 million migrant workers</strong>
+          (41.4% of the labour force — the highest share of any world region), and an estimated
+          <strong>~10,000 migrant deaths a year</strong> are recorded (all-cause; over half are
+          certified with no underlying cause, so the heat-attributable toll is hidden).
+        </p>
+
+        <h2 id="what-heat-does">What heat does to a working body <a class="anchor" href="#what-heat-does">#</a></h2>
+        <p>
+          When you work hard in heat, your muscles produce heat faster than your body can shed
+          it. To cool down, you sweat — but sweating only works if the sweat can
+          <em>evaporate</em>, which humidity prevents. If cooling fails, core temperature rises,
+          leading to heat exhaustion, heat stroke, and a now well-documented epidemic of
+          <strong>acute kidney injury (AKI)</strong> and chronic kidney disease among manual
+          labourers in hot climates.
+        </p>
+        <div class="callout danger">
+          <div class="callout-title">🔥 The kidney-injury epidemic</div>
+          <p>
+            Sustained heat exposure during heavy work causes acute kidney injury (AKI), heat
+            exhaustion, heat stroke, and death. The kidney-injury epidemic among manual
+            labourers in hot climates is now a well-documented occupational disease — driven by
+            the repeated cycle of heat and dehydration during a working shift.
+          </p>
+        </div>
+
+        <h2 id="the-calendar">The current control is a calendar <a class="anchor" href="#the-calendar">#</a></h2>
+        <p>
+          Every Gulf state mitigates this with a calendar-based midday ban — a fixed clock
+          window, on fixed calendar dates, during which outdoor work under the sun is
+          prohibited:
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>State</th><th>Daily window</th><th>Season</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Saudi Arabia</strong></td><td>12:00–15:00</td><td>15 Jun – 15 Sep</td><td>MHRSD / National Council for OSH</td></tr>
+              <tr><td><strong>UAE</strong></td><td>12:30–15:00</td><td>15 Jun – 15 Sep</td><td>Fines AED 5,000/worker (max 50,000); 8 h/day cap; shaded rest required</td></tr>
+              <tr><td><strong>Kuwait</strong></td><td>11:00–16:00</td><td>01 Jun – 31 Aug</td><td>Widest window</td></tr>
+              <tr><td><strong>Oman</strong></td><td>12:30–15:30</td><td>01 Jun – 31 Aug</td><td></td></tr>
+              <tr><td><strong>Bahrain</strong></td><td>12:00–16:00</td><td>15 Jun – 31 Aug</td><td>Season is a moving target year to year</td></tr>
+              <tr><td><strong>Qatar</strong></td><td>10:00–15:30</td><td>01 Jun – 15 Sep</td><td><strong>Only WBGT rule</strong> — work stops if WBGT &gt; 32.1 °C</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Qatar is the only GCC state with a WBGT trigger, but <strong>32.1 °C is widely argued
+          to be too high</strong> (Human Rights Watch notes severe strain at wet-bulb 30–32 °C).
+        </p>
+
+        <h2 id="wrong-both-ways">Why the calendar is wrong — in both directions <a class="anchor" href="#wrong-both-ways">#</a></h2>
+        <p>
+          Because it is a clock window on fixed dates, human-rights bodies (HRW and others) have
+          documented the specific failure modes, each of which is a design target for HeatGuard:
+        </p>
+        <ul>
+          <li><strong>It starts too late.</strong> The bans begin 15 June, yet extreme heat now arrives in May — Dubai saw a major heat event in May 2025, before any ban was in force. A worker can die in a May heatwave the calendar simply does not cover.</li>
+          <li><strong>It misses the edges of the day.</strong> Dangerous humid mornings and evenings fall outside the noon window. WBGT can be lethal at 9 a.m. while the calendar says "work."</li>
+          <li><strong>It ignores actual conditions.</strong> Except in Qatar, the rule is blind to temperature, humidity, wind, solar load, and work intensity. A cool, breezy noon is banned; a brutal humid morning is permitted.</li>
+          <li><strong>It ignores acclimatization.</strong> A newly-arrived, unacclimatized worker — the group that actually dies — gets exactly the same protection as a 10-year veteran. None of it is individualized.</li>
+          <li><strong>It only addresses "direct sunlight."</strong> Shaded but high-humidity work is unregulated.</li>
+          <li><strong>It over-restricts.</strong> On many in-season days part of the noon window is genuinely workable, so the blunt ban also <em>destroys safe, productive hours</em> — which is precisely why employers resent it and why it gets evaded.</li>
+        </ul>
+
+        <div class="callout note">
+          <div class="callout-title">The contradiction the calendar can't resolve</div>
+          <p>
+            It is simultaneously <strong>too permissive</strong> (it misses real danger) and
+            <strong>too restrictive</strong> (it stops safe work). A fixed rule cannot be both
+            safe and efficient, because the underlying risk is not fixed — it depends on the
+            weather, the job, and the worker.
+          </p>
+        </div>
+
+        <h2 id="deeper-insight">The deeper insight: implementation, not knowledge <a class="anchor" href="#deeper-insight">#</a></h2>
+        <p>
+          The most important reframe: <strong>we already know what prevents heat illness, and it
+          is cheap.</strong> The La Isla Network's Adelante Initiative at the Ingenio San Antonio
+          sugar mill in Nicaragua ran a structured Water–Rest–Shade program — mandated breaks,
+          shade tents, and purified water with electrolytes. Per a 2024 ILO report, it
+          <strong>reduced acute kidney injury by ~94% and raised productivity 10–20%</strong>
+          despite reduced raw working time, because protecting workers reverses the heat-driven
+          productivity collapse.
+        </p>
+        <p>
+          The science is cheap, simple, and proven. <strong>The gap is not knowing what to do —
+          it is doing it adaptively, reliably, and verifiably.</strong> The research repeatedly
+          found that the effectiveness of an intervention cannot be assessed without considering
+          <em>implementation fidelity</em>. Screening workers out (ISA spent a decade hiring only
+          people with good kidney function — they still got injured) is not the answer;
+          <strong>preventing the exposure</strong> is.
+        </p>
+        <div class="callout info">
+          <div class="callout-title">ℹ️ The missing piece</div>
+          <p>
+            That implementation-and-verification layer is what HeatGuard supplies. See
+            <a href="solution.html">the solution</a> for how, and
+            <a href="science.html">how it works</a> for the science behind each decision.
+          </p>
+        </div>
+
+        <nav class="page-nav">
+          <a class="prev" href="index.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">Overview</span>
+          </a>
+          <a class="next" href="solution.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">The solution</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

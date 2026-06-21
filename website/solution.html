@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — The solution</title>
+  <meta name="description" content="HeatGuard is a site-level scheduler that senses, schedules, signals, and verifies — and why it is deployed to the supervisor rather than worn by every worker." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a class="active" href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">The solution</p>
+        <h1>A site-level scheduler with a verification layer</h1>
+        <p class="lead">
+          HeatGuard is a WBGT-driven work-rest-hydration scheduler deployed to the
+          <em>supervisor</em>, not to each worker. It senses, schedules, signals, and verifies —
+          plus a graded acclimatization ramp for new arrivals, the deadliest group and the
+          cheapest to protect.
+        </p>
+
+        <h2 id="four-things">The four things it does <a class="anchor" href="#four-things">#</a></h2>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-icon">📡</div>
+            <h3>1 · Senses</h3>
+            <p>Takes one on-site WBGT reading (a ~$300 meter) or estimates WBGT from weather, per ISO 7243.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📅</div>
+            <h3>2 · Schedules</h3>
+            <p>Outputs the actual work-rest cycle (ACGIH / ISO 7243) and hydration target (ISO 7933 PHS) for the current conditions, work intensity, and worker.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📢</div>
+            <h3>3 · Signals</h3>
+            <p>Drives one cheap, universally understood broadcast — a site horn, light, or one supervisor phone.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🔐</div>
+            <h3>4 · Verifies</h3>
+            <p>Logs every reading, break, drink prompt, and water attestation into a tamper-evident, hash-chained record.</p>
+          </div>
+        </div>
+
+        <div class="signal-row">
+          <span class="signal work"><span class="dot"></span> WORK</span>
+          <span class="signal rest"><span class="dot"></span> REST IN SHADE</span>
+          <span class="signal drink"><span class="dot"></span> DRINK NOW</span>
+          <span class="signal stop"><span class="dot"></span> STOP</span>
+        </div>
+
+        <p>
+          The verification record doubles as the employer's <strong>compliance shield</strong>
+          against inspection and fines: cryptographic proof that conditions were monitored and
+          breaks and water were provided. Plus the acclimatization ramp — pure scheduling, zero
+          cost — that protects the new arrivals who actually die.
+        </p>
+
+        <h2 id="why-site-level">Why site-level, not per-worker (for now) <a class="anchor" href="#why-site-level">#</a></h2>
+        <p>
+          Per-worker hardware is where adoption friction lives — cost, charging, breakage, and
+          surveillance concerns. The adoptable form is <strong>one sensor per site, riding on
+          existing infrastructure, with near-zero marginal cost per worker</strong>, that gives
+          the employer a <em>productivity story</em> and a <em>liability shield</em> rather than
+          a cost — and supplies exactly the implementation-fidelity layer the evidence says is
+          the real missing piece.
+        </p>
+        <div class="callout note">
+          <div class="callout-title">The adoptable wedge</div>
+          <p>
+            One sensor per site, near-zero marginal cost per worker, is what actually gets
+            adopted. Per-worker wearables are a powerful <em>next step</em> for personalisation
+            and enforcement — see the <a href="roadmap.html">roadmap</a> — but the site-level
+            core is the wedge that gets in the door. (A per-worker NFC wristband at the water
+            station only, to verify hydration, is an optional premium layer.)
+          </p>
+        </div>
+
+        <h2 id="how-it-fits">How the pieces fit together <a class="anchor" href="#how-it-fits">#</a></h2>
+        <p>
+          HeatGuard is one shared, pure, deterministic Python engine. The engine does no I/O —
+          weather ingestion and exports live at the edges — so the numbers are computed in
+          exactly one place and the test suite is trustworthy. A single decision for one
+          (worker, hour) flows through frozen, immutable dataclasses:
+        </p>
+        <pre><code>Weather  ──estimate_wbgt──▶  Conditions  ──scheduler.decide──▶  Advisory  ──compliance.append──▶  LogRecord
+(tdb, rh,                    (+ wbgt_c,                          (signal, cycle,                   (hash-chained)
+ wind, solar,                 wbgt_source,                        hydration, rationale,
+ pressure)                    globe_c,                            risk_score, ...)
+                              met_category)</code></pre>
+        <p>
+          Every WBGT value carries its <strong>provenance</strong>
+          (<code>liljegren | fallback | measured</code>) all the way into the compliance log and
+          the UI — the approximation is never hidden. The full breakdown of each scientific step
+          is on the <a href="science.html">How it works</a> page.
+        </p>
+
+        <h2 id="interfaces">Five interfaces over one engine <a class="anchor" href="#interfaces">#</a></h2>
+        <p>Every interface is a thin presentation layer over the same engine:</p>
+        <ul>
+          <li><strong>CLI</strong> — <code>heatguard demo dubai|riyadh</code> (the narrative), <code>roi</code>, <code>backtest</code>, <code>decide</code>, <code>fetch</code> / <code>fetch-demo</code>, <code>sites</code>.</li>
+          <li><strong>FastAPI</strong> (<code>uvicorn heatguard.api:app</code>) — <code>/demo/{site}</code>, <code>/timeline/{site}/{date}</code>, <code>/hour/{site}/{date}/{hour}</code> (per-worker recompute, optional <code>?measured_wbgt=</code>), <code>/impact</code>, <code>/economics</code>, <code>/scale</code>, <code>/backtest</code>, <code>/compliance/{site}/export</code>, <code>POST /decide</code>. Interactive docs at <code>/docs</code>.</li>
+          <li><strong>React dashboard</strong> — the primary pitch UI: live signal, the WBGT gauge with an Estimated&nbsp;⟷&nbsp;Measured toggle, the calendar-ban-vs-HeatGuard timeline with per-worker controls, the acclimatization tracker, season impact, the business-case panel, and the worker-protection record.</li>
+          <li><strong>Streamlit</strong> — the same story, pure-Python, no build step.</li>
+          <li><strong>Notebook</strong> — the narrated validation with charts.</li>
+        </ul>
+
+        <div class="btn-row">
+          <a class="btn primary" href="http://localhost:5173" target="_blank" rel="noopener">▶ See it in the live dashboard</a>
+          <a class="btn secondary" href="science.html">How it works →</a>
+        </div>
+
+        <nav class="page-nav">
+          <a class="prev" href="problem.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">The problem</span>
+          </a>
+          <a class="next" href="science.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">How it works</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>
