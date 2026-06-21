@@ -492,13 +492,16 @@ data/datasets.json          manifest of archives, forecasts, policy corpus
 data/nicaragua_baseline.json · data/economics.json   tunable assumptions
 data/policy/                GCC ban + ILO summaries (RAG corpus)
 data/epidemiology/          published aggregate heat-risk constants
+data/models/                personal risk classifier (PHS-labelled training)
 data/cache/*.json           committed Open-Meteo weather (offline demo)
 docs/DATA.md                dataset guide for teammates
-tests/                      pytest suite (59)
+tests/                      pytest suite (70)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
 ```
+
+**AI layer:** `risk_model.py` adds gradient-boosting personal risk stratification using PHS-derived labels on real cached weather. It enriches each `Advisory` but never overrides ISO/ACGIH signals. Retrain: `python scripts/train_risk_model.py`.
 
 ---
 
