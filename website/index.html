@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — Overview</title>
+  <meta name="description" content="HeatGuard is an adaptive, WBGT-driven work-rest-hydration scheduler that replaces the Gulf's blunt calendar-based midday work ban with a condition-responsive, standards-based, provable heat-safety system." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a class="active" href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">HeatGuard documentation</p>
+        <h1>Adaptive heat-safety for outdoor labour crews</h1>
+        <p class="lead">
+          HeatGuard replaces the Gulf's blunt calendar-based midday work ban with a
+          condition-responsive, standards-based, and <em>provable</em> work-rest-hydration
+          scheduler. It reads the weather, computes the heat-stress index, and tells a crew
+          exactly when to work, rest, drink, or stop.
+        </p>
+
+        <div class="btn-row">
+          <a class="btn primary" href="http://localhost:5173" target="_blank" rel="noopener">▶ Open the live demo</a>
+          <a class="btn secondary" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ View on GitHub</a>
+        </div>
+
+        <div class="signal-row">
+          <span class="signal work"><span class="dot"></span> WORK</span>
+          <span class="signal rest"><span class="dot"></span> REST IN SHADE</span>
+          <span class="signal drink"><span class="dot"></span> DRINK NOW</span>
+          <span class="signal stop"><span class="dot"></span> STOP</span>
+        </div>
+
+        <h2 id="one-minute">The one-minute pitch <a class="anchor" href="#one-minute">#</a></h2>
+        <p>
+          HeatGuard is an <strong>adaptive heat-safety scheduler</strong> for outdoor labour
+          crews in the Gulf. It replaces the region's fixed calendar-based midday work ban
+          (e.g. Saudi Arabia: outdoor work banned 12:00–15:00, 15&nbsp;Jun–15&nbsp;Sep) with a
+          rule that responds to the <em>actual</em> heat-stress conditions, the work intensity,
+          and the worker.
+        </p>
+        <p>Each hour it reads the weather (or an on-site sensor), computes the heat-stress index (WBGT), and outputs:</p>
+        <ul>
+          <li>a <strong>work-rest cycle</strong> — how many minutes to work vs rest, per ACGIH / ISO 7243;</li>
+          <li>a <strong>hydration target</strong> — how much to drink, per ISO 7933; and</li>
+          <li>one broadcast <strong>signal</strong>: WORK · REST IN SHADE · DRINK NOW · STOP.</li>
+        </ul>
+        <p>
+          It enforces an acclimatization ramp for new arrivals, writes every decision into a
+          tamper-evident log, and turns the avoided harm into a business case. It is one pure
+          Python engine with five interfaces over it (CLI, API, React dashboard, Streamlit,
+          notebook).
+        </p>
+
+        <h2 id="danger-scale">The danger and the scale <a class="anchor" href="#danger-scale">#</a></h2>
+        <p>
+          Millions of migrant workers do outdoor manual labour across the Gulf — construction,
+          infrastructure, delivery. Summers there routinely push past the limits of human
+          thermoregulation.
+        </p>
+        <div class="stat-grid">
+          <div class="stat"><div class="num">~24M</div><div class="label">migrant workers in the Arab States (2019)</div></div>
+          <div class="stat"><div class="num">41.4%</div><div class="label">of the labour force — the highest share of any world region</div></div>
+          <div class="stat"><div class="num">~10,000</div><div class="label">migrant deaths a year (all-cause; over half uncertified)</div></div>
+          <div class="stat"><div class="num">1 of 19</div><div class="label">worker-heat studies that came from the Gulf — a near-total evidence void</div></div>
+        </div>
+        <div class="callout warn">
+          <div class="callout-title">⚠️ A careful note on the numbers</div>
+          <p>
+            The ~10,000 figure is <strong>all-cause</strong> migrant deaths, not heat deaths
+            specifically. Many are certified as "cardiac arrest" or "natural causes" without
+            autopsy, so the heat-attributable toll is genuinely hidden. We state every number
+            this way throughout the docs.
+          </p>
+        </div>
+
+        <h2 id="why-now">Why this exists <a class="anchor" href="#why-now">#</a></h2>
+        <p>
+          The <em>intervention</em> science is already solved and cheap: water, rest, and shade.
+          The La Isla Network's Adelante Initiative in Nicaragua showed it cut kidney injury
+          ~94% (in the highest-risk subgroup) and raised productivity 10–20%.
+          <strong>The gap is not knowing what to do — it is doing it adaptively, reliably, and
+          verifiably.</strong> That implementation-and-verification layer is what HeatGuard
+          supplies.
+        </p>
+
+        <h2 id="explore">Explore the docs <a class="anchor" href="#explore">#</a></h2>
+        <div class="card-grid">
+          <a class="card" href="problem.html">
+            <div class="card-icon">🔥</div>
+            <h3>The problem</h3>
+            <p>Why the calendar ban is wrong in both directions, plus the AKI and heat science.</p>
+          </a>
+          <a class="card" href="solution.html">
+            <div class="card-icon">🛡️</div>
+            <h3>The solution</h3>
+            <p>The four things HeatGuard does, and why it is site-level rather than a wearable.</p>
+          </a>
+          <a class="card" href="science.html">
+            <div class="card-icon">🔬</div>
+            <h3>How it works</h3>
+            <p>WBGT, ACGIH work-rest, ISO 7933 hydration, NIOSH acclimatization, the decision logic.</p>
+          </a>
+          <a class="card" href="data.html">
+            <div class="card-icon">📊</div>
+            <h3>Data &amp; research</h3>
+            <p>The datasets, the standards, the Nicaragua evidence, and the honest gaps.</p>
+          </a>
+          <a class="card" href="roi.html">
+            <div class="card-icon">💰</div>
+            <h3>Impact &amp; ROI</h3>
+            <p>The formulas, the worked Dubai and Riyadh examples, the per-claim confidence table.</p>
+          </a>
+          <a class="card" href="roadmap.html">
+            <div class="card-icon">🗺️</div>
+            <h3>Roadmap</h3>
+            <p>Cheap wearables, demographic personalisation, heart-rate and sweat integration.</p>
+          </a>
+        </div>
+
+        <div class="callout info">
+          <div class="callout-title">ℹ️ A prototype, not certified safety equipment</div>
+          <p>
+            HeatGuard is standards-based and unit-tested, but it is a hackathon prototype
+            intended to demonstrate the approach — not a substitute for certified occupational
+            safety equipment.
+          </p>
+        </div>
+
+        <nav class="page-nav">
+          <span></span>
+          <a class="next" href="problem.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">The problem</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · Built standards-based, unit-tested — a prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

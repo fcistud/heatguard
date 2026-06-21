@@ -11,6 +11,9 @@ import type {
   WbgtSource,
 } from "./types";
 import { TopBar } from "./components/TopBar";
+import type { ViewMode } from "./components/TopBar";
+import { SimpleView } from "./components/SimpleView";
+import { useTheme } from "./lib/theme";
 import { Card } from "./components/ui/Card";
 import { SignalTile } from "./components/SignalTile";
 import { WbgtGauge } from "./components/WbgtGauge";
@@ -34,12 +37,12 @@ const INTENSITY_OPTIONS: { value: Intensity; label: string }[] = [
 
 function ApiDownBanner({ message }: { message: string }) {
   return (
-    <div className="mx-auto mt-24 max-w-xl rounded-2xl border border-red-200 bg-white p-8 text-center shadow-card">
+    <div className="mx-auto mt-24 max-w-xl rounded-2xl border border-red-200 bg-white p-8 text-center shadow-card dark:border-heat-red/40 dark:bg-slate-900">
       <div className="text-4xl">🌡️</div>
-      <h2 className="mt-3 text-lg font-bold text-slate-900">
+      <h2 className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-50">
         Can't reach the HeatGuard API
       </h2>
-      <p className="mt-1 text-sm text-slate-500">{message}</p>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{message}</p>
       <div className="mt-4 rounded-lg bg-slate-900 px-4 py-3 text-left font-mono text-xs text-slate-100">
         # from the repo root
         <br />
@@ -65,6 +68,9 @@ function Spinner({ label }: { label: string }) {
 }
 
 export default function App() {
+  const { theme, toggle: toggleTheme } = useTheme();
+  const [view, setView] = useState<ViewMode>("full");
+
   const [demos, setDemos] = useState<string[]>([]);
   const [siteKey, setSiteKey] = useState<string>("");
   const [crew, setCrew] = useState<number>(100);
@@ -348,6 +354,10 @@ export default function App() {
           onSelect={setSiteKey}
           crew={crew}
           onCrew={setCrew}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          view={view}
+          onView={setView}
         />
         <ApiDownBanner message={error} />
       </div>
@@ -362,32 +372,58 @@ export default function App() {
         onSelect={setSiteKey}
         crew={crew}
         onCrew={setCrew}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        view={view}
+        onView={setView}
       />
 
       <main className="mx-auto max-w-7xl space-y-6 px-5 pt-6">
         {loading || !demo || !timeline || !impact ? (
           <Spinner label="Loading demo…" />
+        ) : view === "simple" ? (
+          effectiveAdvisory && currentRow && effectiveWbgt != null ? (
+            <SimpleView
+              siteName={demo.site.name}
+              demos={demos}
+              selectedSite={siteKey}
+              onSelectSite={setSiteKey}
+              timeline={timeline}
+              currentRow={currentRow}
+              advisory={effectiveAdvisory}
+              wbgt={effectiveWbgt}
+              source={effectiveSource ?? currentRow.wbgt_source}
+              banned={currentRow.banned}
+              selectedHour={currentRow.hour}
+              onSelectHour={setSelectedHour}
+              worker={worker}
+              onSelectWorker={setWorker}
+              newcomerDays={newcomerDays}
+            />
+          ) : (
+            <Spinner label="Loading demo…" />
+          )
         ) : (
           <>
             {/* 1. Headline banner */}
-            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-card">
+            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-card dark:border-heat-orange/30 dark:from-slate-900 dark:to-orange-950/40">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-xl font-bold text-slate-900">
+                  <h1 className="font-display text-xl font-bold text-slate-900 dark:text-slate-50">
                     {demo.headline}
                   </h1>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                     {demo.ban.description}
                   </p>
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-center">
-                  <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                <div className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-center dark:border-heat-orange/40 dark:bg-slate-900">
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Season peak
                   </div>
-                  <div className="text-2xl font-bold tabular-nums text-red-600">
+                  <div className="font-display text-2xl font-bold tabular-nums text-heat-red">
                     {demo.peak.tdb_c.toFixed(1)}°C
                   </div>
-                  <div className="text-[11px] text-slate-400">
+                  <div className="text-[11px] text-slate-400 dark:text-slate-500">
                     {demo.peak.when}
                   </div>
                 </div>
@@ -401,15 +437,15 @@ export default function App() {
             >
               <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <div className="font-semibold text-slate-800">1 · Conditions → WBGT</div>
-                  <p className="mt-1 text-slate-500">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">1 · Conditions → WBGT</div>
+                  <p className="mt-1 text-slate-500 dark:text-slate-400">
                     WBGT is the heat-stress index — it blends temperature, humidity, sun and wind,
                     so it tells you far more than air temperature alone. Higher = more dangerous.
                   </p>
                 </div>
                 <div>
-                  <div className="font-semibold text-slate-800">2 · One signal for the crew</div>
-                  <p className="mt-1 text-slate-500">Each hour, a single instruction is broadcast:</p>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">2 · One signal for the crew</div>
+                  <p className="mt-1 text-slate-500 dark:text-slate-400">Each hour, a single instruction is broadcast:</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {([["WORK", "#16a34a"], ["REST", "#f59e0b"], ["DRINK", "#0ea5e9"], ["STOP", "#dc2626"]] as const).map(
                       ([label, color]) => (
@@ -425,16 +461,16 @@ export default function App() {
                   </div>
                 </div>
                 <div>
-                  <div className="font-semibold text-slate-800">3 · Calendar ban vs HeatGuard</div>
-                  <p className="mt-1 text-slate-500">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">3 · Calendar ban vs HeatGuard</div>
+                  <p className="mt-1 text-slate-500 dark:text-slate-400">
                     The timeline compares the Gulf's fixed midday ban (a clock window) with HeatGuard's
-                    condition-based call, hour by hour. A red <span className="font-semibold text-rose-600">⚠</span>{" "}
+                    condition-based call, hour by hour. A red <span className="font-semibold text-heat-red">⚠</span>{" "}
                     marks dangerous hours the calendar ban misses.
                   </p>
                 </div>
                 <div>
-                  <div className="font-semibold text-slate-800">4 · What it's worth</div>
-                  <p className="mt-1 text-slate-500">
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">4 · What it's worth</div>
+                  <p className="mt-1 text-slate-500 dark:text-slate-400">
                     The impact and business-case panels total the season vs the calendar ban, then scale
                     it to a whole workforce — danger averted, lives saved, and ROI.
                   </p>
@@ -713,7 +749,7 @@ export default function App() {
               <WhatIfPanel siteKey={siteKey} />
             </Card>
 
-            <footer className="pt-2 text-center text-xs text-slate-400">
+            <footer className="pt-2 text-center text-xs text-slate-400 dark:text-slate-500">
               HeatGuard · WBGT-driven work-rest-hydration scheduler · demo data for{" "}
               {demo.site.name}, {demo.site.country}
             </footer>
