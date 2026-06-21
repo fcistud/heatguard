@@ -181,7 +181,7 @@ def train_and_save(
     from .scheduler import build_conditions
     from .service import DEMOS
     from .sites import get_site
-    from .weather import daytime, fetch_archive
+    from .weather import fetch_archive
 
     if worker_profiles is None:
         worker_profiles = _default_worker_profiles()
@@ -193,7 +193,7 @@ def train_and_save(
         cfg = DEMOS[key]
         site = get_site(key)
         season = fetch_archive(site, cfg["season_start"], cfg["season_end"])
-        for w in daytime(season, 5, 20):
+        for w in _sample_weather_hours(season):
             c = build_conditions(w, site, intensity)
             for worker in worker_profiles:
                 xs.append(feature_vector(c, worker))
@@ -238,10 +238,11 @@ def train_and_save(
 
 
 def _default_worker_profiles() -> list[Worker]:
+    """Small grid — keeps PHS labelling tractable on laptop training runs."""
     profiles: list[Worker] = []
     for days, accl in [(0, False), (2, False), (30, True), (120, True)]:
-        for weight, height in [(60.0, 1.65), (75.0, 1.75), (95.0, 1.80)]:
-            for age, comorb in [(25, False), (45, False), (55, True)]:
+        for weight, height in [(65.0, 1.70), (85.0, 1.78)]:
+            for age, comorb in [(28, False), (52, True)]:
                 profiles.append(
                     Worker(
                         f"p-{days}-{weight}-{age}",
@@ -254,3 +255,11 @@ def _default_worker_profiles() -> list[Worker]:
                     )
                 )
     return profiles
+
+
+def _sample_weather_hours(season: list, step: int = 3) -> list:
+    """Subsample daylight hours so training finishes in seconds, not minutes."""
+    from .weather import daytime
+
+    hours = daytime(season, 5, 20)
+    return hours[::step]

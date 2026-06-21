@@ -1,0 +1,21 @@
+{
+  "feature_names": [
+    "days_on_job",
+    "acclimatized",
+    "experienced_elsewhere",
+    "bmi",
+    "age",
+    "has_comorbidity",
+    "wbgt_c",
+    "met_ordinal",
+    "hour",
+    "rh_pct",
+    "tdb_c",
+    "wind_ms"
+  ],
+  "elevated_threshold": 0.45,
+  "label_source": "ISO 7933 PHS on Open-Meteo archive hours",
+  "training_rows": 19600,
+  "positive_rate": 0.7418367346938776,
+  "train_accuracy": 0.9918367346938776
+}
