@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import service
+from .sites import get_site
 from .types import MetabolicCategory
 
 app = FastAPI(
@@ -87,6 +88,36 @@ def sensitivity(site_key: str, crew: int = Query(100, ge=1, le=100000)) -> list[
 @app.get("/backtest")
 def backtest() -> dict:
     return service.backtest()
+
+
+@app.get("/datasets")
+def datasets() -> dict:
+    return service.list_datasets()
+
+
+@app.get("/forecast/{site_key}")
+def forecast(site_key: str) -> dict:
+    try:
+        get_site(site_key)
+    except KeyError:
+        raise HTTPException(404, f"Unknown site '{site_key}'.")
+    try:
+        return service.forecast_timeline(site_key)
+    except FileNotFoundError:
+        raise HTTPException(
+            503,
+            f"Forecast not cached for '{site_key}'. Run `heatguard fetch-datasets`.",
+        )
+
+
+@app.get("/policy/corpus")
+def policy_corpus() -> list[dict]:
+    from .datasets import load_policy_corpus
+
+    return [
+        {"id": p["id"], "title": p["title"], "path": f"data/{p['path']}", "chars": len(p["text"])}
+        for p in load_policy_corpus()
+    ]
 
 
 @app.get("/compliance/{site_key}/export")

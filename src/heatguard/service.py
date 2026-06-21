@@ -10,10 +10,11 @@ from datetime import date, datetime
 
 from . import calendar_ban, economics, impact
 from .compliance import ComplianceLog
+from .datasets import inventory as dataset_inventory
 from .scheduler import live_signal, schedule
 from .sites import get_site, load_sites
 from .types import MetabolicCategory, Signal, Weather, Worker
-from .weather import daytime, fetch_archive, replay_worker
+from .weather import daytime, fetch_archive, fetch_forecast, replay_worker
 
 _PROTECTIVE = (Signal.STOP, Signal.REST_IN_SHADE)
 WORK_START, WORK_END = 5, 19
@@ -205,3 +206,76 @@ def decide_one(
 
 def backtest() -> dict:
     return impact.backtest_nicaragua()
+
+
+def list_datasets() -> dict:
+    return dataset_inventory()
+
+
+def _default_intensity(site_key: str) -> MetabolicCategory:
+    if site_key in DEMOS:
+        return DEMOS[site_key]["intensity"]
+    return MetabolicCategory.HEAVY
+
+
+def forecast_timeline(site_key: str) -> dict:
+    """Hourly forecast with HeatGuard signals and a recommended shift window."""
+    from .datasets import load_manifest
+
+    site = get_site(site_key)
+    cfg = load_manifest()["weather"]["forecast"]
+    cat = _default_intensity(site_key)
+    veteran, newcomer = _veteran(), _newcomer()
+    rows = fetch_forecast(
+        site,
+        forecast_days=int(cfg["forecast_days"]),
+        past_days=int(cfg["past_days"]),
+    )
+    work_rows = [w for w in rows if WORK_START <= w.timestamp.hour <= WORK_END]
+    timeline_rows: list[dict] = []
+    danger_hours = 0
+    work_hour_labels: list[str] = []
+
+    for w in work_rows:
+        av = schedule(w, site, veteran, cat)
+        an = schedule(w, site, newcomer, cat)
+        if av.signal in _PROTECTIVE:
+            danger_hours += 1
+        if av.signal is Signal.WORK:
+            work_hour_labels.append(w.timestamp.strftime("%H:%M"))
+        timeline_rows.append({
+            "hour": w.timestamp.hour,
+            "time": w.timestamp.strftime("%H:%M"),
+            "date": str(w.timestamp.date()),
+            "tdb_c": round(w.tdb_c, 1),
+            "rh_pct": round(w.rh_pct, 0),
+            "wbgt_c": round(av.wbgt_c, 1),
+            "wbgt_source": av.wbgt_source,
+            "veteran": av.to_dict(),
+            "newcomer": an.to_dict(),
+            "banned": calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c),
+        })
+
+    shift_start = work_hour_labels[0] if work_hour_labels else None
+    shift_end = work_hour_labels[-1] if work_hour_labels else None
+
+    return {
+        "site": {"key": site_key, "name": site.name, "country": site.country},
+        "intensity": cat.value,
+        "source": "open-meteo-forecast",
+        "forecast_days": int(cfg["forecast_days"]),
+        "past_days": int(cfg["past_days"]),
+        "rows": timeline_rows,
+        "summary": {
+            "total_work_hours": len(work_rows),
+            "danger_hours": danger_hours,
+            "work_hours_permitted": len(work_hour_labels),
+            "recommended_shift_start": shift_start,
+            "recommended_shift_end": shift_end,
+            "headline": (
+                f"Start outdoor work at {shift_start}, finish by {shift_end}."
+                if shift_start and shift_end
+                else "No safe full-work hours in the forecast window — plan rest/shade blocks."
+            ),
+        },
+    }

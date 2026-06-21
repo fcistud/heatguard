@@ -3,8 +3,9 @@
 Subcommands:
   sites      list demo sites
   decide     one decision from explicit conditions
-  fetch      cache Open-Meteo data for a site/date-range
+  fetch      cache Open-Meteo archive for a site/date-range
   fetch-demo pre-fetch + cache the two committed demo datasets
+  fetch-datasets  cache all archive + forecast rows in data/datasets.json
   demo       run the narrative (signal timeline, calendar-vs-adaptive gap, impact)
   backtest   reproduce the Nicaragua effect sizes
 """
@@ -82,6 +83,23 @@ def cmd_fetch_demo(args) -> int:
         print(f"Fetching {site.name} {cfg['season_start']}..{cfg['season_end']} ...")
         rows = fetch_archive(site, cfg["season_start"], cfg["season_end"], refresh=args.refresh)
         print(f"  cached {len(rows)} rows.")
+    return 0
+
+
+def cmd_fetch_datasets(args) -> int:
+    from . import datasets as ds
+
+    print("Fetching archive seasons from data/datasets.json ...")
+    for site_key, n in ds.fetch_all_archives(refresh=args.refresh):
+        print(f"  {site_key:12s} {n:5d} hourly rows")
+    print("Fetching forecasts ...")
+    for site_key, n in ds.fetch_all_forecasts(refresh=args.refresh):
+        print(f"  {site_key:12s} {n:5d} forecast hours")
+    inv = ds.inventory()
+    print(
+        f"\nCached: {inv['weather']['archive_cached']}/{inv['weather']['archive_total']} archives, "
+        f"{inv['weather']['forecast_cached']}/{inv['weather']['forecast_total']} forecasts."
+    )
     return 0
 
 
@@ -222,6 +240,10 @@ def build_parser() -> argparse.ArgumentParser:
     fd = sub.add_parser("fetch-demo", help="pre-fetch the committed demo datasets")
     fd.add_argument("--refresh", action="store_true")
     fd.set_defaults(func=cmd_fetch_demo)
+
+    fds = sub.add_parser("fetch-datasets", help="cache all datasets listed in data/datasets.json")
+    fds.add_argument("--refresh", action="store_true")
+    fds.set_defaults(func=cmd_fetch_datasets)
 
     dm = sub.add_parser("demo", help="run the narrative demo")
     dm.add_argument("site", choices=list(DEMOS))
