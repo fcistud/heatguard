@@ -11,6 +11,7 @@ import { ComplianceFeed } from "./components/ComplianceFeed";
 import { ImpactPanel } from "./components/ImpactPanel";
 import { EconomicsPanel } from "./components/EconomicsPanel";
 import { WhatIfPanel } from "./components/WhatIfPanel";
+import { PolicyPanel } from "./components/PolicyPanel";
 
 type WorkerKey = "veteran" | "newcomer";
 
@@ -355,6 +356,13 @@ export default function App() {
               subtitle="POST /decide · proves the engine is live, not canned"
             >
               <WhatIfPanel siteKey={siteKey} />
+            </Card>
+
+            <Card
+              title="Policy gap auditor"
+              subtitle="POST /policy/query · RAG over GCC bans + ILO WRS corpus"
+            >
+              <PolicyPanel />
             </Card>
 
             <footer className="pt-2 text-center text-xs text-slate-400">

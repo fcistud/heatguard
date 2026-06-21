@@ -216,3 +216,19 @@ export interface DecideResponse {
   ban_description: string;
   live: Signal[]; // 60 signals
 }
+
+export interface PolicySource {
+  doc_id: string;
+  title: string;
+  path: string;
+  excerpt: string;
+  score: number;
+  chunk_index: number;
+}
+
+export interface PolicyAnswer {
+  question: string;
+  answer: string;
+  method: string;
+  sources: PolicySource[];
+}

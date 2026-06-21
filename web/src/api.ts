@@ -6,6 +6,7 @@ import type {
   DecideResponse,
   DemoPayload,
   ImpactReport,
+  PolicyAnswer,
   SensitivityRow,
   SiteSummary,
   Timeline,
@@ -69,4 +70,11 @@ export const api = {
     }),
   complianceExportUrl: (siteKey: string, fmt: "csv" | "jsonl" = "csv") =>
     `${API_BASE}/compliance/${siteKey}/export?fmt=${fmt}`,
+  policyDemoQuestions: () => getJSON<string[]>("/policy/demo-questions"),
+  policyQuery: (question: string, top_k = 3) =>
+    getJSON<PolicyAnswer>("/policy/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, top_k }),
+    }),
 };
