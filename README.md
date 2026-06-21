@@ -12,12 +12,15 @@ to a tamper-evident audit trail, and turns the avoided harm into a hard business
 
 It is built as one pure, deterministic **Python engine** with five interfaces over it: a
 **CLI**, a **FastAPI** backend, a polished **React dashboard**, a pure-Python **Streamlit**
-app, and a validation **Jupyter notebook**.
+app, and a validation **Jupyter notebook**. An optional **AI layer** on top adds
+personal-risk stratification (gradient boosting on PHS-labelled real weather) and a
+**policy RAG** corpus over GCC ban rules and ILO Water–Rest–Shade evidence — neither
+overrides the regulatory signal.
 
 ```bash
 pip install -e . && pip install -r requirements.txt
-pytest -q                 # 59 tests, incl. the Nicaragua back-test
-heatguard fetch-demo      # cache real Open-Meteo weather (committed; run once)
+pytest -q                 # 91 tests, incl. Nicaragua back-test + API/demo/policy/ML
+heatguard fetch-datasets  # cache weather + forecasts (committed; run once if missing)
 scripts/run_demo.sh       # API + dashboard in one command  →  http://localhost:5173
 ```
 
@@ -160,6 +163,9 @@ presentation layer over the same engine, so the numbers are computed in exactly 
                  │  impact       mechanistic AKI + productivity model               │
                  │  economics    business case / ROI                               │
                  │  weather/     Open-Meteo client + replay                         │
+                 │  datasets     manifest loader + bulk fetch                         │
+                 │  risk_model   GB personal-risk overlay (advisory only)             │
+                 │  policy_rag   TF-IDF retrieval over data/policy/                 │
                  │  service      assembles demo/timeline/impact/economics payloads  │
                  └─────────────────────────────────────────────────────────────────┘
                       ▲            ▲              ▲              ▲            ▲
@@ -431,13 +437,15 @@ recovers. The pitch line: **it is not a safety cost — it is productivity-posit
 
 ## 9. Validation & testing
 
-- **59 pytest tests** (`pytest -q`, network tests skipped by default): exact ACGIH/AL table
+- **91 pytest tests** (`pytest -q`, network tests skipped by default): exact ACGIH/AL table
   values and step-boundary mapping; WBGT sanity (below air temp, rises with humidity/solar,
   night ≈ wet-bulb); solar geometry; PHS monotonicity and attribute pinning; the
   acclimatization ramp; the most-conservative scheduler logic and STOP consistency; GCC ban
   windows incl. Qatar's WBGT cutoff and out-of-season; compliance chain verification + tamper
-  detection; the mechanistic impact (zero-danger, full/zero coverage, crew scaling); and the
-  economics ROI.
+  detection; the mechanistic impact (zero-danger, full/zero coverage, crew scaling); the
+  economics ROI; dataset manifest + forecast caching; **policy RAG** retrieval; **FastAPI**
+  route smoke tests; **demo narrative** assertions (Dubai May 16 gap hours, Riyadh newcomer
+  beat); and **ML non-interference** (personal risk never changes the regulatory `Signal`).
 - **Nicaragua back-test** (`heatguard backtest`): the impact model reproduces the documented
   La Isla / Adelante outcomes — **94% AKI reduction, 10–20% productivity** — as an assertion
   that fails loudly if anyone changes an effect size. This is the validity backbone: the
@@ -453,15 +461,19 @@ recovers. The pitch line: **it is not a safety cost — it is productivity-posit
 All five share the engine via `service.py`.
 
 - **CLI** — `heatguard demo dubai|riyadh` (the narrative), `roi`, `backtest`, `decide`,
-  `fetch` / `fetch-demo`, `sites`.
+  `fetch` / `fetch-demo` / `fetch-datasets`, `policy-query`, `sites`.
 - **FastAPI** (`uvicorn heatguard.api:app`) — `/sites`, `/demo/{site}`,
   `/timeline/{site}/{date}`, `/impact/{site}`, `/economics/{site}`, `/sensitivity/{site}`,
-  `/backtest`, `/compliance/{site}/export`, `POST /decide`.
+  `/backtest`, `/datasets`, `/forecast/{site}`, `/policy/corpus`, `/policy/demo-questions`,
+  `POST /policy/query`, `/compliance/{site}/export`, `POST /decide` (optional worker age,
+  weight, comorbidity for personal-risk overlay).
 - **React dashboard** (`web/`, Vite + TS + Tailwind) — the primary pitch UI: live signal
-  tile, WBGT gauge, the **calendar-ban-vs-HeatGuard timeline** with a day scrubber and a
-  veteran/new-worker toggle, acclimatization tracker, season impact, the **business-case /
-  ROI panel** with an AKI sensitivity chart, the compliance feed, and a live what-if. See
-  [`docs/DASHBOARD_WALKTHROUGH.md`](docs/DASHBOARD_WALKTHROUGH.md) for a presenter's guide.
+  tile (with **personal-risk badges**), WBGT gauge, the **calendar-ban-vs-HeatGuard timeline**
+  with a day scrubber and a veteran/new-worker toggle, acclimatization tracker, season
+  impact, the **business-case / ROI panel** with an AKI sensitivity chart, the compliance
+  feed, a live what-if (age/weight/comorbidity), and the **Policy gap auditor** (RAG over
+  GCC bans + ILO WRS). See [`docs/DASHBOARD_WALKTHROUGH.md`](docs/DASHBOARD_WALKTHROUGH.md)
+  for a presenter's guide.
 - **Streamlit** (`streamlit run streamlit_app.py`) — a pure-Python, no-build version of the
   same story.
 - **Notebook** (`notebooks/heatguard_validation.ipynb`) — the narrated back-test, the
@@ -472,11 +484,11 @@ All five share the engine via `service.py`.
 ## 11. Install, run, project layout
 
 ```bash
-pip install -e .                 # the `heatguard` CLI + engine
-pip install -r requirements.txt  # interface deps
-pytest -q                        # 59 tests
-heatguard fetch-demo             # cache demo Open-Meteo archives (also committed)
-heatguard fetch-datasets         # cache all archives + forecasts in data/datasets.json
+conda env create -f environment.yml && conda activate heatguard   # Python 3.11
+# or: pip install -e . && pip install -r requirements.txt
+pytest -q                        # 91 tests
+heatguard fetch-datasets         # cache all archives + forecasts (also committed)
+heatguard policy-query "When does the UAE ban start?"
 
 scripts/run_demo.sh --setup      # one command: installs deps + starts API + dashboard
 # or individually:
