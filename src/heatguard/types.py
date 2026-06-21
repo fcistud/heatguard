@@ -116,6 +116,17 @@ class Worker:
     experienced_elsewhere: bool = False  # new to THIS job but heat-experienced -> faster ramp
     weight_kg: float = 75.0
     height_m: float = 1.75
+    age: int = 30
+    has_comorbidity: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class PersonalRisk:
+    """ML overlay — advisory only; does not change the regulatory ``Signal``."""
+
+    score: float       # 0-1 probability of elevated individual strain
+    elevated: bool     # flag for outreach / stricter monitoring
+    note: str          # human-readable drivers
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,6 +164,9 @@ class Advisory:
     acclim_fraction: float       # 0-1 exposure cap from the ramp
     rationale: str
     risk_score: float            # 0-1 continuous WBGT-vs-thresholds score (UI gauge only)
+    personal_risk_score: float = 0.0
+    elevated_risk: bool = False
+    personal_risk_note: str = ""
 
     def to_dict(self) -> dict:
         """JSON-serialisable view (used by the compliance log and the API)."""
@@ -182,4 +196,7 @@ class Advisory:
             "acclim_fraction": self.acclim_fraction,
             "rationale": self.rationale,
             "risk_score": round(self.risk_score, 3),
+            "personal_risk_score": round(self.personal_risk_score, 3),
+            "elevated_risk": self.elevated_risk,
+            "personal_risk_note": self.personal_risk_note,
         }
