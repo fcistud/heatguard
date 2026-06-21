@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from . import acclimatization, hydration, worktables
+from . import acclimatization, hydration, risk_model, worktables
 from .types import (
     Advisory,
     Conditions,
@@ -125,6 +125,8 @@ def decide(c: Conditions, worker: Worker) -> Advisory:
     if c.wbgt_source != "measured":
         rationale += f" [WBGT {c.wbgt_source}-estimated]"
 
+    personal = risk_model.assess(c, worker)
+
     return Advisory(
         timestamp=c.weather.timestamp,
         site_name=c.site.name,
@@ -137,6 +139,9 @@ def decide(c: Conditions, worker: Worker) -> Advisory:
         acclim_fraction=allowed,
         rationale=rationale,
         risk_score=worktables.risk_score(c.wbgt_c, cat, table_acclimatized),
+        personal_risk_score=personal.score,
+        elevated_risk=personal.elevated,
+        personal_risk_note=personal.note,
     )
 
 
