@@ -343,6 +343,36 @@ export function EconomicsPanel({
       <p className="text-xs text-slate-400">
         {note ?? "Illustrative, conservative, tunable assumptions (data/economics.json)."}
       </p>
+
+      <details className="mt-2 text-xs text-slate-500">
+        <summary className="cursor-pointer select-none font-medium text-slate-600 hover:text-slate-800">
+          How is this ROI calculated?
+        </summary>
+        <div className="mt-2 space-y-1.5 rounded-lg bg-slate-50 p-3 leading-relaxed">
+          <p>
+            <span className="font-semibold text-slate-700">Headline benefit</span> = productivity
+            gain + recovered safe work + AKI cases averted + fines avoided. The death-averted and
+            turnover terms are computed but <em>excluded</em> from the headline to stay conservative.
+          </p>
+          <p>
+            <span className="font-semibold text-slate-700">ROI</span> = headline benefit ÷ program
+            cost (~$95/worker). <span className="font-semibold text-slate-700">Payback</span> = cost
+            ÷ (benefit ÷ season-days).
+          </p>
+          <p>
+            Each term traces back to the per-crew season result computed on real weather; all
+            cost/value assumptions live in <code>data/economics.json</code>.
+          </p>
+          <a
+            className="font-medium text-sky-600 underline"
+            href="https://github.com/fcistud/heatguard/blob/main/docs/ROI_AND_CLAIMS.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Full methodology — every term, assumption, and worked example →
+          </a>
+        </div>
+      </details>
     </div>
   );
 }

@@ -1,10 +1,19 @@
-"""Tamper-evident compliance log — the employer's audit shield.
+"""Tamper-evident protection record — worker-protective first, compliance shield second.
 
 An append-only, SHA-256 hash-chained record of every WBGT reading, work-rest
 call, drink prompt, water-availability attestation, and STOP. Any later edit or
 deletion breaks the chain, so the export is cryptographically verifiable proof
-that conditions were monitored and breaks/water were provided — the defence
-against heat-safety fines (e.g. AED 5,000/worker in the UAE) and liability.
+that conditions were monitored and breaks/water were provided.
+
+It is **dual-purpose**: it gives the *worker* an immutable record that they were
+protected (their own heat-safety history, usable in a health or grievance claim),
+and the *employer* a defence against heat-safety fines (e.g. AED 5,000/worker in
+the UAE) and liability.
+
+**Privacy by design** (see ``ComplianceLog.summary()['privacy']``): the log records
+site CONDITIONS and protective ACTIONS, not individual surveillance — no location
+trail, no biometrics, no continuous worker tracking. The only identifier is a
+worker/crew id the operator controls and can pseudonymise.
 """
 from __future__ import annotations
 
@@ -128,4 +137,10 @@ class ComplianceLog:
             "head_hash": self.head_hash,
             "verified": self.verify_chain(),
             "signal_counts": counts,
+            "purpose": "Worker-protection record + employer compliance evidence",
+            "privacy": {
+                "records": "site WBGT readings, called work-rest cycles, drink prompts, water availability — conditions and protective actions",
+                "does_not_record": "no individual location trail, no biometrics, no continuous worker tracking",
+                "identifier": "a worker/crew id the operator controls (pseudonymisable)",
+            },
         }
