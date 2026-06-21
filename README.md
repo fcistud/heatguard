@@ -1,7 +1,7 @@
 # HeatGuard 🌡️
-![HeatGuard Cover](docs/img/heat_danger_conceptual_1782039957571.png)
-
 [![CI](https://github.com/fcistud/heatguard/actions/workflows/ci.yml/badge.svg)](https://github.com/fcistud/heatguard/actions/workflows/ci.yml)
+
+![Dashboard Timeline](docs/img/03_timeline.png)
 
 **An adaptive, WBGT-driven work–rest–hydration scheduler that replaces the Gulf's blunt calendar-based midday work ban with a condition-responsive, standards-based, and *provable* heat-safety system for outdoor labour crews.**
 
