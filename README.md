@@ -1,26 +1,10 @@
 # HeatGuard 🌡️
 [![CI](https://github.com/fcistud/heatguard/actions/workflows/ci.yml/badge.svg)](https://github.com/fcistud/heatguard/actions/workflows/ci.yml)
 
-![Dashboard Timeline](docs/img/03_timeline.png)
-
 **An adaptive, WBGT-driven work–rest–hydration scheduler that replaces the Gulf's blunt calendar-based midday work ban with a condition-responsive, standards-based, and *provable* heat-safety system for outdoor labour crews.**
 
 * **Landing Page:** [https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/](https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/)
 * **Documentation:** [https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html](https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html)
-
----
-
-## 📸 The Platform
-
-HeatGuard takes live or replayed weather, computes the heat-stress index, and outputs the *actual* mandated work-rest cycle and hydration schedule for current conditions.
-
-### Adaptive Timeline
-![Dashboard Timeline](docs/img/03_timeline.png)
-*The system preemptively halts work on dangerous mornings missed by the calendar ban, and recovers safe working hours when it's cool.*
-
-### Machine Learning Personal Risk Profiling
-![Personal Risk ML](docs/img/09_riyadh_newcomer.png)
-*A Gradient Boosting model dynamically maps age, weight, and comorbidities against WBGT, flagging high-risk workers for shade rest without stopping the entire site.*
 
 ---
 
