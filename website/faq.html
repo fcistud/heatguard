@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — FAQ</title>
+  <meta name="description" content="Frequently asked questions about HeatGuard: wearables vs site-level, WBGT accuracy, lives-saved, standards, the Nicaragua transfer, enforcement, privacy, cost, and more." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a class="active" href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">FAQ</p>
+        <h1>Frequently asked questions</h1>
+        <p class="lead">
+          The common questions about how HeatGuard works, what it claims, and where it is honest
+          about its limits. Click any question to expand it.
+        </p>
+
+        <details class="faq-item" open>
+          <summary>Why not put a wearable on every worker?</summary>
+          <div class="faq-body">
+            <p>
+              Cost, charging, breakage, and surveillance concerns kill per-worker hardware
+              adoption. One sensor per site, near-zero marginal cost per worker, is the adoptable
+              wedge. Wearables are a strong <em>next step</em> for personalisation and enforcement
+              — see the <a href="roadmap.html">roadmap</a>.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is WBGT accurate without a sensor?</summary>
+          <div class="faq-body">
+            <p>
+              The estimate uses the validated Liljegren model from real weather; it is good for
+              the calendar-vs-adaptive comparison and the demo. For an operational deployment you
+              drop in a cheap on-site meter and the same engine runs on the measured value — the
+              dashboard shows both side by side.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How is "lives saved" calculated, and is it real?</summary>
+          <div class="faq-body">
+            <p>
+              It is AKI-cases-averted × a conservative death-per-AKI severity ratio (0.005),
+              scaled to a workforce. It is the most assumption-laden number and is labelled
+              <em>illustrative/conservative</em> everywhere. The per-crew danger-hours and
+              AKI-averted figures (derived on real weather) and the Nicaragua back-test are the
+              verifiable backbone. See <a href="roi.html">Impact, ROI &amp; claims</a>.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Does it need the internet?</summary>
+          <div class="faq-body">
+            <p>No — the demo weather is cached in the repo, so everything runs offline.</p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What standards is it built on?</summary>
+          <div class="faq-body">
+            <p>
+              ISO 7243 (WBGT), ISO 7933 (Predicted Heat Strain), ISO 8996 (metabolic rate), the
+              ACGIH TLV / Action-Limit screening tables, and NIOSH acclimatization guidance. See
+              <a href="science.html">How it works</a> for how each is used and
+              <a href="data.html">Data &amp; research</a> for their licensing.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is the Nicaragua → Gulf transfer valid?</summary>
+          <div class="faq-body">
+            <p>
+              Directionally yes (the physiology is universal), but with real uncertainty in
+              magnitude — the sectors and climates differ. We are explicit about it, show the AKI
+              assumption as a range, and flag it as the headline area to validate with a Gulf
+              pilot. The "94%" is a highest-risk-subgroup (burned cane cutters) figure, not a
+              whole-workforce effect.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Won't employers just game it / not enforce it?</summary>
+          <div class="faq-body">
+            <p>
+              The hash-chained record makes monitoring and breaks <em>verifiable</em> (the
+              compliance shield), which raises the cost of non-compliance. But enforcement is
+              ultimately the hard part — which is one reason wearable-based confirmation of breaks
+              (<a href="roadmap.html">roadmap</a>) is valuable.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Why does the calendar ban "miss" so much?</summary>
+          <div class="faq-body">
+            <p>
+              It is a clock window. WBGT (which captures humidity and sun) can be lethal at 9 a.m.
+              or in May, outside the noon-in-season window; and a cool in-season noon is
+              needlessly banned. See <a href="problem.html">the problem</a> for the full failure
+              modes.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can it handle other regions or sectors?</summary>
+          <div class="faq-body">
+            <p>
+              Yes — sites, weather sources, the ban rules, and work intensities are all
+              configurable. The engine is generic occupational heat-stress; agriculture and
+              logistics are natural extensions.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What does it cost?</summary>
+          <div class="faq-body">
+            <p>
+              ~$95/worker/season in the modelled program (mostly one-time capital) plus a ~$300
+              on-site WBGT meter per site. The modelled ROI is 3–10×.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What about privacy?</summary>
+          <div class="faq-body">
+            <p>
+              The compliance log records <em>conditions and protective actions</em>, not
+              individual location, biometrics, or continuous tracking. The only identifier is a
+              worker/crew id the operator controls and can pseudonymise.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>What happens at the edges of the physiological model (e.g. extreme humidity)?</summary>
+          <div class="faq-body">
+            <p>
+              Inputs are clamped to the ISO 7933 validity envelope; if the model still can't
+              solve, HeatGuard falls back to a conservative estimate and the regulatory table
+              remains the backstop — PHS can only <em>tighten</em> the schedule, never loosen it.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>How is the impact validated?</summary>
+          <div class="faq-body">
+            <p>
+              An automated <code>pytest</code> suite covers the table values, WBGT/PHS sanity, the
+              acclimatization ramp, the scheduler logic, tamper detection, the mechanistic impact,
+              the economics, and the full API surface. The <strong>Nicaragua back-test</strong>
+              (<code>heatguard backtest</code>) asserts the impact model reproduces the documented
+              La Isla / Adelante outcome (AKI −94%, productivity +10–20%) and fails loudly if an
+              effect size is ever changed. GitHub Actions CI runs the tests on every push and PR.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Why a $1,200 AKI cost when the clinical figure is $253?</summary>
+          <div class="faq-body">
+            <p>
+              The peer-reviewed Nicaragua mill-hospital AKI <em>treatment</em> cost is $253.48.
+              The $1,200 we use is a higher proxy for the <em>total</em> burden — medical plus lost
+              time plus replacement — not the clinical bill. It is flagged as illustrative and
+              tunable, and the headline ROI excludes the most dramatic terms (death-averted,
+              turnover) specifically to avoid over-claiming. See
+              <a href="roi.html">Impact, ROI &amp; claims</a>.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is this certified safety equipment?</summary>
+          <div class="faq-body">
+            <p>
+              No. HeatGuard is standards-based and unit-tested, but it is a hackathon prototype
+              built to demonstrate the approach. It is explicitly <strong>not</strong> a
+              substitute for certified occupational safety equipment, and conformance auditing
+              would require the authoritative (paywalled) ISO and ACGIH texts.
+            </p>
+          </div>
+        </details>
+
+        <nav class="page-nav">
+          <a class="prev" href="roi.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">Impact, ROI &amp; claims</span>
+          </a>
+          <a class="next" href="roadmap.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">Roadmap</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

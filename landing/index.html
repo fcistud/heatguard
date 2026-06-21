@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
-    /* Base — deep slate / charcoal */
+    /* Base — deep slate / charcoal (DARK is the default theme) */
     --bg:        #0b1016;
     --bg-2:      #0f1620;
     --panel:     #141d29;
@@ -24,7 +24,28 @@
     --ink-soft:  #aebccb;
     --ink-dim:   #7d8da0;
 
-    /* Heat accents */
+    /* Theme-dependent surfaces (formerly hard-coded dark values) */
+    --nav-bg:        rgba(11,16,22,.78);
+    --strip-bg:      linear-gradient(180deg, #1a0b06, #120a0a);
+    --danger-bg:     linear-gradient(180deg, var(--bg), #130b0b 70%, var(--bg));
+    --hstat-bg:      linear-gradient(160deg, var(--panel), #1a131a);
+    --hstat-lives:   linear-gradient(160deg, #1d0f12, #160d10);
+    --hstat-aki:     linear-gradient(160deg, #1a130c, #15110b);
+    --stack-bg:      rgba(66,133,244,.12);
+    --stack-border:  rgba(66,133,244,.3);
+    --stack-ink:     #9cc0ff;
+    --on-accent:     #fff;          /* text that sits on orange/red accents */
+    --lives-ink:     #ff6b6b;       /* "lives saved" figure tint */
+
+    /* Hero / section gradients (overridable per theme) */
+    --hero-bg:
+      radial-gradient(1100px 520px at 78% -8%, rgba(255,90,31,.30), transparent 60%),
+      radial-gradient(900px 480px at 8% 8%, rgba(220,38,38,.18), transparent 58%),
+      linear-gradient(180deg, var(--bg-2), var(--bg));
+    --impact-bg: radial-gradient(900px 500px at 50% -10%, rgba(255,90,31,.16), transparent 60%), var(--bg-2);
+    --final-bg:  radial-gradient(700px 400px at 50% 0%, rgba(255,90,31,.25), transparent 65%), var(--bg-2);
+
+    /* Heat accents — IDENTICAL in both themes */
     --heat-red:    #dc2626;
     --heat-orange: #ff7a18;
     --heat-amber:  #f59e0b;
@@ -35,7 +56,7 @@
     --orange: #FFAB40;
     --teal: #0097A7;
 
-    /* Signal colors */
+    /* Signal colors — IDENTICAL in both themes */
     --sig-work:  #16a34a;
     --sig-rest:  #f59e0b;
     --sig-drink: #0ea5e9;
@@ -44,6 +65,38 @@
     --maxw: 1140px;
     --radius: 16px;
     --shadow: 0 24px 60px -20px rgba(0,0,0,.6);
+  }
+
+  /* ---------- Light theme overrides ---------- */
+  :root[data-theme="light"] {
+    --bg:        #ffffff;
+    --bg-2:      #f8fafc;
+    --panel:     #ffffff;
+    --panel-2:   #f1f5f9;
+    --border:    #e2e8f0;
+    --ink:       #0f172a;
+    --ink-soft:  #475569;
+    --ink-dim:   #64748b;
+
+    --nav-bg:        rgba(255,255,255,.82);
+    --strip-bg:      linear-gradient(180deg, #fff4ec, #fdeee6);
+    --danger-bg:     linear-gradient(180deg, var(--bg), #fdf2f2 70%, var(--bg));
+    --hstat-bg:      linear-gradient(160deg, #ffffff, #f6f1f5);
+    --hstat-lives:   linear-gradient(160deg, #fff5f5, #fdecee);
+    --hstat-aki:     linear-gradient(160deg, #fff8ef, #fdf2e0);
+    --stack-bg:      rgba(66,133,244,.10);
+    --stack-border:  rgba(66,133,244,.28);
+    --stack-ink:     #1d4ed8;
+    --lives-ink:     #dc2626;
+
+    --hero-bg:
+      radial-gradient(1100px 520px at 78% -8%, rgba(255,90,31,.16), transparent 60%),
+      radial-gradient(900px 480px at 8% 8%, rgba(220,38,38,.10), transparent 58%),
+      linear-gradient(180deg, var(--bg-2), var(--bg));
+    --impact-bg: radial-gradient(900px 500px at 50% -10%, rgba(255,90,31,.10), transparent 60%), var(--bg-2);
+    --final-bg:  radial-gradient(700px 400px at 50% 0%, rgba(255,90,31,.14), transparent 65%), var(--bg-2);
+
+    --shadow: 0 24px 60px -24px rgba(15,23,42,.18);
   }
 
   * { box-sizing: border-box; }
@@ -85,7 +138,7 @@
   /* ---------- Top nav ---------- */
   header.nav {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(11,16,22,.78);
+    background: var(--nav-bg);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
   }
@@ -107,15 +160,31 @@
   }
   @media (max-width: 760px) { .nav-links a:not(.nav-cta) { display: none; } }
 
+  /* Theme toggle button */
+  .theme-toggle {
+    display: grid; place-items: center;
+    width: 38px; height: 38px; padding: 0;
+    border-radius: 10px; cursor: pointer;
+    background: var(--panel); color: var(--ink-soft);
+    border: 1px solid var(--border);
+    transition: color .2s, border-color .2s, background .2s;
+    flex: 0 0 auto;
+  }
+  .theme-toggle:hover { color: var(--ink); border-color: var(--heat-orange); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--heat-orange); outline-offset: 2px; }
+  .theme-toggle svg { width: 18px; height: 18px; display: block; }
+  /* Show the icon for the theme you'd switch TO */
+  .theme-toggle .icon-sun  { display: none; }
+  .theme-toggle .icon-moon { display: block; }
+  :root[data-theme="light"] .theme-toggle .icon-sun  { display: block; }
+  :root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
+
   /* ---------- Hero ---------- */
   .hero {
     position: relative;
     padding: 96px 0 70px;
     overflow: hidden;
-    background:
-      radial-gradient(1100px 520px at 78% -8%, rgba(255,90,31,.30), transparent 60%),
-      radial-gradient(900px 480px at 8% 8%, rgba(220,38,38,.18), transparent 58%),
-      linear-gradient(180deg, var(--bg-2), var(--bg));
+    background: var(--hero-bg);
   }
   .heat-haze {
     position: absolute; inset: 0; pointer-events: none; opacity: .5;
@@ -187,7 +256,7 @@
 
   /* ---------- Marquee stat strip ---------- */
   .strip {
-    background: linear-gradient(180deg, #1a0b06, #120a0a);
+    background: var(--strip-bg);
     border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     padding: 30px 0;
   }
@@ -198,7 +267,7 @@
   .strip .lab { font-size: .82rem; color: var(--ink-soft); margin-top: 8px; }
 
   /* ---------- Danger section ---------- */
-  .danger { background: linear-gradient(180deg, var(--bg), #130b0b 70%, var(--bg)); }
+  .danger { background: var(--danger-bg); }
   .danger-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
   @media (max-width: 900px) { .danger-cards { grid-template-columns: 1fr; } }
   .dcard {
@@ -206,7 +275,7 @@
     padding: 26px; position: relative; overflow: hidden;
   }
   .dcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--heat-red); }
-  .dcard .big { font-family: "Space Grotesk", sans-serif; font-size: 2.4rem; font-weight: 700; color: #fff; line-height: 1; }
+  .dcard .big { font-family: "Space Grotesk", sans-serif; font-size: 2.4rem; font-weight: 700; color: var(--ink); line-height: 1; }
   .dcard .unit { color: var(--heat-amber); font-size: 1.1rem; font-weight: 600; }
   .dcard h3 { margin: 8px 0 8px; font-size: 1.04rem; }
   .dcard p { margin: 0; color: var(--ink-soft); font-size: .94rem; }
@@ -253,22 +322,22 @@
   .shot-2 .shot { margin-top: 0; }
 
   /* ---------- Impact (the emotional centerpiece) ---------- */
-  .impact { background: radial-gradient(900px 500px at 50% -10%, rgba(255,90,31,.16), transparent 60%), var(--bg-2); }
+  .impact { background: var(--impact-bg); }
   .hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 44px; }
   @media (max-width: 760px) { .hero-stats { grid-template-columns: 1fr; } }
   .hstat {
     border-radius: 20px; padding: 38px 34px; position: relative; overflow: hidden;
     border: 1px solid var(--border);
-    background: linear-gradient(160deg, var(--panel), #1a131a);
+    background: var(--hstat-bg);
   }
-  .hstat.lives { background: linear-gradient(160deg, #1d0f12, #160d10); border-color: rgba(220,38,38,.4); }
-  .hstat.aki   { background: linear-gradient(160deg, #1a130c, #15110b); border-color: rgba(245,158,11,.4); }
+  .hstat.lives { background: var(--hstat-lives); border-color: rgba(220,38,38,.4); }
+  .hstat.aki   { background: var(--hstat-aki); border-color: rgba(245,158,11,.4); }
   .hstat .glow { position: absolute; width: 220px; height: 220px; border-radius: 50%; filter: blur(70px); opacity: .5; right: -40px; top: -60px; }
   .hstat.lives .glow { background: var(--heat-red); }
   .hstat.aki .glow { background: var(--heat-amber); }
   .hstat .k { position: relative; font-size: .76rem; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: var(--ink-soft); }
   .hstat .v { position: relative; font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: clamp(3.2rem, 8vw, 5rem); line-height: .95; margin: 8px 0 6px; }
-  .hstat.lives .v { color: #ff6b6b; }
+  .hstat.lives .v { color: var(--lives-ink); }
   .hstat.aki .v { color: var(--heat-amber); }
   .hstat .sub { position: relative; color: var(--ink-soft); font-size: .98rem; }
 
@@ -289,7 +358,7 @@
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
   }
   .mini .mv { font-family: "Space Grotesk", sans-serif; font-size: 1.9rem; font-weight: 700; line-height: 1; }
-  .mini.lives .mv { color: #ff6b6b; }
+  .mini.lives .mv { color: var(--lives-ink); }
   .mini.aki .mv { color: var(--heat-amber); }
   .mini.hrs .mv { color: var(--heat-orange); }
   .mini.val .mv { color: var(--teal); }
@@ -345,12 +414,12 @@
   .pstep .arr { position: absolute; right: -11px; top: 50%; transform: translateY(-50%); z-index: 2; color: var(--heat-orange); font-size: 1.2rem; }
   @media (max-width: 820px) { .pstep .arr { display: none; } }
   .stack-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
-  .stack { font-size: .82rem; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: rgba(66,133,244,.12); border: 1px solid rgba(66,133,244,.3); color: #9cc0ff; }
+  .stack { font-size: .82rem; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: var(--stack-bg); border: 1px solid var(--stack-border); color: var(--stack-ink); }
 
   /* ---------- Final CTA ---------- */
   .final {
     text-align: center;
-    background: radial-gradient(700px 400px at 50% 0%, rgba(255,90,31,.25), transparent 65%), var(--bg-2);
+    background: var(--final-bg);
     border-top: 1px solid var(--border);
   }
   .final h2 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 0 0 16px; }
@@ -367,19 +436,38 @@
 
   .count { font-variant-numeric: tabular-nums; }
 </style>
+<script>
+  /* Set the theme as early as possible to avoid a flash of the wrong theme.
+     Saved preference (hg-theme) wins; otherwise fall back to the OS setting;
+     default to dark when there's no signal. */
+  (function () {
+    try {
+      var saved = localStorage.getItem("hg-theme");
+      var theme = saved
+        || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme", theme);
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  })();
+</script>
 </head>
 <body>
 
 <!-- ===================== NAV ===================== -->
 <header class="nav">
   <div class="wrap nav-inner">
-    <div class="brand"><span class="logo">🌡️</span> Heat<b>Guard</b></div>
+    <div class="brand"><span class="logo">🌡️</span><span class="wm">Heat<b>Guard</b></span></div>
     <nav class="nav-links">
       <a href="#danger">The danger</a>
       <a href="#solution">Solution</a>
       <a href="#impact">Impact</a>
       <a href="#credible">Evidence-based</a>
       <a class="nav-cta" href="http://localhost:5173">Live dashboard</a>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      </button>
     </nav>
   </div>
 </header>
@@ -770,9 +858,11 @@
 <footer>
   <div class="wrap">
     <div class="foot-inner">
-      <div class="brand"><span class="logo">🌡️</span> Heat<b>Guard</b></div>
+      <div class="brand"><span class="logo">🌡️</span><span class="wm">Heat<b>Guard</b></span></div>
       <div class="note">
-        <a href="https://github.com/fcistud/heatguard">github.com/fcistud/heatguard</a> · MIT-licensed
+        <a href="https://github.com/fcistud/heatguard">github.com/fcistud/heatguard</a> ·
+        <a href="https://github.com/fcistud/heatguard/blob/main/docs/HANDBOOK.md">Handbook</a> ·
+        <a href="https://github.com/fcistud/heatguard/blob/main/docs/ROI_AND_CLAIMS.md">ROI &amp; claims</a> · MIT-licensed
       </div>
     </div>
     <p class="disclaimer">A prototype, not certified safety equipment. The engine is standards-based and unit-tested; scale figures are illustrative and conservative.</p>
@@ -782,6 +872,17 @@
 <script>
 (function () {
   "use strict";
+
+  /* ---- Theme toggle (light / dark) ---- */
+  var themeBtn = document.getElementById("themeToggle");
+  if (themeBtn) {
+    themeBtn.addEventListener("click", function () {
+      var root = document.documentElement;
+      var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("hg-theme", next); } catch (e) {}
+    });
+  }
 
   /* ---- Count-up animation (runs when a stat scrolls into view) ---- */
   function formatNum(n) {

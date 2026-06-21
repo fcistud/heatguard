@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -8,6 +9,13 @@ export default {
         rest: "#f59e0b",
         drink: "#0ea5e9",
         stop: "#dc2626",
+        // Heat accents (match the landing page).
+        heat: {
+          orange: "#ff7a18",
+          red: "#dc2626",
+          amber: "#f59e0b",
+          glow: "#ff5a1f",
+        },
       },
       fontFamily: {
         sans: [
@@ -19,6 +27,13 @@ export default {
           "Roboto",
           "Helvetica Neue",
           "Arial",
+          "sans-serif",
+        ],
+        display: [
+          "Space Grotesk",
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
           "sans-serif",
         ],
       },

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — Roadmap &amp; next steps</title>
+  <meta name="description" content="Where HeatGuard goes next: cheap wearables for personalisation and enforcement, demographic personalisation, heart-rate and sweat-rate integration, and the other near-term steps." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a class="active" href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">Roadmap &amp; next steps</p>
+        <h1>Where it goes next</h1>
+        <p class="lead">
+          The site-level scheduler is the adoptable core. Each step below <strong>layers onto the
+          existing engine</strong> — the <code>Worker</code> dataclass already carries weight,
+          height, days-on-job, and acclimatization status, and the PHS model already consumes
+          them, so personalisation is mostly a matter of feeding better per-worker inputs and
+          closing the loop with measurement.
+        </p>
+
+        <h2 id="wearables">1 · Cheap wearables for personalisation and enforcement <a class="anchor" href="#wearables">#</a></h2>
+        <p>
+          <strong>What:</strong> a low-cost per-worker tag — a passive <strong>NFC</strong>
+          wristband, or a cheap <strong>BLE</strong> band — read at the water station and at break
+          checkpoints.
+        </p>
+        <p>
+          <strong>Why:</strong> it adds the two things a site-level system can't do alone —
+          <em>per-worker personalisation</em> and <em>enforcement verification</em> — without the
+          cost/friction of a full physiological wearable.
+        </p>
+        <p><strong>How it plugs in:</strong></p>
+        <ul>
+          <li><strong>Enforcement:</strong> tap-to-confirm a worker actually took the called break and drank at the station → those events append to the existing <code>compliance.py</code> hash chain, turning "breaks were provided" into "breaks were <em>taken</em>" — a far stronger record for an inspector or a lender's ESG audit.</li>
+          <li><strong>Personalisation:</strong> the tag identifies the worker, so the scheduler can use that worker's real <code>days_on_job</code> (acclimatization tenure) and body metrics instead of a crew default — the <code>Worker</code> fields the engine already accepts.</li>
+        </ul>
+        <div class="callout note">
+          <div class="callout-title">Tradeoffs &amp; phasing</div>
+          <p>
+            Even cheap tags add hardware and a tap workflow; keep them <em>at fixed
+            checkpoints</em> (station/gate), not worn continuously, to minimise friction and
+            surveillance concerns. Frame the data as worker-protective (their own
+            break/hydration record). <strong>Phasing:</strong> start with hydration-verification
+            tags at the water station (the optional premium layer already in the design), then add
+            break-confirmation checkpoints.
+          </p>
+        </div>
+
+        <h2 id="demographic">2 · Demographic personalisation <a class="anchor" href="#demographic">#</a></h2>
+        <p>
+          <strong>What:</strong> tailor the physiological inputs to the worker's anthropometrics —
+          body weight, height, BMI, age — drawn from a worker profile and/or origin-country
+          distributions.
+        </p>
+        <p>
+          <strong>Why:</strong> sweat rate, heat storage, and strain depend strongly on body size
+          and fitness. PHS already takes <code>weight_kg</code>/<code>height_m</code>; today the
+          demo uses a 75 kg / 1.75 m default. Real values sharpen the hydration target and the
+          max-exposure cap per worker.
+        </p>
+        <p><strong>How it plugs in:</strong></p>
+        <ul>
+          <li>A simple per-worker profile (entered once, or from an HR system) sets the PHS body inputs.</li>
+          <li>Where individual data is missing, <strong>origin-country anthropometric distributions</strong> (e.g. DHS surveys for Nepal/Bangladesh/India/Pakistan) give better priors than a single default. The known data gap: recent DHS rounds under-measure adult <em>male</em> anthropometry, so this needs a real measurement partnership.</li>
+        </ul>
+        <div class="callout danger">
+          <div class="callout-title">⚖️ The ethical guardrail</div>
+          <p>
+            This must personalise <em>protection</em>, never <em>screening</em>. The Nicaragua
+            research is explicit that hiring only "resilient" workers fails — preventing exposure
+            is the answer. HeatGuard would use demographics to make a <em>more vulnerable</em>
+            worker <em>more</em> protected, never to exclude anyone or to push a higher-risk
+            worker harder. <strong>Phasing:</strong> opt-in worker profiles first
+            (weight/height/age), then population priors for gap-filling, with a clear
+            anti-discrimination policy.
+          </p>
+        </div>
+
+        <h2 id="physiological">3 · Heart-rate or sweat-rate integration <a class="anchor" href="#physiological">#</a></h2>
+        <p>
+          <strong>What:</strong> feed <em>measured</em> physiological signals — heart rate from a
+          cheap chest strap or wrist optical sensor, and/or hydration loss from a sweat-rate patch
+          or pre/post-shift body-mass weigh-in — back into the engine.
+        </p>
+        <p>
+          <strong>Why:</strong> today HeatGuard <em>predicts</em> sweat rate and core temperature
+          (ISO 7933). Real sensors <strong>close the loop</strong>: they let the system compare
+          predicted vs measured strain and act on the individual's <em>actual</em> state,
+          upgrading from a site-level predictive schedule to per-worker measured-strain protection
+          with real-time alarms.
+        </p>
+        <p><strong>How it plugs in (grounded in standards already in the project):</strong></p>
+        <ul>
+          <li><strong>Heart rate</strong> is the cheapest, most mature signal. ISO 8996 already defines a <em>heart-rate method</em> for estimating metabolic rate, and ISO 9886 defines physiological strain monitoring (heart rate, core temperature, body-mass loss). Sustained HR above an age-adjusted limit, or poor HR recovery during a rest break, is a direct individual strain alarm — it would trigger an individual DRINK/REST/STOP overriding the site signal for that worker, and could feed back a better real-time metabolic-rate estimate (replacing the supervisor's intensity guess).</li>
+          <li><strong>Sweat / body-mass loss</strong> directly measures dehydration — the thing the hydration target is trying to prevent. A pre/post-shift weigh-in (near-zero cost) validates and calibrates the PHS sweat prediction; a continuous sweat patch enables per-worker hydration alarms.</li>
+        </ul>
+        <div class="callout note">
+          <div class="callout-title">Tradeoffs &amp; phasing</div>
+          <p>
+            This is where wearable cost, comfort, charging, and surveillance friction are highest
+            — so it is the <em>premium tier</em>, best justified on the highest-risk crews or as a
+            calibration study, not a universal mandate. <strong>Phasing:</strong> (1) pre/post-shift
+            weigh-ins to validate the sweat model (cheap, high-value science); (2) heart-rate
+            straps on a pilot crew to add individual strain alarms and improve the metabolic-rate
+            input; (3) optional continuous sweat sensing for the highest-risk roles.
+          </p>
+        </div>
+
+        <h2 id="near-term">4 · Other near-term steps <a class="anchor" href="#near-term">#</a></h2>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-icon">📟</div>
+            <h3>On-site sensor + signal hardware</h3>
+            <p>A ~$300 WBGT meter and a relay to a site light/horn — the production version of the <code>measured</code> path and the broadcast signal.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🤝</div>
+            <h3>A Gulf pilot</h3>
+            <p>With a labour-supply contractor, to validate the effect-size transfer and the ROI against real outcomes — the single most important credibility step.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🏦</div>
+            <h3>Development-finance pathway</h3>
+            <p>Lenders and ESG mandates already attach occupational-safety conditions; HeatGuard is the affordable implementation-and-verification layer that satisfies them.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">📈</div>
+            <h3>Close the data gap</h3>
+            <p>There is almost no public Gulf worker-heat data — partner to collect it (and contribute it back).</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">🌍</div>
+            <h3>Multi-sector / multi-region</h3>
+            <p>Extend to agriculture and logistics, and to other heat-exposed regions, by swapping the site config, weather source, and ban rules.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">⏱️</div>
+            <h3>Forecast-driven planning</h3>
+            <p>Use the Open-Meteo forecast endpoint to pre-plan the next day's schedule (e.g. start earlier on a brutal day), not just react hour by hour.</p>
+          </div>
+        </div>
+
+        <nav class="page-nav">
+          <a class="prev" href="faq.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">FAQ</span>
+          </a>
+          <a class="next" href="glossary.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">Glossary</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>
