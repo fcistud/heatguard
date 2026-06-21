@@ -30,7 +30,7 @@ for _ in $(seq 1 30); do
 done
 echo "    API health: $(curl -s "http://localhost:${API_PORT}/health" || echo 'not up — see /tmp/heatguard_api.log')"
 
-echo "==> Starting dashboard on http://localhost:${WEB_PORT}  (Ctrl-C to stop both)"
+echo "==> Starting dashboard on http://localhost:${WEB_PORT}/dashboard/  (Ctrl-C to stop both)"
 echo "    (CLI alternative:  heatguard demo dubai   |   heatguard roi riyadh)"
 cd web
 VITE_API_BASE="http://localhost:${API_PORT}" npm run dev -- --port "${WEB_PORT}"

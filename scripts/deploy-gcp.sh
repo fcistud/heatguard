@@ -74,8 +74,8 @@ URL="$(gcloud run services describe "${SERVICE}" \
 
 echo ""
 echo "Deployed."
-echo "  Dashboard:  ${URL}/"
-echo "  Landing:    ${URL}/landing/"
+echo "  Landing:    ${URL}/"
+echo "  Dashboard:  ${URL}/dashboard/"
 echo "  API health: ${URL}/health"
 echo ""
 echo "Optional — restrict CORS after you add a custom domain:"

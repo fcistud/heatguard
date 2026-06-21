@@ -4,8 +4,8 @@ One **Cloud Run** service serves:
 
 | URL path | Content |
 |----------|---------|
-| `/` | React supervisor dashboard |
-| `/landing/` | Static marketing page |
+| `/` | Static marketing landing page |
+| `/dashboard/` | React supervisor dashboard |
 | `/health`, `/demo/…`, etc. | FastAPI engine |
 
 Weather caches, policy corpus, and ML model are **baked into the image** (~1.2 MB data) so the demo runs without external databases.
@@ -43,7 +43,7 @@ GCP_PROJECT=my-project GCP_REGION=europe-west2 ./scripts/deploy-gcp.sh
 
 The script enables APIs, creates an Artifact Registry repo if needed, runs Cloud Build, and deploys to Cloud Run.
 
-When finished, open the printed URL (dashboard at `/`, landing at `/landing/` — trailing slash required unless you have the latest API redirect fix).
+When finished, open the printed URL (landing at `/`, dashboard at `/dashboard/`).
 
 ---
 
@@ -86,7 +86,7 @@ docker build -t heatguard .
 docker run --rm -p 8080:8080 -e PORT=8080 heatguard
 ```
 
-Open http://localhost:8080/ (dashboard) and http://localhost:8080/health (API).
+Open http://localhost:8080/ (landing) and http://localhost:8080/dashboard/ (dashboard).
 
 ### Why Docker feels slow
 
@@ -113,8 +113,8 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 |----------|---------------------|---------|
 | `PORT` | `8080` | Cloud Run injects this |
 | `HEATGUARD_DATA_DIR` | `/app/data` | Weather cache, models, policy |
-| `HEATGUARD_STATIC_DIR` | `/app/static` | Built React app |
-| `HEATGUARD_LANDING_DIR` | `/app/landing` | Marketing page at `/landing/` |
+| `HEATGUARD_STATIC_DIR` | `/app/static` | Built React app (mounted at `/dashboard/`) |
+| `HEATGUARD_LANDING_DIR` | `/app/landing` | Marketing page (mounted at `/`) |
 | `HEATGUARD_CORS_ORIGINS` | `*` | Comma-separated origins if dashboard is hosted elsewhere |
 
 ---

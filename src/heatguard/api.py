@@ -302,23 +302,31 @@ def _resolve_static_dirs() -> tuple[str | None, str | None]:
 
 
 def _mount_optional_static() -> None:
-    """Serve built dashboard (and optional landing) when dirs exist (Cloud Run / Docker / dev)."""
+    """Serve landing at / and the React dashboard at /dashboard/ (Cloud Run / Docker / dev)."""
     from pathlib import Path
 
     from fastapi.staticfiles import StaticFiles
 
     landing_dir, static_dir = _resolve_static_dirs()
 
-    if landing_dir:
-        # /landing without trailing slash 404s on StaticFiles — redirect explicitly.
-        @app.get("/landing", include_in_schema=False)
-        def _landing_redirect() -> RedirectResponse:
-            return RedirectResponse(url="/landing/", status_code=308)
-
-        app.mount("/landing", StaticFiles(directory=landing_dir, html=True), name="landing")
-
     if static_dir and Path(static_dir).is_dir():
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="dashboard")
+        @app.get("/dashboard", include_in_schema=False)
+        def _dashboard_redirect() -> RedirectResponse:
+            return RedirectResponse(url="/dashboard/", status_code=308)
+
+        app.mount(
+            "/dashboard",
+            StaticFiles(directory=static_dir, html=True),
+            name="dashboard",
+        )
+
+    if landing_dir:
+        @app.get("/landing", include_in_schema=False)
+        @app.get("/landing/", include_in_schema=False)
+        def _landing_legacy_redirect() -> RedirectResponse:
+            return RedirectResponse(url="/", status_code=308)
+
+        app.mount("/", StaticFiles(directory=landing_dir, html=True), name="landing")
 
 
 _mount_optional_static()
