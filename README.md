@@ -475,7 +475,8 @@ All five share the engine via `service.py`.
 pip install -e .                 # the `heatguard` CLI + engine
 pip install -r requirements.txt  # interface deps
 pytest -q                        # 59 tests
-heatguard fetch-demo             # cache real Open-Meteo data (committed)
+heatguard fetch-demo             # cache demo Open-Meteo archives (also committed)
+heatguard fetch-datasets         # cache all archives + forecasts in data/datasets.json
 
 scripts/run_demo.sh --setup      # one command: installs deps + starts API + dashboard
 # or individually:
@@ -487,8 +488,12 @@ cd web && npm install && npm run dev   # dashboard on :5173 (VITE_API_BASE → A
 src/heatguard/      the engine (17 modules) + service + cli + api
   weather/          Open-Meteo client + replay
 data/locales.json           demo sites
+data/datasets.json          manifest of archives, forecasts, policy corpus
 data/nicaragua_baseline.json · data/economics.json   tunable assumptions
+data/policy/                GCC ban + ILO summaries (RAG corpus)
+data/epidemiology/          published aggregate heat-risk constants
 data/cache/*.json           committed Open-Meteo weather (offline demo)
+docs/DATA.md                dataset guide for teammates
 tests/                      pytest suite (59)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh

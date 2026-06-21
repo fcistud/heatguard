@@ -15,8 +15,8 @@ if [[ "${1:-}" == "--setup" ]]; then
   ( cd web && npm install )
 fi
 
-echo "==> Caching demo weather (Open-Meteo; skips if already cached)"
-heatguard fetch-demo
+echo "==> Caching datasets (Open-Meteo; skips if already cached)"
+heatguard fetch-datasets
 
 echo "==> Starting API on http://localhost:${API_PORT}"
 python3 -m uvicorn heatguard.api:app --port "${API_PORT}" > /tmp/heatguard_api.log 2>&1 &
