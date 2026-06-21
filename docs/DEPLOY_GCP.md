@@ -88,6 +88,23 @@ docker run --rm -p 8080:8080 -e PORT=8080 heatguard
 
 Open http://localhost:8080/ (dashboard) and http://localhost:8080/health (API).
 
+### Why Docker feels slow
+
+The dashboard's first load calls `GET /demo/dubai`, which **replays a full Gulf season**
+(thousands of ISO 7933 / scheduler calculations). That is CPU-heavy; inside Docker Desktop
+on Mac it is slower still (Linux VM overhead).
+
+**Faster options:**
+
+| Approach | Command |
+|----------|---------|
+| **Dev (fastest)** | `scripts/run_demo.sh` — native Python, no VM |
+| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 heatguard` — slow start, then snappy UI |
+| **Docker default** | First page load slow (~30–90s); **reload the same site** and it should be much faster (cached season replay) |
+| **Docker Desktop** | Settings → Resources → give **4+ CPUs** and **4+ GB RAM** |
+
+Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if cold first clicks are a problem — startup takes longer but requests stay fast.
+
 ---
 
 ## Environment variables

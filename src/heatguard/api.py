@@ -5,7 +5,10 @@ Thin layer over ``heatguard.service``.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query, Response
@@ -16,10 +19,38 @@ from . import service
 from .sites import get_site
 from .types import MetabolicCategory
 
+log = logging.getLogger(__name__)
+
+
+def _warm_caches() -> None:
+    """Pre-load ML model and policy index; optionally pre-compute demo payloads."""
+    from .policy_rag import _build_index
+    from .risk_model import _load_model
+
+    _load_model()
+    try:
+        _build_index()
+    except FileNotFoundError:
+        log.warning("Policy corpus missing — skipping RAG warm-up")
+
+    if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):
+        for site in service.DEMOS:
+            log.info("Warming demo payload for %s", site)
+            service.build_demo(site, 100)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _warm_caches)
+    yield
+
+
 app = FastAPI(
     title="HeatGuard API",
     version="0.1.0",
     description="Adaptive WBGT-driven work-rest-hydration scheduler for Gulf outdoor crews.",
+    lifespan=lifespan,
 )
 
 # Permissive by default for the local Vite dev server; lock down in production via

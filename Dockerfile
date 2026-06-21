@@ -1,6 +1,7 @@
 # HeatGuard — API + React dashboard for Cloud Run (single service, same origin).
 # Build:  docker build -t heatguard .
-# Run:    docker run -p 8080:8080 -e PORT=8080 heatguard
+# Run with demo pre-warm (first page load fast; container start ~30–90s longer):
+#   docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 heatguard
 
 # --- Dashboard (Vite) ---------------------------------------------------------
 FROM node:22-bookworm-slim AS web-build

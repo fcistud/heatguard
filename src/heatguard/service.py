@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import date, datetime
+from functools import lru_cache
 
 from . import calendar_ban, economics, impact, scale
 from .compliance import ComplianceLog
@@ -157,8 +158,12 @@ def hour_advisory(
     }
 
 
+@lru_cache(maxsize=8)
 def _season_hourly(site_key: str):
-    """One representative-worker season replay -> (hourly[(advisory, banned)], season_days)."""
+    """One representative-worker season replay -> (hourly[(advisory, banned)], season_days).
+
+    Cached per site — season replay is expensive (PHS + scheduler on every work hour).
+    """
     cfg, site, season = load_season(site_key)
     # WORK_END is inclusive for the timeline/compliance views; daytime() is
     # half-open, so +1 keeps the impact window identical (hours 5..19).
