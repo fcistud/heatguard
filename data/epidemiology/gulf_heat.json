@@ -1,0 +1,33 @@
+{
+  "description": "Published aggregate statistics for Gulf outdoor labour heat risk. Not individual worker records.",
+  "sources": [
+    {
+      "id": "ilo_2024",
+      "title": "ILO report on occupational heat stress and Water-Rest-Shade interventions (2024)",
+      "note": "Nicaragua Adelante effect sizes; see data/nicaragua_baseline.json"
+    },
+    {
+      "id": "heatguard_assumption",
+      "title": "HeatGuard default baseline AKI incidence",
+      "note": "Conservative 10% per worker-season; sensitivity range 5-20% in impact.sensitivity()"
+    }
+  ],
+  "gulf_outdoor_labour": {
+    "baseline_aki_incidence_per_worker_season_range": [0.05, 0.20],
+    "baseline_aki_incidence_default": 0.10,
+    "intervention_aki_reduction": 0.94,
+    "productivity_gain_range": [0.10, 0.20],
+    "high_risk_worker_factors": [
+      "days_on_site_lt_5",
+      "unacclimatized",
+      "heavy_or_very_heavy_metabolic_load",
+      "high_wbgt_outside_calendar_ban_window"
+    ],
+    "note": "Individual-level Gulf construction cohort data is not publicly available at scale. HeatGuard uses published intervention effect sizes plus mechanistic gap modelling vs calendar bans."
+  },
+  "calendar_ban_coverage": {
+    "typical_season_start_month": 6,
+    "shoulder_season_risk_months": [5, 9],
+    "note": "May heat events can precede GCC ban season start (see Dubai demo)."
+  }
+}
