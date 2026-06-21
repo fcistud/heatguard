@@ -5,10 +5,8 @@
 
 **An adaptive, WBGT-driven work–rest–hydration scheduler that replaces the Gulf's blunt calendar-based midday work ban with a condition-responsive, standards-based, and *provable* heat-safety system for outdoor labour crews.**
 
-### 🌐 Live Demos
 * **Landing Page:** [https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/](https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/)
-* **Live Product Dashboard Demo:** [https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/demo/](https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/demo/)
-* **Project Documentation:** [https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html](https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html)
+* **Documentation:** [https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html](https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html)
 
 ---
 
