@@ -7,7 +7,9 @@ It visualizes how WBGT-driven adaptive scheduling beats a blunt calendar ban:
 a live work/rest/hydrate signal, a WBGT gauge, an hourly **calendar-ban vs
 HeatGuard** timeline (with the dangerous hours the ban misses flagged), an
 acclimatization tracker, a tamper-evident compliance log, a season impact panel
-(validated against Nicaragua), and a live "what-if" decision engine.
+(validated against Nicaragua), a business-case / ROI panel, a live "what-if"
+decision engine (with personal-risk overlay), and a **Policy gap auditor**
+(RAG over GCC ban rules and ILO WRS evidence).
 
 ## Prerequisites
 
@@ -21,8 +23,9 @@ pip install -e .
 uvicorn heatguard.api:app
 ```
 
-This serves on `http://localhost:8000` with permissive CORS. If the demo
-weather isn't cached yet, run `heatguard fetch-demo` once.
+This serves on `http://localhost:8000` with permissive CORS. If weather caches
+are missing, run `heatguard fetch-datasets` once (archives are committed in the
+repo for offline demo).
 
 ## 2. Run the dashboard
 
@@ -59,17 +62,21 @@ web/
   src/
     api.ts                 # fetch helpers + configurable base URL
     types.ts               # TypeScript mirrors of the API JSON shapes
+    vite-env.d.ts          # Vite client types (import.meta.env)
     App.tsx                # page orchestration, data fetching, state
     lib/signals.ts         # signal colors, risk-color ramp, labels
     components/
       TopBar.tsx
       SignalTile.tsx               # hero live signal + intra-hour simulation
+      PersonalRiskBadge.tsx        # ML personal-risk overlay (advisory only)
       WbgtGauge.tsx                # semicircle WBGT / risk gauge (SVG)
       BanVsAdaptiveTimeline.tsx    # the centerpiece two-lane timeline
       AcclimatizationTracker.tsx   # NIOSH staged re-entry ramp
-      ComplianceFeed.tsx           # hash-chained log table + CSV export
       ImpactPanel.tsx              # impact stat cards + backtest
-      WhatIfPanel.tsx              # live POST /decide
+      EconomicsPanel.tsx           # ROI headline + cost/benefit + sensitivity
+      ComplianceFeed.tsx           # hash-chained log table + CSV export
+      WhatIfPanel.tsx              # live POST /decide (age, weight, comorbidity)
+      PolicyPanel.tsx              # POST /policy/query RAG panel
       ui/Card.tsx, ui/Stat.tsx     # small primitives
 ```
 
