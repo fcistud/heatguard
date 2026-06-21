@@ -23,7 +23,13 @@ Demo weather for Dubai and Riyadh is **already committed** under `data/cache/` s
 | WRS intervention effects | Real (published) | `data/nicaragua_baseline.json` | `impact.py`, `/backtest` |
 | GCC ban summaries | Real (curated from regulations) | `data/policy/*.md` | `/policy/corpus` (RAG: planned) |
 | Gulf epidemiology constants | Published aggregates | `data/epidemiology/gulf_heat.json` | future risk model |
-| ROI assumptions | Tunable constants | `data/economics.json` | `economics.py` |
+| ML personal risk model | PHS-labelled, real weather inputs | `data/models/risk_model.joblib` | `risk_model.assess()` on each `Advisory` |
+
+Retrain after changing demo weather archives:
+
+```bash
+python scripts/train_risk_model.py
+```
 
 Check what's cached:
 
