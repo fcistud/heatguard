@@ -239,3 +239,21 @@ def decide(req: DecideRequest) -> dict:
         )
     except KeyError as exc:
         raise HTTPException(404, f"Unknown site '{req.site_key}'") from exc
+
+
+def _mount_optional_static() -> None:
+    """Serve built dashboard (and optional landing) when env dirs are set (Cloud Run / Docker)."""
+    from pathlib import Path
+
+    from fastapi.staticfiles import StaticFiles
+
+    landing_dir = os.environ.get("HEATGUARD_LANDING_DIR")
+    if landing_dir and Path(landing_dir).is_dir():
+        app.mount("/landing", StaticFiles(directory=landing_dir, html=True), name="landing")
+
+    static_dir = os.environ.get("HEATGUARD_STATIC_DIR")
+    if static_dir and Path(static_dir).is_dir():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="dashboard")
+
+
+_mount_optional_static()
