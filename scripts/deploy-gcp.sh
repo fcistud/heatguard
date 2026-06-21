@@ -18,6 +18,14 @@ SERVICE="${GCP_SERVICE:-heatguard}"
 AR_REPO="${GCP_AR_REPO:-heatguard}"
 PROJECT="${GCP_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
 
+# GCP project IDs are never bare display names — e.g. use heatguard-500111 not "heatguard".
+if [[ "${PROJECT}" == "heatguard" ]]; then
+  echo "Note: GCP project ID is likely heatguard-500111 (not 'heatguard'). Trying to detect…" >&2
+  if gcloud projects describe heatguard-500111 --format='value(projectId)' >/dev/null 2>&1; then
+    PROJECT=heatguard-500111
+  fi
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --region) REGION="$2"; shift 2 ;;

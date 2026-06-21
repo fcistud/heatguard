@@ -1,5 +1,7 @@
 # Cloud Build → Artifact Registry → Cloud Run
-# Trigger: gcloud builds submit --config cloudbuild.yaml
+# Manual submit: gcloud builds submit --config cloudbuild.yaml
+#
+# Uses $BUILD_ID for image tags (always set). $COMMIT_SHA is only set on repo triggers.
 #
 # Substitutions (override with --substitutions=KEY=VALUE):
 #   _REGION       Cloud Run region (default us-central1)
@@ -16,7 +18,7 @@ steps:
     args:
       - build
       - -t
-      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
       - -t
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
       - .
@@ -33,7 +35,7 @@ steps:
       - run
       - deploy
       - ${_SERVICE}
-      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
       - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
@@ -42,10 +44,11 @@ steps:
       - --min-instances=0
       - --max-instances=3
       - --timeout=120
+      - --project=$PROJECT_ID
       - --set-env-vars=HEATGUARD_DATA_DIR=/app/data,HEATGUARD_STATIC_DIR=/app/static,HEATGUARD_LANDING_DIR=/app/landing
 
 images:
-  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:latest
 
 options:
