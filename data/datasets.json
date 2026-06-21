@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "description": "Manifest of real datasets used by HeatGuard. Archive and forecast rows are fetched from Open-Meteo and cached under data/cache/.",
+  "weather": {
+    "source": "Open-Meteo Archive API (ERA5-class reanalysis) and Forecast API",
+    "source_url": "https://open-meteo.com",
+    "archive": {
+      "demo": [
+        {
+          "site_key": "dubai",
+          "start": "2025-05-01",
+          "end": "2025-09-15",
+          "note": "Primary demo — May shoulder season before UAE ban (15 Jun)"
+        },
+        {
+          "site_key": "riyadh",
+          "start": "2024-06-01",
+          "end": "2024-09-15",
+          "note": "Primary demo — in-season humid-morning gap vs noon ban"
+        }
+      ],
+      "gulf_season": [
+        {
+          "site_key": "abu_dhabi",
+          "start": "2025-05-01",
+          "end": "2025-09-15"
+        },
+        {
+          "site_key": "doha",
+          "start": "2024-06-01",
+          "end": "2024-09-15",
+          "note": "Qatar — only GCC state with a WBGT cutoff in law"
+        },
+        {
+          "site_key": "kuwait_city",
+          "start": "2024-06-01",
+          "end": "2024-09-15"
+        },
+        {
+          "site_key": "muscat",
+          "start": "2024-06-01",
+          "end": "2024-09-15"
+        },
+        {
+          "site_key": "manama",
+          "start": "2024-06-01",
+          "end": "2024-09-15"
+        }
+      ]
+    },
+    "forecast": {
+      "sites": ["dubai", "riyadh", "doha", "abu_dhabi"],
+      "forecast_days": 2,
+      "past_days": 1,
+      "note": "Near-live hourly forecast for shift planning; cached for offline demo"
+    }
+  },
+  "policy": {
+    "directory": "policy",
+    "source_note": "Summaries of published GCC occupational heat regulations and ILO guidance for policy-gap analysis (Stage 3 RAG corpus)."
+  },
+  "epidemiology": {
+    "path": "epidemiology/gulf_heat.json",
+    "source_note": "Published aggregate statistics — not individual worker records."
+  },
+  "intervention": {
+    "path": "nicaragua_baseline.json",
+    "source_note": "La Isla / Adelante WRS effect sizes (2024 ILO report)."
+  },
+  "economics": {
+    "path": "economics.json",
+    "source_note": "Illustrative ROI assumptions — tunable, not empirical."
+  }
+}

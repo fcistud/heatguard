@@ -36,6 +36,10 @@ def cache_name_for(site: Site, start: date, end: date) -> str:
     return f"{_slug(site)}_{start}_{end}.json"
 
 
+def forecast_cache_name_for(site: Site, forecast_days: int = 2, past_days: int = 1) -> str:
+    return f"{_slug(site)}_forecast_{forecast_days}d_past{past_days}d.json"
+
+
 def _base_params(site: Site) -> dict:
     return {
         "latitude": site.lat,
@@ -102,14 +106,27 @@ def fetch_archive(
     return _parse(payload, site)
 
 
-def fetch_forecast(site: Site, forecast_days: int = 2, past_days: int = 1) -> list[Weather]:
-    """Near-live hourly forecast (for the live demo signal)."""
-    import httpx
+def fetch_forecast(
+    site: Site,
+    forecast_days: int = 2,
+    past_days: int = 1,
+    use_cache: bool = True,
+    refresh: bool = False,
+) -> list[Weather]:
+    """Near-live hourly forecast. Cached under ``data/cache/`` like archive data."""
+    path = cache_file(forecast_cache_name_for(site, forecast_days, past_days))
+    if use_cache and not refresh and path.exists():
+        payload = json.loads(path.read_text())
+    else:
+        import httpx
 
-    params = _base_params(site) | {"forecast_days": forecast_days, "past_days": past_days}
-    resp = httpx.get(FORECAST_URL, params=params, timeout=60)
-    resp.raise_for_status()
-    return _parse(resp.json(), site)
+        params = _base_params(site) | {"forecast_days": forecast_days, "past_days": past_days}
+        resp = httpx.get(FORECAST_URL, params=params, timeout=60)
+        resp.raise_for_status()
+        payload = resp.json()
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload))
+    return _parse(payload, site)
 
 
 def load_cached_payload(path: Path, site: Site) -> list[Weather]:
