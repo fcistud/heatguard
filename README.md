@@ -6,7 +6,7 @@
 ### 🌐 Live Demos
 * **Landing Page:** [HeatGuard Marketing Site](https://heatguard-psv77gylf-mariamihabmo-3393s-projects.vercel.app/)
 * **Live Product Dashboard:** [Interactive Demo App](https://heatguard-5ysoalxi5q-uc.a.run.app/dashboard/)
-* **Project Documentation:** [HeatGuard Docs](https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html) *(Note: The comprehensive documentation site covers all the deep backend/library features in addition to the frontend dashboard functionality.)*
+* **Project Documentation:** [HeatGuard Docs](https://heatguard-6vdkm4nrc-mariamihabmo-3393s-projects.vercel.app/index.html) 
 
 ---
 
@@ -21,7 +21,6 @@ HeatGuard takes live or replayed weather, computes the heat-stress index, and ou
 ### Machine Learning Personal Risk Profiling
 ![Personal Risk ML](docs/img/09_riyadh_newcomer.png)
 *A Gradient Boosting model dynamically maps age, weight, and comorbidities against WBGT, flagging high-risk workers for shade rest without stopping the entire site.*
->>>>>>> 8989b97 (docs: format live demo links cleanly in README)
 
 ---
 
