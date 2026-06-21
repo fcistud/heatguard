@@ -7,6 +7,7 @@ import {
   YAxis,
 } from "recharts";
 import type { Timeline, TimelineRow } from "../types";
+import { PersonalRiskBadge } from "./PersonalRiskBadge";
 import { SIGNAL_COLOR, SIGNAL_SHORT } from "../lib/signals";
 
 type WorkerKey = "veteran" | "newcomer";
@@ -197,9 +198,14 @@ export function BanVsAdaptiveTimeline({
                   selected={selectedHour === r.hour}
                   outline={r.gap}
                   onClick={() => onSelectHour(r.hour)}
-                  title={`${r.time} — ${a.signal}${r.gap ? " (MISSED by ban)" : ""}`}
+                  title={`${r.time} — ${a.signal}${r.gap ? " (MISSED by ban)" : ""}${a.elevated_risk ? " · elevated personal risk" : ""}`}
                 >
-                  {r.gap ? "!" : SIGNAL_SHORT[a.signal][0]}
+                  <span className="flex flex-col items-center leading-none">
+                    <span>{r.gap ? "!" : SIGNAL_SHORT[a.signal][0]}</span>
+                    {a.elevated_risk && (
+                      <PersonalRiskBadge score={a.personal_risk_score ?? 0} elevated compact />
+                    )}
+                  </span>
                 </Cell>
               );
             })}
@@ -236,6 +242,12 @@ export function BanVsAdaptiveTimeline({
         <span className="inline-flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm border-2 border-red-600 bg-transparent" />
           MISSED by ban (gap)
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800">
+            ELEVATED
+          </span>
+          ML personal risk (advisory)
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-slate-700" />

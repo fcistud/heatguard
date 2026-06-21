@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Advisory, Signal } from "../types";
+import { PersonalRiskBadge } from "./PersonalRiskBadge";
 import { SIGNAL_COLOR, SIGNAL_LABEL } from "../lib/signals";
 
 interface SignalTileProps {
@@ -76,7 +77,7 @@ export function SignalTile({ advisory, time, workerLabel }: SignalTileProps) {
         </button>
       </div>
 
-      <div className="mt-3 flex items-end gap-3">
+      <div className="mt-3 flex flex-wrap items-end gap-3">
         <div
           className={`text-5xl font-extrabold leading-none tracking-tight ${
             liveSignal === "DRINK_NOW" && playing ? "animate-pulseSoft" : ""
@@ -84,6 +85,12 @@ export function SignalTile({ advisory, time, workerLabel }: SignalTileProps) {
         >
           {SIGNAL_LABEL[liveSignal]}
         </div>
+        {advisory.elevated_risk && (
+          <PersonalRiskBadge
+            score={advisory.personal_risk_score ?? 0}
+            elevated
+          />
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
@@ -139,6 +146,11 @@ export function SignalTile({ advisory, time, workerLabel }: SignalTileProps) {
       <p className="mt-4 text-sm leading-relaxed text-white/90">
         {advisory.rationale}
       </p>
+      {advisory.personal_risk_note && advisory.elevated_risk && (
+        <p className="mt-2 rounded-lg bg-black/20 px-3 py-2 text-xs leading-relaxed text-white/95">
+          {advisory.personal_risk_note}
+        </p>
+      )}
     </div>
   );
 }

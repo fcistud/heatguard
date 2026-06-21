@@ -44,6 +44,9 @@ export interface Advisory {
   acclim_fraction: number;
   rationale: string;
   risk_score: number; // 0..1
+  personal_risk_score?: number;
+  elevated_risk?: boolean;
+  personal_risk_note?: string;
 }
 
 export interface TimelineRow {
@@ -201,6 +204,10 @@ export interface DecideRequest {
   acclimatized: boolean;
   experienced: boolean;
   measured_wbgt: number | null;
+  weight_kg?: number;
+  height_m?: number;
+  age?: number;
+  has_comorbidity?: boolean;
 }
 
 export interface DecideResponse {

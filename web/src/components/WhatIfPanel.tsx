@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { DecideResponse, Intensity } from "../types";
 import { api, ApiError } from "../api";
+import { PersonalRiskBadge } from "./PersonalRiskBadge";
 import { SIGNAL_COLOR, SIGNAL_LABEL } from "../lib/signals";
 
 interface Props {
@@ -55,6 +56,9 @@ export function WhatIfPanel({ siteKey }: Props) {
   const [hour, setHour] = useState(12);
   const [intensity, setIntensity] = useState<Intensity>("heavy");
   const [acclimatized, setAcclimatized] = useState(true);
+  const [weightKg, setWeightKg] = useState(75);
+  const [age, setAge] = useState(30);
+  const [hasComorbidity, setHasComorbidity] = useState(false);
   const [result, setResult] = useState<DecideResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +79,10 @@ export function WhatIfPanel({ siteKey }: Props) {
         acclimatized,
         experienced: false,
         measured_wbgt: null,
+        weight_kg: weightKg,
+        height_m: 1.75,
+        age,
+        has_comorbidity: hasComorbidity,
       });
       setResult(res);
     } catch (e) {
@@ -131,6 +139,19 @@ export function WhatIfPanel({ siteKey }: Props) {
           </div>
         </div>
 
+        <NumberField label="Weight" value={weightKg} onChange={setWeightKg} min={50} max={110} unit=" kg" />
+        <NumberField label="Age" value={age} onChange={setAge} min={18} max={65} unit=" yr" />
+
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={hasComorbidity}
+            onChange={(e) => setHasComorbidity(e.target.checked)}
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          Cardiovascular / renal comorbidity
+        </label>
+
         <button
           onClick={run}
           disabled={loading}
@@ -151,16 +172,24 @@ export function WhatIfPanel({ siteKey }: Props) {
         )}
         {adv && result && (
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span
                 className="rounded-lg px-3 py-1 text-lg font-extrabold text-white"
                 style={{ backgroundColor: SIGNAL_COLOR[adv.signal] }}
               >
                 {SIGNAL_LABEL[adv.signal]}
               </span>
-              <span className="text-sm tabular-nums text-slate-500">
-                WBGT {adv.wbgt_c.toFixed(1)}°C
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-sm tabular-nums text-slate-500">
+                  WBGT {adv.wbgt_c.toFixed(1)}°C
+                </span>
+                {(adv.elevated_risk || (adv.personal_risk_score ?? 0) >= 0.25) && (
+                  <PersonalRiskBadge
+                    score={adv.personal_risk_score ?? 0}
+                    elevated={!!adv.elevated_risk}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -206,6 +235,11 @@ export function WhatIfPanel({ siteKey }: Props) {
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               {adv.rationale}
             </p>
+            {adv.personal_risk_note && (
+              <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs leading-relaxed text-orange-900">
+                {adv.personal_risk_note}
+              </p>
+            )}
             <p className="mt-2 text-xs text-slate-400">
               {result.ban_description}
             </p>
