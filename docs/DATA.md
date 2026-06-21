@@ -21,7 +21,7 @@ Demo weather for Dubai and Riyadh is **already committed** under `data/cache/` s
 | Hourly weather (archive) | Real (Open-Meteo / ERA5-class) | `data/cache/{site}_{start}_{end}.json` | `fetch_archive()` → engine |
 | Hourly weather (forecast) | Real (Open-Meteo forecast) | `data/cache/{site}_forecast_2d_past1d.json` | `fetch_forecast()` → `/forecast/{site}` |
 | WRS intervention effects | Real (published) | `data/nicaragua_baseline.json` | `impact.py`, `/backtest` |
-| GCC ban summaries | Real (curated from regulations) | `data/policy/*.md` | `/policy/corpus` (RAG: planned) |
+| GCC ban summaries | Real (curated from regulations) | `data/policy/*.md` | `/policy/query` RAG + `/policy/corpus` |
 | Gulf epidemiology constants | Published aggregates | `data/epidemiology/gulf_heat.json` | future risk model |
 | ML personal risk model | PHS-labelled, real weather inputs | `data/models/risk_model.joblib` | `risk_model.assess()` on each `Advisory` |
 
@@ -61,7 +61,15 @@ Returns hourly signals and a **recommended shift window** for the veteran worker
 
 ## Policy corpus
 
-Markdown summaries in `data/policy/` — source material for policy-gap analysis and the planned RAG layer. Not a substitute for legal advice.
+Markdown summaries in `data/policy/` — queried via TF-IDF RAG:
+
+```bash
+heatguard policy-query "When does the UAE ban start?"
+curl -X POST http://localhost:8000/policy/query -H 'Content-Type: application/json' \
+  -d '{"question":"How is Qatar WBGT different?"}'
+```
+
+Not a substitute for legal advice.
 
 ## Adding a new site season
 

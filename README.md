@@ -501,7 +501,7 @@ notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide
 ```
 
-**AI layer:** `risk_model.py` adds gradient-boosting personal risk stratification using PHS-derived labels on real cached weather. It enriches each `Advisory` but never overrides ISO/ACGIH signals. Retrain: `python scripts/train_risk_model.py`.
+**AI layer:** `risk_model.py` adds gradient-boosting personal risk stratification using PHS-derived labels on real cached weather; `policy_rag.py` retrieves cited excerpts from `data/policy/`. Neither overrides ISO/ACGIH signals. Retrain risk model: `python scripts/train_risk_model.py`. Query policy: `heatguard policy-query "…"`.
 
 ---
 
