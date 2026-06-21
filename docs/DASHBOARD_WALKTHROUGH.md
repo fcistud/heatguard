@@ -55,15 +55,21 @@ the demo runs offline. The peak is the hottest hour in the replayed season windo
 **On screen:** A large colored card — **WORK** (green) / **REST IN SHADE** (amber) /
 **DRINK NOW** (blue) / **STOP** (red) — for the currently selected hour and worker. Shows
 the **work/rest split** (e.g. 60–0 min), **hydration** (cups/h + mL/h), and **max safe
-continuous** minutes, with the plain-English rationale underneath.
+continuous** minutes, with the plain-English rationale underneath. When the ML overlay
+flags a worker, an orange **ELEVATED** badge appears — personal risk only; the regulatory
+signal stays the same.
 
 **Say:** "This is the only thing the crew ever sees — one signal on a site horn or light.
-Right now: work the full hour, two cups of water, with a stated reason."
+Right now: work the full hour, two cups of water, with a stated reason. The orange badge
+is an extra heads-up for supervisors — newcomers, comorbidities — it never overrides the
+legal signal."
 
 **Under the hood:** The signal is the **most conservative** of three independent limits:
 the ACGIH/ISO 7243 work-rest table, the NIOSH acclimatization ramp, and the ISO 7933
 Predicted Heat Strain physiological cap. STOP only fires when no safe work block remains
-or WBGT is above the regulatory ceiling.
+or WBGT is above the regulatory ceiling. `risk_model.py` adds a gradient-boosting
+personal-risk score on top; a unit test asserts it **never changes** the regulatory
+`Signal`.
 
 **Interact:** Click **"▶ simulate the hour"** to animate the intra-hour broadcast ribbon —
 Work blocks, Drink pulses, and the Rest break in sequence.
@@ -92,7 +98,7 @@ the way into the audit log.
 **On screen:** The WBGT curve over the day, above **two lanes**:
 - **Calendar ban** — grey = permitted, dark = ban active.
 - **HeatGuard (adaptive)** — each hour colored by the signal, with **"!" badges on the
-  gap hours** the ban missed.
+  gap hours** the ban missed and compact **personal-risk** pills on elevated hours.
 A **day scrubber**, a **Veteran ⟷ New worker** toggle, and a **"Gap hours (missed by
 ban)"** counter.
 
@@ -215,15 +221,42 @@ mutation or deletion fails `verify_chain()`. Exports to CSV/JSONL for the audit 
 ## 12. What-if — live engine
 
 **On screen:** Sliders for air temp / humidity / solar / hour, an intensity dropdown, an
-**Acclimatized ⟷ New (day 0)** toggle, and **Run the engine →**. The result renders the
-signal + cycle + hydration + whether the ban would apply (e.g. **44 °C, heavy → STOP,
-WBGT 38.2 °C, 2.5 cups/h**).
+**Acclimatized ⟷ New (day 0)** toggle, **age / weight / comorbidity** fields, and **Run the
+engine →**. The result renders the signal + cycle + hydration + whether the ban would apply
+(e.g. **44 °C, heavy → STOP, WBGT 38.2 °C, 2.5 cups/h**), plus a personal-risk badge when
+the ML overlay is elevated.
 
-**Say:** "And to prove none of this is canned — change anything and run it. That's a live
-`POST /decide` to the same engine."
+**Say:** "And to prove none of this is canned — change anything and run it. Toggle a day-0
+newcomer with a comorbidity and you'll see the orange elevated-risk badge — but the STOP
+signal is still driven by the standards engine, not the model."
 
-**Under the hood:** Identical code path as every other number on the page; the dashboard is
-a thin client over the Python engine.
+**Under the hood:** Identical code path as every other number on the page (`POST /decide`);
+the dashboard is a thin client over the Python engine. Personal risk is computed in
+`risk_model.py` and returned alongside the advisory; it does not feed back into
+`scheduler.decide()`.
+
+---
+
+## 13. Policy gap auditor (RAG)
+
+**On screen:** Preset chips (e.g. *"When does the UAE ban start?"*), a free-text question
+box, and cited excerpts from the committed corpus in `data/policy/` — GCC midday-ban
+summaries and ILO Water–Rest–Shade evidence. Each answer lists **source documents** with
+relevance scores and quoted passages.
+
+**Say:** "The calendar is the law on paper — but supervisors and inspectors ask questions.
+This panel retrieves cited policy text in seconds: when bans start, Qatar's WBGT rule, what
+the ILO says about WRS. No external LLM — TF-IDF over our committed corpus, same offline
+demo story."
+
+**Under the hood:** `policy_rag.py` chunks and indexes `data/policy/*.md`; `POST /policy/query`
+returns an extractive answer stitched from top chunks. CLI equivalent:
+`heatguard policy-query "When does the UAE ban start?"` → cites **15 June** from the UAE
+summary (locked by tests).
+
+**Interact:** Click **"When does the UAE ban start?"** → read the answer and sources aloud.
+Then ask **"What is Qatar's WBGT cutoff?"** to show the only Gulf rule that already uses
+conditions, not just a clock.
 
 ---
 
@@ -237,8 +270,10 @@ a thin client over the Python engine.
 4. **Season impact + Nicaragua check** (§8) — "1,237 missed danger-hours; validated against
    a real 94% intervention."
 5. **ROI** (§9) — "and it pays for itself — **3–5×, six-week payback**, productivity-positive."
-6. **Compliance** (§11) — "with a tamper-evident audit trail that doubles as a fines shield."
-7. **What-if** (§12) — "live, not canned — change anything, run it."
+6. **Policy auditor** (§13) — "the law on paper, cited in seconds — UAE ban starts **15 June**."
+7. **Compliance** (§11) — "with a tamper-evident audit trail that doubles as a fines shield."
+8. **What-if** (§12) — "live, not canned — change anything, run it; ML flags risk without
+   overriding the signal."
 
 ---
 
@@ -251,5 +286,8 @@ a thin client over the Python engine.
 - **"Aren't the ROI numbers optimistic?"** The headline excludes the death and turnover
   terms and uses conservative, tunable assumptions; recovered work is fraction-weighted.
 - **"Does it work without the internet?"** Yes — the demo weather is cached in the repo.
+- **"Does the ML override the safety signal?"** No — personal risk is an advisory overlay
+  only; the regulatory `Signal` comes from ACGIH/ISO/NIOSH/PHS. A unit test fails if anyone
+  wires the model into the scheduler.
 - **"Why site-level, not a wearable?"** Cost, friction, and surveillance kill per-worker
   hardware; one sensor + the supervisor's screen is what actually gets adopted.
