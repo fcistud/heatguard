@@ -70,6 +70,11 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/health/", include_in_schema=False)
+def health_trailing_slash() -> RedirectResponse:
+    return RedirectResponse(url="/health", status_code=308)
+
+
 @app.get("/sites")
 def sites() -> list[dict]:
     return service.list_sites()
