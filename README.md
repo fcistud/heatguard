@@ -21,7 +21,7 @@ overrides the regulatory signal.
 
 ```bash
 pip install -e . && pip install -r requirements.txt
-pytest -q                 # 91 tests, incl. Nicaragua back-test + API/demo/policy/ML
+pytest -q                 # see §9 — full suite incl. API, policy RAG, and ML overlay
 heatguard fetch-datasets  # cache weather + forecasts (committed; run once if missing)
 heatguard fetch-demo      # cache the two demo archives (committed; run once if missing)
 scripts/run_demo.sh       # API + dashboard in one command  →  http://localhost:5173
@@ -447,15 +447,16 @@ recovers. The pitch line: **it is not a safety cost — it is productivity-posit
 
 ## 9. Validation & testing
 
-- **91 pytest tests** (`pytest -q`, network tests skipped by default): exact ACGIH/AL table
+- **110 pytest tests** (`pytest -q`, network tests skipped by default): exact ACGIH/AL table
   values and step-boundary mapping; WBGT sanity (below air temp, rises with humidity/solar,
   night ≈ wet-bulb); solar geometry; PHS monotonicity and attribute pinning; the
   acclimatization ramp; the most-conservative scheduler logic and STOP consistency; GCC ban
   windows incl. Qatar's WBGT cutoff and out-of-season; compliance chain verification + tamper
   detection; the mechanistic impact (zero-danger, full/zero coverage, crew scaling); the
-  economics ROI; dataset manifest + forecast caching; **policy RAG** retrieval; **FastAPI**
-  route smoke tests; **demo narrative** assertions (Dubai May 16 gap hours, Riyadh newcomer
-  beat); and **ML non-interference** (personal risk never changes the regulatory `Signal`).
+  economics ROI; **FastAPI** e2e tests (`/hour`, measured WBGT, per-worker intensity,
+  scale projection, strict JSON on extreme humidity, compliance privacy block); dataset
+  manifest + forecast caching; **policy RAG** retrieval; **demo narrative** assertions;
+  and **ML non-interference** (personal risk never changes the regulatory `Signal`).
 - **Nicaragua back-test** (`heatguard backtest`): the impact model reproduces the documented
   La Isla / Adelante outcomes — **94% AKI reduction, 10–20% productivity** — as an assertion
   that fails loudly if anyone changes an effect size. This is the validity backbone: the
@@ -475,7 +476,7 @@ All five share the engine via `service.py`.
 - **FastAPI** (`uvicorn heatguard.api:app`) — `/sites`, `/demo/{site}`,
   `/timeline/{site}/{date}` (with `?intensity=&newcomer_days=`), `/hour/{site}/{date}/{hour}`
   (per-worker recompute, optional `?measured_wbgt=`), `/impact/{site}`, `/economics/{site}`,
-  `/sensitivity/{site}`, `/backtest`, `/datasets`, `/forecast/{site}`, `/policy/corpus`,
+  `/sensitivity/{site}`, `/scale/{site}`, `/backtest`, `/datasets`, `/forecast/{site}`, `/policy/corpus`,
   `/policy/demo-questions`, `POST /policy/query`, `/compliance/{site}/export`, `POST /decide`
   (optional worker age, weight, comorbidity for personal-risk overlay).
 - **React dashboard** (`web/`, Vite + TS + Tailwind) — the primary pitch UI: live signal
@@ -483,8 +484,8 @@ All five share the engine via `service.py`.
   (on-site meter)** toggle, the
   **calendar-ban-vs-HeatGuard timeline** with a day scrubber, a veteran/new-worker toggle, and
   **per-worker controls** (work intensity + new-worker tenure), the acclimatization tracker,
-  season impact, the **business-case / ROI panel** with an AKI sensitivity chart, the
-  **worker-protection record** (privacy-by-design), a live what-if (age/weight/comorbidity),
+  season impact, **scale / lives-saved projection**, the **business-case / ROI panel** with an
+  AKI sensitivity chart, the **worker-protection record** (privacy-by-design), a live what-if (age/weight/comorbidity),
   and the **Policy gap auditor** (RAG over GCC bans + ILO WRS). See
   [`docs/DASHBOARD_WALKTHROUGH.md`](docs/DASHBOARD_WALKTHROUGH.md) for a presenter's guide.
 - **Streamlit** (`streamlit run streamlit_app.py`) — a pure-Python, no-build version of the
@@ -499,7 +500,7 @@ All five share the engine via `service.py`.
 ```bash
 conda env create -f environment.yml && conda activate heatguard   # Python 3.11
 # or: pip install -e . && pip install -r requirements.txt
-pytest -q                        # 91 tests
+pytest -q                        # full suite (see §9)
 heatguard fetch-datasets         # cache all archives + forecasts (also committed)
 heatguard fetch-demo             # cache the two demo archives (also committed)
 heatguard policy-query "When does the UAE ban start?"
@@ -521,9 +522,7 @@ data/epidemiology/          published aggregate heat-risk constants
 data/models/                personal risk classifier (PHS-labelled training)
 data/cache/*.json           committed Open-Meteo weather (offline demo)
 docs/DATA.md                dataset guide for teammates
-tests/                      pytest suite (91)
-docs/DATA.md                dataset guide for teammates
-tests/                      pytest suite (91)
+tests/                      pytest suite (see §9)
 web/                        React dashboard           streamlit_app.py
 notebooks/                  validation notebook        scripts/run_demo.sh
 docs/DASHBOARD_WALKTHROUGH.md   presenter's guide

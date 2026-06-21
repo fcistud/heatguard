@@ -41,6 +41,18 @@ def test_demo_payload_shape(site):
     assert len(d["sensitivity"]) == 5
 
 
+def test_demo_dubai_gap_hours():
+    d = client.get("/demo/dubai?crew=100").json()
+    assert d["timeline"]["gap_hours"] > 0
+    assert d["impact"]["danger_hours_caught_vs_ban"] > 0
+
+
+def test_timeline_dubai_focus_day():
+    focus = client.get("/demo/dubai").json()["focus_day"]
+    tl = client.get(f"/timeline/dubai/{focus}").json()
+    assert tl["gap_hours"] > 0
+
+
 def test_demo_unknown_site_404():
     assert client.get("/demo/atlantis").status_code == 404
 
@@ -65,7 +77,7 @@ def test_decide_valid():
     assert isinstance(r["live"], list) and len(r["live"]) == 60
 
 
-def test_decide_hot_conditions_exposes_personal_risk():
+def test_decide_hot_conditions_personal_risk():
     r = client.post(
         "/decide",
         json={
@@ -88,6 +100,7 @@ def test_decide_hot_conditions_exposes_personal_risk():
     )
     assert r.status_code == 200
     body = r.json()
+    assert body["advisory"]["signal"] in SIGNALS
     assert "personal_risk_score" in body["advisory"]
     assert len(body["live"]) == 60
 
@@ -179,22 +192,14 @@ def test_scale_scales_with_workforce():
     assert b["aki_cases_averted"] > a["aki_cases_averted"] * 8  # ~10x
 
 
-def test_forecast_dubai():
-    r = client.get("/forecast/dubai")
-    assert r.status_code == 200
-    data = r.json()
-    assert data["source"] == "open-meteo-forecast"
-    assert len(data["rows"]) >= 1
+# ---- compliance reframe (worker-protective + privacy) -----------------------
+def test_compliance_summary_has_privacy_block():
+    s = client.get("/demo/dubai").json()["compliance"]["summary"]
+    assert "purpose" in s
+    assert "privacy" in s and "does_not_record" in s["privacy"]
 
 
-def test_datasets_inventory():
-    r = client.get("/datasets")
-    assert r.status_code == 200
-    inv = r.json()
-    assert inv["weather"]["archive_total"] >= 7
-    assert inv["policy"]["file_count"] >= 4
-
-
+# ---- datasets, forecast, policy RAG -----------------------------------------
 def test_policy_query():
     r = client.post(
         "/policy/query",
@@ -212,8 +217,17 @@ def test_policy_demo_questions():
     assert len(r.json()) >= 3
 
 
-# ---- compliance reframe (worker-protective + privacy) -----------------------
-def test_compliance_summary_has_privacy_block():
-    s = client.get("/demo/dubai").json()["compliance"]["summary"]
-    assert "purpose" in s
-    assert "privacy" in s and "does_not_record" in s["privacy"]
+def test_forecast_dubai():
+    r = client.get("/forecast/dubai")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["source"] == "open-meteo-forecast"
+    assert len(data["rows"]) >= 1
+
+
+def test_datasets_inventory():
+    r = client.get("/datasets")
+    assert r.status_code == 200
+    inv = r.json()
+    assert inv["weather"]["archive_total"] >= 7
+    assert inv["policy"]["file_count"] >= 4

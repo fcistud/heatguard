@@ -99,24 +99,24 @@ export function SignalTile({ advisory, time, workerLabel }: SignalTileProps) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-3">
-<div
-  className={`text-5xl font-extrabold leading-none tracking-tight transition-transform duration-150 ${
-    liveSignal === "DRINK_NOW" && playing ? "scale-105 animate-pulse" : ""
-  }`}
->
-  {SIGNAL_LABEL[liveSignal]}
-</div>
-{advisory.elevated_risk && (
-  <PersonalRiskBadge
-    score={advisory.personal_risk_score ?? 0}
-    elevated
-  />
-)}
-{playing && (
-  <div className="pb-1 text-sm font-medium text-white/80 tabular-nums">
-    minute {minute + 1} / 60
-  </div>
-)}
+        <div
+          className={`text-5xl font-extrabold leading-none tracking-tight transition-transform duration-150 ${
+            liveSignal === "DRINK_NOW" && playing ? "scale-105 animate-pulse" : ""
+          }`}
+        >
+          {SIGNAL_LABEL[liveSignal]}
+        </div>
+        {advisory.elevated_risk && (
+          <PersonalRiskBadge
+            score={advisory.personal_risk_score ?? 0}
+            elevated
+          />
+        )}
+        {playing && (
+          <div className="pb-1 text-sm font-medium text-white/80 tabular-nums">
+            minute {minute + 1} / 60
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
