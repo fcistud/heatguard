@@ -51,7 +51,7 @@ scripts/run_demo.sh       # API + dashboard in one command  →  http://localhos
 
 ## 🏢 The Business Case & Innovation
 
-Our core innovation isn't just the thermal physics—it's the **Compliance Shield**. 
+Our core innovation isn't just the thermal physics: it's the **Compliance Shield**. 
 
 By enforcing strict Work-Rest-Shade (WRS) protocols, we ground our impact in the La Isla Network 'Adelante Initiative', which proved a **94% reduction in Acute Kidney Injury** and a **10-20% increase in productivity**. HeatGuard generates a tamper-evident, cryptographic audit log that proves to inspectors and courts that a contractor's dynamic schedule exceeded international ACGIH safety standards—shielding them from massive negligence fines.
 
