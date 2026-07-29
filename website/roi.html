@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — Impact, ROI &amp; claims</title>
+  <meta name="description" content="How every ROI figure and landing-page claim is calculated, where the numbers come from, and how certain they are — the honesty backbone, with worked Dubai and Riyadh examples." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a class="active" href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">Impact, ROI &amp; claims</p>
+        <h1>Every number, with its provenance</h1>
+        <p class="lead">
+          This is the honesty backbone: it separates standards and measured facts from
+          model-derived results from illustrative, assumption-dependent projections. Every ROI
+          figure shows how it's calculated, where the numbers come from, and how certain it is.
+        </p>
+
+        <div class="callout info">
+          <div class="callout-title">ℹ️ Confidence tags</div>
+          <p>
+            <span class="tag standard">STANDARD</span> a published standard, regulation, or
+            peer-reviewed effect size &nbsp;
+            <span class="tag context">CONTEXT</span> an external statistic, cited &nbsp;
+            <span class="tag derived">DERIVED</span> computed by the engine on real Open-Meteo
+            weather; reproducible &nbsp;
+            <span class="tag illustrative">ILLUSTRATIVE</span> depends on tunable, deliberately
+            conservative assumptions; directional, not a promise.
+          </p>
+        </div>
+
+        <h2 id="assumptions">The assumptions (all illustrative, all tunable) <a class="anchor" href="#assumptions">#</a></h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Assumption</th><th>Value</th><th>Meaning / basis</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>daily_value_per_worker_usd</code></td><td>$30</td><td>Loaded value of a worker-day (wage + overhead + output). Deliberately conservative for low-wage Gulf labour.</td></tr>
+              <tr><td><code>work_hours_per_day</code></td><td>8</td><td>→ hourly value = 30 / 8 = <strong>$3.75 / worker-hour</strong>.</td></tr>
+              <tr><td><code>aki_case_cost_usd</code></td><td>$1,200</td><td>⚠️ The peer-reviewed Nicaragua mill-hospital AKI treatment cost is <strong>$253.48</strong>; $1,200 is a higher proxy for total burden, not the clinical bill.</td></tr>
+              <tr><td><code>fine_per_worker_usd</code></td><td>$1,361</td><td>AED 5,000 (the UAE midday-ban fine per worker) in USD. <span class="tag standard">STANDARD</span></td></tr>
+              <tr><td><code>fine_probability_per_season</code></td><td>0.03</td><td>Expected per-season probability of a fine the tamper-evident log helps avoid.</td></tr>
+              <tr><td><code>heat_death_cost_usd</code></td><td>$150,000</td><td>Not grounded in a Gulf-specific source → <strong>excluded from the headline</strong>.</td></tr>
+              <tr><td><code>heat_death_per_aki_case</code></td><td>0.005</td><td>Deaths per AKI case (severity ratio). Conservative; also drives "lives saved".</td></tr>
+              <tr><td><code>turnover_cost</code> / <code>turnover_reduction</code></td><td>$150 / 10%</td><td>Recruitment cost and the share reduced by better conditions. Excluded from the headline.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The <strong>baseline AKI incidence</strong> (default <strong>0.10/worker-season</strong>)
+          is the single biggest lever; it is shown as a <em>range</em> (5%–20%) in the sensitivity
+          chart, not a point.
+        </p>
+
+        <h2 id="impact-inputs">The mechanistic impact model <a class="anchor" href="#impact-inputs">#</a></h2>
+        <p>
+          HeatGuard delivers water-rest-shade during <em>every</em> dangerous hour; the calendar
+          ban only covers the dangerous hours that happen to fall in its fixed window. The
+          incremental kidney-injury cases averted <strong>vs the ban</strong> are scaled by that
+          coverage gap:
+        </p>
+        <pre><code>danger hour          := HeatGuard signalled STOP or REST_IN_SHADE
+ban_coverage         := danger_hours_in_ban / total_danger_hours
+danger_missed_frac   := (total_danger − danger_in_ban) / total_danger     (0 if no danger)
+
+AKI_baseline         := baseline_incidence × crew_size       (default 0.10/worker → 10 for a crew of 100)
+AKI_averted_vs_ban   := 0.94 × AKI_baseline × danger_missed_frac</code></pre>
+        <p>
+          This collapses to <strong>0</strong> when the ban already covers all danger, to the
+          <strong>full 94%</strong> when the ban covers none (e.g. a May heatwave before the
+          season), and gates to 0 when a season has no dangerous hours at all (a degenerate case
+          a flat multiplier would wrongly credit). The 0.94 and the 10–20% productivity band come
+          from the documented Nicaragua effect sizes. <span class="tag standard">STANDARD</span>
+          <span class="tag derived">DERIVED</span>
+        </p>
+
+        <h2 id="benefit-terms">The benefit terms <a class="anchor" href="#benefit-terms">#</a></h2>
+        <pre><code>hourly_value      = daily_value_per_worker / work_hours_per_day            = $3.75
+
+productivity_value   = productivity_worker_hours   × hourly_value
+recovered_safe_work  = ban_only_safe_work_hours × crew × hourly_value
+aki_value            = aki_cases_averted_vs_ban  × aki_case_cost
+fines_avoided        = fine_per_worker × crew × fine_probability_per_season
+
+# reported SEPARATELY, EXCLUDED from the headline (avoid over-claiming):
+death_averted        = aki_cases_averted_vs_ban × heat_death_per_aki_case × heat_death_cost
+turnover             = turnover_cost_per_worker × crew × turnover_reduction
+
+headline_benefit = productivity_value + recovered_safe_work + aki_value + fines_avoided
+program_cost     = capital ($55/worker) + recurring ($40/worker)            = $95/worker
+ROI              = headline_benefit / program_cost
+payback_days     = program_cost / (headline_benefit_lo / season_days)</code></pre>
+        <p>
+          Program cost itemisation: hats/thermos/shade-share $45 + training $10 (capital) +
+          electrolyte solution $15 + program staff $25 (recurring) = <strong>$95/worker</strong>.
+        </p>
+
+        <h2 id="dubai">Worked example — Dubai <a class="anchor" href="#dubai">#</a></h2>
+        <p>Crew of 100, 138-day season:</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Term</th><th>Calculation</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Productivity (lo–hi)</td><td>4,927.5 … 9,855.0 worker-hrs × $3.75</td><td>$18,478 – $36,956</td></tr>
+              <tr><td>Recovered safe work</td><td>0 hrs (Dubai ban is out of season in May)</td><td>$0</td></tr>
+              <tr><td>AKI value</td><td>7.67 cases × $1,200</td><td>$9,204</td></tr>
+              <tr><td>Fines avoided</td><td>$1,361 × 100 × 0.03</td><td>$4,083</td></tr>
+              <tr><td><strong>Headline benefit</strong></td><td>sum of the four above</td><td><strong>$31,765 – $50,243</strong></td></tr>
+              <tr><td>Program cost</td><td>$95 × 100</td><td>$9,500</td></tr>
+              <tr><td><strong>Net benefit</strong></td><td>headline − cost</td><td><strong>$22,265 – $40,743</strong></td></tr>
+              <tr><td><strong>ROI</strong></td><td>31,765 / 9,500 … 50,243 / 9,500</td><td><strong>3.3× – 5.3×</strong></td></tr>
+              <tr><td><strong>Payback</strong></td><td>9,500 / (31,765 / 138)</td><td><strong>~41 days</strong></td></tr>
+              <tr><td><em>Excluded upside</em></td><td>death-averted $5,752 + turnover $1,500</td><td><em>(not in headline)</em></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="riyadh">Worked example — Riyadh <a class="anchor" href="#riyadh">#</a></h2>
+        <p>
+          Crew of 100, 107-day season. Riyadh runs <strong>higher</strong> because the ban is
+          <em>in season</em>, so it also <strong>destroys safe work</strong> that HeatGuard
+          recovers (<code>ban_only_safe_work_hours = 82.8</code>/worker → $31,050):
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Term</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Productivity</td><td>$29,826 – $59,651</td></tr>
+              <tr><td>Recovered safe work</td><td><strong>$31,050</strong></td></tr>
+              <tr><td>AKI value</td><td>$4,296 (3.58 cases × $1,200)</td></tr>
+              <tr><td>Fines avoided</td><td>$4,083</td></tr>
+              <tr><td><strong>Headline benefit</strong></td><td><strong>$69,255 – $99,080</strong></td></tr>
+              <tr><td>Program cost</td><td>$9,500</td></tr>
+              <tr><td><strong>ROI</strong></td><td><strong>7.3× – 10.4×</strong>, payback <strong>~15 days</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout note">
+          <div class="callout-title">Why these two demos</div>
+          <p>
+            <strong>Dubai</strong> shows the ban missing whole shoulder-seasons (the May lane is
+            empty all day). <strong>Riyadh</strong> shows that even in season the fixed window
+            misses humid mornings and unacclimatized newcomers <em>and</em> needlessly stops safe
+            work.
+          </p>
+        </div>
+
+        <h2 id="why-conservative">Why it is conservative <a class="anchor" href="#why-conservative">#</a></h2>
+        <ul>
+          <li>The headline <strong>excludes</strong> the two most dramatic terms (death-averted, turnover).</li>
+          <li>Recovered work is <strong>fraction-weighted</strong> (it credits actual productive hours, accounting for breaks).</li>
+          <li>The worker-day value ($30) is low for the region.</li>
+          <li>AKI averted scales <strong>mechanistically</strong> with the coverage gap, not a flat 94%.</li>
+          <li>The biggest assumption (baseline AKI incidence) is shown as a range.</li>
+        </ul>
+        <div class="callout warn">
+          <div class="callout-title">⚠️ Honest limitations</div>
+          <p>
+            The ROI is <span class="tag illustrative">ILLUSTRATIVE</span>: it depends on the
+            tunable cost/value assumptions, the $1,200 AKI-cost proxy (vs the $253.48 clinical
+            figure), and the transfer of the Nicaragua sugarcane effect sizes to Gulf
+            construction. It is a credible <em>direction and order of magnitude</em>, not a
+            guaranteed return.
+          </p>
+        </div>
+
+        <h2 id="per-crew-claims">Impact claims — per 100-worker Dubai season <a class="anchor" href="#per-crew-claims">#</a></h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Claim</th><th>How it's computed</th><th>Tag</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>1,237</strong> danger-hours the ban missed</td><td>engine, real Open-Meteo Dubai season</td><td><span class="tag derived">DERIVED</span></td></tr>
+              <tr><td><strong>7.7</strong> AKI cases averted vs ban</td><td>0.94 × 10 baseline × (danger missed / total danger)</td><td><span class="tag standard">STANDARD</span> <span class="tag derived">DERIVED</span></td></tr>
+              <tr><td><strong>3.3–5.3×</strong> ROI · <strong>~41-day</strong> payback</td><td>see Dubai worked example</td><td><span class="tag illustrative">ILLUSTRATIVE</span></td></tr>
+              <tr><td><strong>~$95/worker</strong></td><td>program cost itemisation</td><td><span class="tag illustrative">ILLUSTRATIVE</span></td></tr>
+              <tr><td>productivity <strong>+10–20%</strong></td><td>Nicaragua effect-size band applied to heat-exposed work</td><td><span class="tag standard">STANDARD</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="scale">Impact at scale <a class="anchor" href="#scale">#</a></h2>
+        <p>Scaling reduces the per-crew result to per worker, then multiplies by the workforce:</p>
+        <pre><code>lives_saved       = (aki_averted_vs_ban / crew) × heat_death_per_aki_case × workforce
+aki_cases_averted = (aki_averted_vs_ban / crew) × workforce
+value             = (headline_benefit / crew) × workforce</code></pre>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Claim (Dubai season)</th><th>Workforce</th><th>Tag</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>~38 lives · 7,670 AKI averted · $32–50M value</td><td>100,000 (megaproject)</td><td><span class="tag illustrative">ILLUSTRATIVE</span></td></tr>
+              <tr><td>~1,900 lives · ~383,500 AKI averted · $1.6–2.5B value</td><td>5,000,000 (regional slice)</td><td><span class="tag illustrative">ILLUSTRATIVE</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout warn">
+          <div class="callout-title">⚠️ "Lives saved" is the most assumption-laden number</div>
+          <p>
+            It is AKI-cases-averted × a 0.005 death-per-AKI severity ratio. It is labelled
+            <em>illustrative/conservative</em> everywhere it appears. The per-crew danger-hours
+            and AKI-averted figures (derived on real weather) and the Nicaragua back-test are the
+            verifiable backbone.
+          </p>
+        </div>
+
+        <h2 id="credibility">Credibility claims <a class="anchor" href="#credibility">#</a></h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Claim</th><th>Basis</th><th>Tag</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Reproduces AKI −94%, productivity +10–20% (La Isla / Adelante)</td><td><code>heatguard backtest</code> asserts the model reproduces the documented outcome; the "94%" is a highest-risk-subgroup figure</td><td><span class="tag standard">STANDARD</span></td></tr>
+              <tr><td>Built on ISO 7243, ISO 7933, ACGIH, NIOSH; WBGT via the validated Liljegren model</td><td>implemented in code</td><td><span class="tag standard">STANDARD</span></td></tr>
+              <tr><td>Test suite + green CI</td><td><code>pytest</code> + GitHub Actions on every push and PR</td><td><span class="tag derived">DERIVED</span></td></tr>
+              <tr><td>"A prototype, not certified safety equipment"</td><td>disclaimer</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="reproduce">Reproduce everything <a class="anchor" href="#reproduce">#</a></h2>
+        <pre><code>heatguard roi dubai      # full benefit breakdown + ROI + payback
+heatguard roi riyadh
+heatguard backtest       # the 94% / 10–20% reproduction
+heatguard demo dubai     # the 1,237 danger-hours, gap, AKI
+curl 'localhost:8011/scale/dubai?workforce=5000000'   # the scale / lives-saved projection</code></pre>
+
+        <nav class="page-nav">
+          <a class="prev" href="data.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">Data &amp; research</span>
+          </a>
+          <a class="next" href="faq.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">FAQ</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

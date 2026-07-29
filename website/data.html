@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — Data &amp; research</title>
+  <meta name="description" content="What data HeatGuard uses, the standards it rests on, the Nicaragua intervention evidence, and the honest void of public Gulf worker-exposure data." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a class="active" href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">Data &amp; research</p>
+        <h1>What it runs on — and what is missing</h1>
+        <p class="lead">
+          The <em>physics</em> runs on free, open code plus free reanalysis weather. The
+          <em>standards</em> that define the science are mostly paywalled (but reimplemented in
+          open libraries). And granular Gulf worker exposure and health data is essentially a
+          public void — the single biggest gap, which HeatGuard names rather than hides.
+        </p>
+        <div class="callout info">
+          <div class="callout-title">ℹ️ How sources are tagged</div>
+          <p>
+            Access is tagged <span class="tag free">free</span>
+            <span class="tag reg">free+reg</span> (free with registration/licence)
+            <span class="tag paid">paid</span>
+            <span class="tag restricted">restricted</span> (no usable open access). Findings were
+            gathered by web research and then <strong>adversarially verified</strong>; corrections
+            that survived are folded in and genuine uncertainties are flagged.
+          </p>
+        </div>
+
+        <h2 id="ships-uses-now">Data HeatGuard ships and uses now <a class="anchor" href="#ships-uses-now">#</a></h2>
+        <p>Everything needed to run the demos is in the repo and works <strong>offline</strong>.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Asset</th><th>What it is</th><th>Access</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>data/cache/dubai_…json</code></td><td>3,312 hourly rows, Dubai (25.20 N, 55.30 E), Open-Meteo archive</td><td>committed</td></tr>
+              <tr><td><code>data/cache/riyadh_…json</code></td><td>2,568 hourly rows, Riyadh (24.71 N, 46.69 E)</td><td>committed</td></tr>
+              <tr><td>Variables per row</td><td><code>temperature_2m</code>, <code>relative_humidity_2m</code>, <code>wind_speed_10m</code>, <code>shortwave_radiation</code>, <code>direct_radiation</code>, <code>dew_point_2m</code>, <code>surface_pressure</code></td><td>—</td></tr>
+              <tr><td><code>data/locales.json</code></td><td>7 demo sites (lat/lon/elevation/tz/country)</td><td>committed</td></tr>
+              <tr><td><code>data/nicaragua_baseline.json</code></td><td>Intervention effect sizes + cost items</td><td>committed</td></tr>
+              <tr><td><code>data/economics.json</code></td><td>ROI assumptions</td><td>committed</td></tr>
+              <tr><td>In-code standards</td><td>ACGIH TLV/Action-Limit WBGT tables; ISO 8996 metabolic categories; NIOSH acclimatization ramp</td><td>hard-coded</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Engine dependencies actually imported: <strong><code>pythermalcomfort==4.0.1</code></strong>
+          (ISO 7933 PHS), <strong><code>thermofeel==2.2.0</code></strong> (Liljegren WBGT),
+          <code>numpy</code>, <code>httpx</code>.
+        </p>
+
+        <h2 id="climate-wbgt">Climate &amp; WBGT data <a class="anchor" href="#climate-wbgt">#</a></h2>
+        <p>
+          The physics runs entirely on free reanalysis weather plus open WBGT code. WBGT itself
+          is <strong>computed in-process</strong> — no public Gulf WBGT grid exists at the hourly
+          resolution a scheduler needs.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Source</th><th>Access</th><th>Use</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Open-Meteo Historical (Archive) API</strong></td><td><span class="tag free">free</span></td><td>uses-now</td><td>Key-less ERA5/ERA5-Land reanalysis, hourly, 1940→present, global.</td></tr>
+              <tr><td><strong>Open-Meteo Forecast API</strong></td><td><span class="tag free">free</span></td><td>uses-now</td><td>Same variables; near-live signal. Not cached in-repo (hits network).</td></tr>
+              <tr><td>ERA5 single-levels (Copernicus CDS)</td><td><span class="tag reg">free+reg</span></td><td>could-use</td><td>The authoritative source Open-Meteo repackages. 0.25° (~28 km), hourly, 1940→. ERA5T ~5-day, final ERA5 ~2–3-month latency.</td></tr>
+              <tr><td>ERA5-Land (Copernicus CDS)</td><td><span class="tag reg">free+reg</span></td><td>could-use</td><td>Land-only, 0.1° (~9–11 km), hourly, 1950→.</td></tr>
+              <tr><td>ERA5-HEAT (C3S thermal-comfort)</td><td><span class="tag reg">free+reg</span></td><td>reference</td><td>⚠️ Contains UTCI + mean-radiant-temperature only — <strong>NOT WBGT</strong>. There is no official Copernicus WBGT variable.</td></tr>
+              <tr><td><strong><code>thermofeel</code></strong> (ECMWF, Apache-2.0)</td><td><span class="tag free">free</span></td><td>uses-now</td><td>The project's WBGT solver. Quirks handled: pressure in hPa, output in Kelvin, NaN below the horizon.</td></tr>
+              <tr><td>Brimicombe global WBGT grid (Zenodo)</td><td><span class="tag free">free</span></td><td>could-use</td><td>Global ERA5 grid, <strong>daily</strong> max/mean/min, 1979–2021. Daily-only + ends 2021, so not for hourly scheduling.</td></tr>
+              <tr><td>OSHA Outdoor WBGT Calculator</td><td><span class="tag free">free</span></td><td>reference</td><td>Liljegren-based point estimator — independent sanity-check.</td></tr>
+              <tr><td>Gulf national met services (UAE NCM, Saudi NCM/PME, Qatar Met)</td><td><span class="tag restricted">restricted</span></td><td>reference</td><td>Public consumer feeds only; no documented open historical/station archive or bulk API.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Open-Meteo's free tier is <strong>non-commercial only</strong>, rate-limited under
+          CC-BY 4.0 — a paid subscription is required if HeatGuard is ever commercialised.
+        </p>
+
+        <h2 id="standards">Physiological standards &amp; software libraries <a class="anchor" href="#standards">#</a></h2>
+        <p>
+          The standards that <em>define</em> the science are mostly paywalled; HeatGuard runs them
+          via free reimplementations and hard-coded (publicly-reproduced) values.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Source</th><th>Access</th><th>Use</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>ISO 7933:2023</strong> — Predicted Heat Strain</td><td><span class="tag paid">paid</span></td><td>uses-now</td><td>Run free via <code>pythermalcomfort.phs</code>. Valid envelope M ∈ [100, 450] W/m².</td></tr>
+              <tr><td>ISO 7243:2017 — WBGT assessment</td><td><span class="tag paid">paid</span></td><td>reference</td><td>WBGT math implemented via thermofeel/Liljegren — no need to buy.</td></tr>
+              <tr><td>ISO 8996:2021 — metabolic rate</td><td><span class="tag paid">paid</span></td><td>reference</td><td>Categories hard-coded (1 met = 58.15 W/m²).</td></tr>
+              <tr><td>ISO 9920:2007 — clothing insulation</td><td><span class="tag paid">paid</span></td><td>reference</td><td>Single <code>clo = 0.6</code> hard-coded (coveralls + hard hat).</td></tr>
+              <tr><td><strong>ACGIH TLV / Action-Limit</strong> WBGT tables</td><td><span class="tag paid">paid</span></td><td>uses-now</td><td>⚠️ Copyrighted, NOT freely redistributable. The numeric thresholds are reproduced publicly with attribution (e.g. CCOHS); HeatGuard hard-codes those values.</td></tr>
+              <tr><td><strong>NIOSH 2016-106</strong> — Occupational Exposure to Heat</td><td><span class="tag free">free</span></td><td>uses-now</td><td>The one unrestricted standard in the stack (US public domain). Our acclimatization ramp follows it.</td></tr>
+              <tr><td><code>pythermalcomfort</code> (MIT, v4.0.1)</td><td><span class="tag free">free</span></td><td>uses-now</td><td>PHS per ISO 7933:2023.</td></tr>
+              <tr><td><code>thermofeel</code> (Apache-2.0, v2.2.0)</td><td><span class="tag free">free</span></td><td>uses-now</td><td>Liljegren WBGT.</td></tr>
+              <tr><td><code>pywbgt</code> (GPL-3.0)</td><td><span class="tag free">free</span></td><td>could-use</td><td>The most feature-complete open WBGT lib, but GPL is a licence mismatch for this MIT project.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout warn">
+          <div class="callout-title">⚠️ Honest deviation</div>
+          <p>
+            The experienced-worker ramp (<code>[0.50, 1.00]</code> over 2 days) is <em>more
+            permissive than NIOSH</em> on days 2–3 (NIOSH: ≤20%/day, reaching 100% by day 5).
+            It is a deliberate simplification, flagged here. To <em>own</em> the full ISO set
+            (7243 + 7933 + 8996 + 9920) costs ≈ CHF 645 — none of it needed to run the engine,
+            but conformance auditing would need the authoritative texts.
+          </p>
+        </div>
+
+        <h2 id="nicaragua">The Nicaragua intervention evidence <a class="anchor" href="#nicaragua">#</a></h2>
+        <p>
+          HeatGuard's impact model rests on the La Isla Network <strong>Adelante Initiative</strong>
+          at Ingenio San Antonio (ISA), Nicaragua. The effect sizes are real and peer-reviewed —
+          but <strong>more specific than a flat multiplier implies</strong>.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Source</th><th>Use</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Hansson et al. 2025, <em>OEM</em> (kidney)</td><td>uses-now</td><td>~1,044 cane workers. The <strong>"94%"</strong> is the decline in incident kidney injury among the <strong>highest-risk subgroup</strong> (burned cane cutters), harvest 1 → 3/4 — not a whole-workforce effect. The narrower AKI rate fell ~60% (20→8 per 1,000 worker-months).</td></tr>
+              <tr><td>Hansson et al. 2024, <em>Ann. Work Exp. Health</em> (productivity)</td><td>uses-now</td><td>The <strong>10–20%</strong> band rounds subgroup gains (~9% burned cane cutters, ~19% seed cutters), measured harvest-over-harvest.</td></tr>
+              <tr><td>Schlader et al. 2025, <em>Ann. Global Health</em> (economics)</td><td>uses-now</td><td>⚠️ Documented mill-hospital AKI treatment cost = <strong>$253.48</strong> (our <code>economics.json</code> uses $1,200). ROI framings: $1.02/$1 5-yr average, negative in years 1–2.</td></tr>
+              <tr><td>ILO — <em>Heat at work</em> (2024)</td><td>uses-now</td><td>Secondary repackaging of the LIN studies (the 94% / 10–20% are not independent of the papers above).</td></tr>
+              <tr><td>Butler-Dawson et al. 2019 — Guatemala</td><td>could-use</td><td>Cross-shift/biochemical AKI runs far higher than clinical AKI — frames our <code>baseline_aki_incidence</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <strong>Naming:</strong> La Isla / OEM term the program RSHH / RSH-S
+          (Rest-Shade-Hydration[-Hygiene/Sanitation]); the repo's
+          <code>nicaragua_baseline.json</code> calls it "Water-Rest-Shade (WRS)" — same program,
+          different label.
+        </p>
+
+        <h2 id="gcc-bans">The GCC ban specifications <a class="anchor" href="#gcc-bans">#</a></h2>
+        <p>
+          Every GCC ban window/season encoded in <code>calendar_ban.py</code> was verified against
+          official or authoritative secondary sources.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>State</th><th>Instrument</th><th>Window / season</th><th>Penalty</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Saudi Arabia</td><td>MHRSD annual decision</td><td>12:00–15:00, 15 Jun–15 Sep</td><td>fine amount not officially stated</td></tr>
+              <tr><td>UAE</td><td>Min. Resolution 44 of 2022 (MOHRE)</td><td>12:30–15:00, 15 Jun–15 Sep</td><td>AED 5,000/worker, max 50,000 ✓</td></tr>
+              <tr><td>Kuwait</td><td>Admin Resolution 535/2015 (PAM)</td><td>11:00–16:00, 1 Jun–31 Aug</td><td>not disclosed</td></tr>
+              <tr><td>Oman</td><td>MoL Decision 286/2008</td><td>12:30–15:30, 1 Jun–31 Aug</td><td>figures vary</td></tr>
+              <tr><td>Bahrain</td><td>Min. Res. 3/2013 (amended 11/2025)</td><td>12:00–16:00, 15 Jun–31 Aug</td><td>up to BHD 1,000 + up to 3 months prison (reported)</td></tr>
+              <tr><td>Qatar</td><td>Ministerial Decision 17 of 2021</td><td>10:00–15:30, 1 Jun–15 Sep <strong>+ WBGT &gt; 32.1 °C</strong> year-round stop</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Qatar is the <strong>only</strong> GCC state with a WBGT trigger; 32.1 °C is widely
+          argued to be too high. Bahrain's season is a moving target year to year. Advocacy and
+          documentation (HRW, FairSquare / Vital Signs, Amnesty International) are all free
+          syntheses with no measurement datasets.
+        </p>
+
+        <h2 id="gaps">The honest gaps — what is <em>not</em> available <a class="anchor" href="#gaps">#</a></h2>
+        <div class="callout danger">
+          <div class="callout-title">🚫 Real voids, not oversights</div>
+          <ul>
+            <li><strong>No public hourly Gulf WBGT dataset.</strong> The only open global WBGT grids (Brimicombe/Zenodo) are daily and end 2021. WBGT is modelled from reanalysis, never measured on-site.</li>
+            <li><strong>No public Gulf WBGT-meter ground truth.</strong> Qatar mandates WBGT-based stoppage but doesn't publish the underlying site measurements; no GCC state releases instrument time-series.</li>
+            <li><strong>ERA5-HEAT has no WBGT</strong> (UTCI + MRT only) — no official reanalysis WBGT variable exists.</li>
+            <li><strong>Near-total Gulf worker-exposure evidence void.</strong> A 2025 systematic review found only <strong>1 of 19</strong> migrant-worker heat studies (2,293 workers) came from the entire Gulf region.</li>
+            <li><strong>No open individual-level Gulf exposure dataset</strong>; no public Gulf worker sweat-rate or fluid-balance dataset.</li>
+            <li><strong>Adult-male anthropometry is largely missing from DHS</strong> (recent rounds focus on women 15–49 and under-5s) — so body-mass priors for the overwhelmingly male workforce are thin.</li>
+            <li><strong>No open AKI/CKDu incidence registry</strong> for Gulf migrant workers; evidence is fragmentary.</li>
+            <li><strong>Migrant heat-death data is structurally unavailable.</strong> The oft-cited ~10,000 deaths/year is all-cause, many certified as "cardiac arrest" without autopsy.</li>
+            <li><strong>Primary legal texts are hard to ingest.</strong> Government portals block automated fetch; fine amounts aren't always officially published; windows/seasons drift year to year.</li>
+            <li><strong>The standards are paywalled</strong> (ISO ≈ CHF 645; ACGIH tables copyrighted) — fine for running the engine, a constraint for formal conformance auditing.</li>
+          </ul>
+        </div>
+
+        <h2 id="provenance">Provenance caveats on the tunable assumptions <a class="anchor" href="#provenance">#</a></h2>
+        <p>Where shipped numbers are illustrative rather than directly sourced — the honest accounting:</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Assumption</th><th>Shipped value</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>aki_case_cost_usd</code></td><td>$1,200</td><td>The peer-reviewed ISA mill-hospital AKI treatment cost is <strong>$253.48</strong>. Our figure is a higher proxy for medical + lost-time + replacement; not the cited clinical cost.</td></tr>
+              <tr><td><code>baseline_aki_incidence</code></td><td>0.10 / worker-season</td><td>Definition-dependent: cross-shift biochemical AKI runs 45–98%/season; clinical AKI is far rarer. 0.10 is a conservative midpoint, shown as a sensitivity range in the app.</td></tr>
+              <tr><td><code>heat_death_cost_usd</code> / <code>heat_death_per_aki_case</code></td><td>$150,000 / 0.005</td><td>Not grounded in a Gulf-specific source. Excluded from the headline ROI.</td></tr>
+              <tr><td>AKI "−94%"</td><td>effect size</td><td>A highest-risk-subgroup, harvest-over-harvest figure — not whole-workforce.</td></tr>
+              <tr><td>Effect-size transfer</td><td>Nicaragua → Gulf</td><td>All hard effect-size and cost data are Central-American sugarcane; transfer to Gulf construction carries real uncertainty.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="at-a-glance">Availability at a glance <a class="anchor" href="#at-a-glance">#</a></h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Need</th><th>Best available</th><th>Verdict</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Hourly Gulf weather</td><td>Open-Meteo archive/forecast; ERA5/CDS</td><td>✅ solid</td></tr>
+              <tr><td>Outdoor WBGT from weather</td><td>thermofeel (Liljegren), pywbgt</td><td>✅ solid (modelled)</td></tr>
+              <tr><td>Hourly Gulf WBGT grid</td><td>Brimicombe (daily, ≤2021)</td><td>⚠️ partial only</td></tr>
+              <tr><td>On-site Gulf WBGT measurements</td><td>—</td><td>❌ not public</td></tr>
+              <tr><td>Heat-strain / work-rest standards</td><td>ISO 7933/7243/8996, ACGIH, NIOSH</td><td>✅ implemented in code</td></tr>
+              <tr><td>Worker population scaling</td><td>ILO, ILOSTAT, KNOMAD</td><td>✅ solid</td></tr>
+              <tr><td>Worker anthropometry (male)</td><td>DHS</td><td>⚠️ thin for adult men</td></tr>
+              <tr><td>Gulf worker heat exposure (individual)</td><td>—</td><td>❌ near-total void</td></tr>
+              <tr><td>Intervention effect sizes</td><td>La Isla / Adelante</td><td>✅ real, but subgroup-specific</td></tr>
+              <tr><td>Gulf AKI/heat-death incidence &amp; cost</td><td>—</td><td>❌ not available</td></tr>
+              <tr><td>GCC ban regulations</td><td>Official + HRW/FairSquare</td><td>✅ verified</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout note">
+          <div class="callout-title">Bottom line</div>
+          <p>
+            The science and the weather are free and open; the worker-side ground truth for the
+            Gulf is the gap — which is exactly why HeatGuard pairs an estimate with a
+            <em>measured</em> WBGT path and treats its impact assumptions as tunable,
+            sensitivity-tested inputs rather than settled facts.
+          </p>
+        </div>
+
+        <nav class="page-nav">
+          <a class="prev" href="science.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">How it works</span>
+          </a>
+          <a class="next" href="roi.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">Impact, ROI &amp; claims</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

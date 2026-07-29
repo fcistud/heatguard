@@ -1,0 +1,14 @@
+web/node_modules
+website/node_modules
+landing/node_modules
+.git
+.venv
+venv
+__pycache__
+*.pyc
+tests
+notebooks
+data
+HeatGuard.pdf
+HeatGuard.pptx
+HeatGuard_Final_Pitch.pptx

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — Glossary</title>
+  <meta name="description" content="Definitions of the key terms in HeatGuard: WBGT, PHS, TLV / Action Limit, acclimatization, AKI, metabolic category, the calendar ban, and the signal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a class="active" href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner glossary">
+        <p class="eyebrow">Glossary</p>
+        <h1>Key terms</h1>
+        <p class="lead">
+          The vocabulary used across the HeatGuard docs, in one place.
+        </p>
+
+        <dl>
+          <dt id="wbgt">WBGT</dt>
+          <dd>Wet-Bulb Globe Temperature; the standard occupational heat-stress index (ISO 7243), combining humidity, radiant/sun load, and air temperature. See <a href="science.html#wbgt">how it's computed</a>.</dd>
+
+          <dt id="phs">PHS</dt>
+          <dd>Predicted Heat Strain (ISO 7933); a physiological model of core temperature and sweat loss over time. HeatGuard uses it for the hydration target and the max-exposure cap.</dd>
+
+          <dt id="tlv">TLV / Action Limit</dt>
+          <dd>ACGIH screening thresholds for acclimatized (TLV) / unacclimatized (Action Limit) workers. The Action Limit is ~3 °C stricter throughout. See <a href="science.html#work-rest">the work-rest cycle</a>.</dd>
+
+          <dt id="acclimatization">Acclimatization</dt>
+          <dd>The body's ~1–2-week adaptation to heat; new arrivals are most at risk. HeatGuard enforces a NIOSH-based exposure ramp for them.</dd>
+
+          <dt id="aki">AKI</dt>
+          <dd>Acute Kidney Injury; the kidney damage caused by repeated heat-and-dehydration exposure during manual labour. The headline harm HeatGuard is designed to prevent.</dd>
+
+          <dt id="metabolic-category">Metabolic category</dt>
+          <dd>The work intensity (light / moderate / heavy / very-heavy), per ISO 8996. Drives the work-rest table lookup and the PHS metabolic rate (1 met = 58.15 W/m²).</dd>
+
+          <dt id="calendar-ban">The calendar ban</dt>
+          <dd>The Gulf's fixed midday outdoor-work prohibition — a clock window on fixed dates — that HeatGuard replaces. See <a href="problem.html#the-calendar">why it is wrong in both directions</a>.</dd>
+
+          <dt id="the-signal">The signal</dt>
+          <dd>The single hourly broadcast: WORK / REST IN SHADE / DRINK NOW / STOP. One cheap, universally understood instruction for the whole site.</dd>
+
+          <dt id="liljegren">Liljegren model</dt>
+          <dd>The validated 2008 algorithm (via ECMWF's <code>thermofeel</code>) HeatGuard uses to estimate outdoor WBGT from ordinary weather plus the sun's position.</dd>
+
+          <dt id="provenance">Provenance</dt>
+          <dd>The source tag every WBGT value carries — <code>liljegren</code>, <code>fallback</code>, or <code>measured</code> — so the approximation is never hidden in the log or the UI.</dd>
+
+          <dt id="compliance-log">Compliance log</dt>
+          <dd>The append-only, SHA-256 hash-chained record of readings, breaks, drink prompts, and STOPs. Worker-protective first, a compliance shield second, and privacy by design.</dd>
+
+          <dt id="adelante">Adelante Initiative</dt>
+          <dd>The La Isla Network's Water-Rest-Shade program (termed RSHH / RSH-S) at Ingenio San Antonio, Nicaragua — the source of the AKI −94% and productivity +10–20% effect sizes HeatGuard's impact model rests on.</dd>
+        </dl>
+
+        <nav class="page-nav">
+          <a class="prev" href="roadmap.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">Roadmap</span>
+          </a>
+          <a class="next" href="index.html">
+            <span class="pn-dir">Back to start →</span>
+            <span class="pn-title">Overview</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

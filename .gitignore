@@ -24,3 +24,8 @@ node_modules/
 .coverage
 htmlcov/
 .coverage.*
+.vercel
+
+# Presentations
+HeatGuard.pdf
+HeatGuard*.pptx

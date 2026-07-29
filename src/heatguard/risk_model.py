@@ -119,9 +119,12 @@ def _load_model():
     path = model_path()
     if not path.exists():
         return None
-    import joblib
-
-    return joblib.load(path)
+    try:
+        import importlib
+        joblib = importlib.import_module("joblib")
+        return joblib.load(path)
+    except ImportError:
+        return None
 
 
 def _load_meta() -> dict:
@@ -175,7 +178,9 @@ def train_and_save(
     worker_profiles: list[Worker] | None = None,
 ) -> TrainingSummary:
     """Build training matrix from demo archive weather + PHS labels; persist model."""
-    from sklearn.ensemble import GradientBoostingClassifier
+    import importlib
+    sklearn_ensemble = importlib.import_module("sklearn.ensemble")
+    GradientBoostingClassifier = getattr(sklearn_ensemble, "GradientBoostingClassifier")
 
     from .datasets import load_manifest
     from .scheduler import build_conditions
@@ -212,7 +217,8 @@ def train_and_save(
 
     out_dir = DATA_DIR / "models"
     out_dir.mkdir(parents=True, exist_ok=True)
-    import joblib
+    import importlib
+    joblib = importlib.import_module("joblib")
 
     joblib.dump(model, model_path())
     meta_path().write_text(

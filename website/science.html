@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HeatGuard — How it works</title>
+  <meta name="description" content="The science behind HeatGuard, explained plain then technical: WBGT, the ACGIH work-rest cycle, ISO 7933 PHS hydration, the NIOSH acclimatization ramp, the decision logic, and the compliance log." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="index.html" style="margin:0">
+      <span class="logo">🌡️</span>
+      <span class="wordmark">Heat<span class="guard">Guard</span></span>
+    </a>
+    <button class="menu-btn" data-menu-toggle aria-label="Open menu">☰</button>
+  </div>
+  <div class="scrim"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="index.html">
+        <span class="logo">🌡️</span>
+        <span class="wordmark">Heat<span class="guard">Guard</span></span>
+      </a>
+      <nav>
+        <div class="nav-group-label">Documentation</div>
+        <ul class="nav">
+          <li><a href="index.html"><span class="ico">🏠</span> Overview</a></li>
+          <li><a href="problem.html"><span class="ico">🔥</span> The problem</a></li>
+          <li><a href="solution.html"><span class="ico">🛡️</span> The solution</a></li>
+          <li><a class="active" href="science.html"><span class="ico">🔬</span> How it works</a></li>
+          <li><a href="data.html"><span class="ico">📊</span> Data &amp; research</a></li>
+          <li><a href="roi.html"><span class="ico">💰</span> Impact, ROI &amp; claims</a></li>
+          <li><a href="faq.html"><span class="ico">❓</span> FAQ</a></li>
+          <li><a href="roadmap.html"><span class="ico">🗺️</span> Roadmap</a></li>
+          <li><a href="glossary.html"><span class="ico">📖</span> Glossary</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" data-theme-toggle aria-label="Toggle color theme">
+          <span class="tt-icon" data-theme-icon>☀️</span>
+          <span data-theme-label>Light mode</span>
+        </button>
+        <a class="ext-link" href="http://localhost:5173" target="_blank" rel="noopener">▶ Live demo</a>
+        <a class="ext-link" href="https://github.com/fcistud/heatguard" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <article class="content-inner">
+        <p class="eyebrow">How it works</p>
+        <h1>The science, explained</h1>
+        <p class="lead">
+          Each concept below is explained twice — a plain-language version, then the technical
+          detail. The whole pipeline turns one weather reading into one safe instruction for a
+          crew.
+        </p>
+
+        <div class="callout info">
+          <div class="callout-title">ℹ️ The standards stack</div>
+          <p>
+            HeatGuard is built on ISO 7243 (WBGT), ISO 7933 (Predicted Heat Strain), ISO 8996
+            (metabolic rate), the ACGIH TLV / Action-Limit screening tables, and NIOSH
+            acclimatization guidance. Each section below maps to one of these.
+          </p>
+        </div>
+
+        <h2 id="wbgt">WBGT — the heat-stress index <a class="anchor" href="#wbgt">#</a></h2>
+        <div class="explain">
+          <div class="plain">
+            <span class="xlabel">Plain</span>
+            Air temperature alone is a poor measure of danger. WBGT (Wet-Bulb Globe Temperature)
+            is the standard index that also accounts for <strong>humidity, sun, and wind</strong>
+            — the things that decide whether your body can actually cool itself. A humid, sunny
+            38 °C can be far more dangerous than a dry, breezy 45 °C.
+          </div>
+          <div class="technical">
+            <span class="xlabel">Technical</span>
+            WBGT (ISO 7243) is a weighted blend of three thermometers:
+            <pre><code>WBGT = 0.7·T_nwb + 0.2·T_g + 0.1·T_db      (outdoor, with sun)
+WBGT = 0.7·T_nwb + 0.3·T_db                  (shade / no sun)</code></pre>
+            <ul>
+              <li><strong>T_nwb</strong> (natural wet-bulb) captures evaporative cooling — how well sweat can shed heat. Its <strong>0.7 weight</strong> is why humidity dominates: in humid air sweat can't evaporate, so the body can't cool.</li>
+              <li><strong>T_g</strong> (black-globe) captures radiant load — direct sun.</li>
+              <li><strong>T_db</strong> is plain air temperature.</li>
+            </ul>
+          </div>
+        </div>
+        <p>
+          HeatGuard estimates outdoor WBGT from weather (air temp, humidity, wind, solar
+          radiation, and the sun's position) using the <strong>validated Liljegren (2008)
+          model</strong> via ECMWF's <code>thermofeel</code>, with a Stull natural-wet-bulb
+          fallback at night. Or it takes a <strong>measured</strong> reading from an on-site
+          meter, which bypasses estimation. Every value carries its provenance
+          (<code>liljegren | fallback | measured</code>). The black-globe temperature for the
+          radiant load is recovered consistently from the WBGT value and fed to the PHS model as
+          mean-radiant temperature — never <code>T_r = T_db</code>, which would badly understate
+          strain under sun.
+        </p>
+
+        <h2 id="work-rest">The work-rest cycle — ACGIH / ISO 7243 <a class="anchor" href="#work-rest">#</a></h2>
+        <div class="explain">
+          <div class="plain">
+            <span class="xlabel">Plain</span>
+            Given how hot it is (WBGT), how hard the job is, and whether the worker is
+            acclimatized, published safety tables say what fraction of each hour is safe to work
+            — 100%, 75%, 50%, 25%, or STOP. Hotter or harder → more rest.
+          </div>
+          <div class="technical">
+            <span class="xlabel">Technical</span>
+            HeatGuard hardcodes the <strong>ACGIH TLV</strong> (acclimatized) and
+            <strong>Action-Limit</strong> (unacclimatized, ~3 °C stricter) screening tables. A
+            <strong>step lookup</strong> by metabolic category returns the highest work
+            allocation whose WBGT ceiling ≥ the current WBGT; above the most permissive ceiling →
+            STOP.
+          </div>
+        </div>
+        <p>The hard-coded TLV (acclimatized) table — WBGT °C ceilings:</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Allocation</th><th>Light</th><th>Moderate</th><th>Heavy</th><th>Very heavy</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>100% work</td><td>31.0</td><td>28.0</td><td>—</td><td>—</td></tr>
+              <tr><td>75% / 25% rest</td><td>31.0</td><td>29.0</td><td>27.5</td><td>—</td></tr>
+              <tr><td>50% / 50%</td><td>32.0</td><td>30.0</td><td>29.0</td><td>28.0</td></tr>
+              <tr><td>25% / 75%</td><td>32.5</td><td>31.5</td><td>30.5</td><td>30.0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The <strong>Action Limit</strong> (unacclimatized) table is ~3 °C stricter throughout
+          (e.g. moderate 100% → 25.0). The mapping is a step lookup, not interpolation — the
+          standard's intent and what an inspector expects: scan 100 → 75 → 50 → 25 and take the
+          first allocation whose ceiling ≥ current WBGT; above the 25% ceiling → STOP. A
+          <code>"—"</code> cell means that allocation has no screening WBGT for that intensity
+          (the physiological PHS layer catches metabolic danger there). A separate continuous
+          <code>risk_score</code> is exposed <strong>for the UI gauge only</strong> — the legal
+          cycle stays stepped.
+        </p>
+
+        <h2 id="hydration">Hydration and max exposure — ISO 7933 PHS <a class="anchor" href="#hydration">#</a></h2>
+        <div class="explain">
+          <div class="plain">
+            <span class="xlabel">Plain</span>
+            A physiological model simulates the worker's heat balance to predict how much they'll
+            sweat (so HeatGuard can tell them how much water to drink) and how long they can keep
+            going before overheating.
+          </div>
+          <div class="technical">
+            <span class="xlabel">Technical</span>
+            HeatGuard runs the <strong>ISO 7933:2023 Predicted Heat Strain (PHS)</strong> model
+            via <code>pythermalcomfort</code>. Given air temperature, radiant temperature, wind,
+            humidity, metabolic rate, clothing, and the worker's weight/height/acclimatization,
+            PHS integrates the heat balance over time and outputs core temperature, sweat loss,
+            and the time to reach physiological limits.
+          </div>
+        </div>
+        <p>Two calls per decision, by design:</p>
+        <ul>
+          <li>a <strong>60-minute</strong> call at the cycle-weighted metabolic rate → <strong>sweat loss</strong> (the per-hour water target; 1 g ≈ 1 mL) and end-of-hour core temperature;</li>
+          <li>a <strong>480-minute</strong> call at the full working rate → the true <strong>minutes-to-limit</strong> (the max safe continuous exposure), which becomes a work-fraction cap.</li>
+        </ul>
+        <div class="callout warn">
+          <div class="callout-title">⚠️ Validity envelope and clamps</div>
+          <p>
+            PHS is only valid for metabolic rate M ∈ [100, 450] W/m² and radiant temp T_r ≤ 60 °C
+            (and T_db ≤ 50, v ≤ 3), so inputs are clamped to that envelope — Gulf desert globe
+            temperatures can exceed it (a black-globe can hit ~63 °C, which silently NaNs the
+            whole result). The <code>d_lim_*</code> outputs and <code>sweat_loss_g</code> are
+            cumulative over <code>duration</code>, which is exactly why the two-call (60 min / 480
+            min) design is required.
+          </p>
+        </div>
+
+        <h2 id="acclimatization">Acclimatization — the NIOSH ramp <a class="anchor" href="#acclimatization">#</a></h2>
+        <div class="explain">
+          <div class="plain">
+            <span class="xlabel">Plain</span>
+            A body adapts to heat over ~1–2 weeks. A brand-new arrival is far more vulnerable —
+            and is the group that actually dies. So new workers should ramp up exposure
+            gradually.
+          </div>
+          <div class="technical">
+            <span class="xlabel">Technical</span>
+            Per NIOSH guidance, a brand-new worker is capped at <strong>20% of normal exposure on
+            day 0, rising ~20%/day to 100% by day 5</strong>
+            (<code>[0.20, 0.40, 0.60, 0.80, 1.00]</code>); a heat-experienced-but-new-to-the-job
+            worker ramps over ~2 days (<code>[0.50, 1.00]</code>). While ramping, the worker is
+            also screened against the stricter Action-Limit table.
+          </div>
+        </div>
+        <p>
+          The cap only <em>binds</em> when heat stress is actually present — a newcomer still
+          works normally in a cool dawn. This is <strong>pure scheduling — zero cost — targeting
+          the deadliest group</strong>.
+        </p>
+
+        <h2 id="decision">The decision — most-conservative-of-three <a class="anchor" href="#decision">#</a></h2>
+        <p>The called work fraction is the <strong>minimum</strong> of three independent limits:</p>
+        <pre><code>eff_fraction = min( ACGIH_table_fraction ,        # regulatory (ISO 7243)
+                    acclimatization_cap ,         # new-worker protection (NIOSH)
+                    PHS_cap = max_safe_min / 60 ) # physiological (ISO 7933)</code></pre>
+        <ol>
+          <li>the ACGIH / ISO 7243 table (regulatory),</li>
+          <li>the acclimatization cap (new-worker protection, only when heat stress is present), and</li>
+          <li>the PHS physiological cap (max safe minutes ÷ 60).</li>
+        </ol>
+        <p>
+          <strong>STOP</strong> fires only when no safe block remains (work under ~5 minutes) or
+          WBGT is above the table's most-permissive ceiling. Otherwise a work-rest cycle is
+          prescribed, and one signal is broadcast. The advisory carries the signal, the cycle,
+          the hydration target, the acclimatization fraction, the WBGT plus provenance, a
+          continuous risk score, and a human-readable rationale. <code>live_signal()</code>
+          expands an advisory into the minute-by-minute broadcast (Work block → Drink pulses →
+          Rest break).
+        </p>
+        <div class="callout note">
+          <div class="callout-title">PHS can only tighten the schedule, never loosen it</div>
+          <p>
+            Because the called fraction is the most conservative of the three, the regulatory
+            table is always the backstop. If the physiological model can't solve even after
+            clamping, HeatGuard falls back to a conservative estimate — the schedule can only get
+            stricter, never more permissive.
+          </p>
+        </div>
+
+        <h2 id="compliance">The compliance log — a tamper-evident record <a class="anchor" href="#compliance">#</a></h2>
+        <p>
+          Every reading, cycle, drink prompt, water attestation, and STOP is appended to a
+          <strong>SHA-256 hash-chained</strong> log: each record commits to the previous one
+          (<code>record_hash = sha256(prev_hash + canonical_json(body))</code>), so any later edit
+          or deletion breaks <code>verify_chain()</code>. It exports to CSV (the audit binder) and
+          JSONL (directly verifiable).
+        </p>
+        <p>It is:</p>
+        <ul>
+          <li><strong>worker-protective first</strong> — the worker's own immutable heat-safety history;</li>
+          <li>a <strong>compliance shield</strong> second — verifiable proof against fines and liability; and</li>
+          <li><strong>privacy by design</strong> — it records site conditions and protective actions, not individual location, biometrics, or tracking. The only identifier is a worker/crew id the operator controls and can pseudonymise.</li>
+        </ul>
+
+        <h2 id="impact-model">Impact, ROI, and scale <a class="anchor" href="#impact-model">#</a></h2>
+        <p>
+          The impact model is <strong>mechanistic</strong>: it credits AKI cases averted in
+          proportion to the dangerous hours HeatGuard catches that the calendar ban misses,
+          anchored to the Nicaragua effect sizes (AKI −94%, productivity +10–20%). The ROI
+          monetises this conservatively (headline = productivity + recovered safe work + AKI
+          averted + fines avoided; death and turnover excluded). The scale projection
+          extrapolates the per-crew result to a workforce → danger-hours, AKI cases, lives saved,
+          and value.
+        </p>
+        <div class="btn-row">
+          <a class="btn primary" href="roi.html">See the full ROI math →</a>
+          <a class="btn secondary" href="data.html">Data &amp; research →</a>
+        </div>
+
+        <nav class="page-nav">
+          <a class="prev" href="solution.html">
+            <span class="pn-dir">← Previous</span>
+            <span class="pn-title">The solution</span>
+          </a>
+          <a class="next" href="data.html">
+            <span class="pn-dir">Next →</span>
+            <span class="pn-title">Data &amp; research</span>
+          </a>
+        </nav>
+
+        <p class="docfoot">HeatGuard documentation · MIT-licensed · A prototype, not certified safety equipment.</p>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

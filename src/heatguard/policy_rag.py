@@ -11,8 +11,15 @@ from dataclasses import asdict, dataclass
 from functools import lru_cache
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import importlib
+try:
+    sklearn_text = importlib.import_module("sklearn.feature_extraction.text")
+    TfidfVectorizer = getattr(sklearn_text, "TfidfVectorizer")
+    sklearn_metrics = importlib.import_module("sklearn.metrics.pairwise")
+    cosine_similarity = getattr(sklearn_metrics, "cosine_similarity")
+    _HAS_SKLEARN = True
+except ImportError:
+    _HAS_SKLEARN = False
 
 from .datasets import load_policy_corpus
 
@@ -115,6 +122,9 @@ def _build_index() -> _Index:
 
 def retrieve(question: str, top_k: int = 3) -> list[PolicyHit]:
     """Return the top ``top_k`` policy excerpts for a natural-language question."""
+    if not _HAS_SKLEARN:
+        return []
+
     idx = _build_index()
     k = max(1, min(top_k, len(idx.chunks)))
     q = idx.vectorizer.transform([_normalise(question)])
