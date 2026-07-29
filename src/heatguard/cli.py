@@ -4,7 +4,7 @@ Subcommands:
   sites      list demo sites
   decide     one decision from explicit conditions
   fetch      cache Open-Meteo archive for a site/date-range
-  fetch-demo pre-fetch + cache the two committed demo datasets
+  fetch-demo pre-fetch + cache the committed demo datasets
   fetch-datasets  cache all archive + forecast rows in data/datasets.json
   demo       run the narrative (signal timeline, calendar-vs-adaptive gap, impact)
   backtest   reproduce the Nicaragua effect sizes

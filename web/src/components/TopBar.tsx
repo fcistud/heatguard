@@ -1,13 +1,11 @@
+import { prettySiteKey } from "../lib/siteLabels";
+
 interface Props {
   demos: string[];
   selected: string;
   onSelect: (key: string) => void;
   crew: number;
   onCrew: (n: number) => void;
-}
-
-function pretty(key: string): string {
-  return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 export function TopBar({ demos, selected, onSelect, crew, onCrew }: Props) {
@@ -44,7 +42,7 @@ export function TopBar({ demos, selected, onSelect, crew, onCrew }: Props) {
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                  {pretty(d)}
+                  {prettySiteKey(d)}
                 </button>
               ))}
             </div>

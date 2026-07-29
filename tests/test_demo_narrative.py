@@ -42,3 +42,29 @@ def test_dubai_season_impact_caught_vs_ban():
 def test_riyadh_season_has_ban_overrestriction():
     demo = build_demo("riyadh", crew=100)
     assert demo["impact"]["ban_only_safe_hours"] > 0
+
+
+def test_abu_dhabi_focus_day_has_calendar_gap():
+    """May 2025 shoulder season — adaptive signals before UAE ban season."""
+    cfg = DEMOS["abu_dhabi"]
+    tl = timeline_for_day("abu_dhabi", cfg["focus_day"])
+    assert tl["country"] == "AE"
+    assert tl["gap_hours"] >= 10
+    assert sum(1 for r in tl["rows"] if r["banned"]) == 0
+
+
+def test_doha_focus_day_has_morning_gap():
+    """Qatar WBGT ban covers mid-day but not humid morning danger."""
+    cfg = DEMOS["doha"]
+    tl = timeline_for_day("doha", cfg["focus_day"])
+    assert tl["country"] == "QA"
+    assert tl["gap_hours"] >= 5
+    banned_hours = {r["hour"] for r in tl["rows"] if r["banned"]}
+    gap_hours = {r["hour"] for r in tl["rows"] if r["gap"]}
+    assert gap_hours - banned_hours
+
+
+def test_abu_dhabi_and_doha_season_impact():
+    for key in ("abu_dhabi", "doha"):
+        demo = build_demo(key, crew=100)
+        assert demo["impact"]["danger_hours_caught_vs_ban"] > 0

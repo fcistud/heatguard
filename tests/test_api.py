@@ -27,10 +27,10 @@ def test_health():
 def test_sites_and_demos():
     sites = client.get("/sites").json()
     assert len(sites) >= 2 and all("ban" in s for s in sites)
-    assert set(client.get("/demos").json()) == {"dubai", "riyadh"}
+    assert set(client.get("/demos").json()) == {"dubai", "riyadh", "abu_dhabi", "doha"}
 
 
-@pytest.mark.parametrize("site", ["dubai", "riyadh"])
+@pytest.mark.parametrize("site", ["dubai", "riyadh", "abu_dhabi", "doha"])
 def test_demo_payload_shape(site):
     d = client.get(f"/demo/{site}").json()
     for key in ("site", "timeline", "impact", "economics", "sensitivity", "compliance"):

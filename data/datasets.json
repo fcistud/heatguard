@@ -17,20 +17,21 @@
           "start": "2024-06-01",
           "end": "2024-09-15",
           "note": "Primary demo — in-season humid-morning gap vs noon ban"
-        }
-      ],
-      "gulf_season": [
+        },
         {
           "site_key": "abu_dhabi",
           "start": "2025-05-01",
-          "end": "2025-09-15"
+          "end": "2025-09-15",
+          "note": "UAE capital — shoulder season before 15 Jun ban"
         },
         {
           "site_key": "doha",
           "start": "2024-06-01",
           "end": "2024-09-15",
-          "note": "Qatar — only GCC state with a WBGT cutoff in law"
-        },
+          "note": "Qatar — WBGT cutoff in law; morning/evening gaps remain"
+        }
+      ],
+      "gulf_season": [
         {
           "site_key": "kuwait_city",
           "start": "2024-06-01",
