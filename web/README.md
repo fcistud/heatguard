@@ -35,7 +35,7 @@ npm install
 npm run dev
 ```
 
-Then open the printed local URL (Vite defaults to `http://localhost:5173`).
+Then open http://localhost:5173/dashboard/ (Vite dev server; API default http://localhost:8000).
 
 ## Configuration
 

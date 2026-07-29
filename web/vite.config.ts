@@ -1,8 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// https://vite.dev/config/
+// Production/Docker: dashboard is served at /dashboard/ behind the same host as the API.
+// Local `npm run dev` also uses this base — open http://localhost:5173/dashboard/
 export default defineConfig({
+  base: "/dashboard/",
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 700,

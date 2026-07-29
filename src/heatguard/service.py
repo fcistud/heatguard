@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import date, datetime
+from functools import lru_cache
 
 from . import calendar_ban, economics, impact, scale
 from .compliance import ComplianceLog
@@ -20,7 +21,7 @@ from .wbgt import estimate_wbgt
 _PROTECTIVE = (Signal.STOP, Signal.REST_IN_SHADE)
 WORK_START, WORK_END = 5, 19
 
-# The two committed demo datasets / narratives.
+# Committed demo datasets / narratives (archive cache + focus-day story).
 DEMOS: dict[str, dict] = {
     "dubai": {
         "site": "dubai",
@@ -37,6 +38,22 @@ DEMOS: dict[str, dict] = {
         "season_end": date(2024, 9, 15),
         "intensity": MetabolicCategory.HEAVY,
         "headline": "Riyadh, summer — the ban 'protects' 12:00-15:00 but misses the humid morning.",
+    },
+    "abu_dhabi": {
+        "site": "abu_dhabi",
+        "focus_day": date(2025, 5, 26),
+        "season_start": date(2025, 5, 1),
+        "season_end": date(2025, 9, 15),
+        "intensity": MetabolicCategory.HEAVY,
+        "headline": "Abu Dhabi, May 2025 — coastal humidity drives WBGT up before the UAE ban season starts.",
+    },
+    "doha": {
+        "site": "doha",
+        "focus_day": date(2024, 6, 21),
+        "season_start": date(2024, 6, 1),
+        "season_end": date(2024, 9, 15),
+        "intensity": MetabolicCategory.HEAVY,
+        "headline": "Doha, summer — Qatar's WBGT law helps at noon but not the humid morning or late shift.",
     },
 }
 
@@ -157,8 +174,12 @@ def hour_advisory(
     }
 
 
+@lru_cache(maxsize=8)
 def _season_hourly(site_key: str):
-    """One representative-worker season replay -> (hourly[(advisory, banned)], season_days)."""
+    """One representative-worker season replay -> (hourly[(advisory, banned)], season_days).
+
+    Cached per site — season replay is expensive (PHS + scheduler on every work hour).
+    """
     cfg, site, season = load_season(site_key)
     # WORK_END is inclusive for the timeline/compliance views; daytime() is
     # half-open, so +1 keeps the impact window identical (hours 5..19).

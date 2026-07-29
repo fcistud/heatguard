@@ -5,21 +5,53 @@ Thin layer over ``heatguard.service``.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from . import service
 from .sites import get_site
 from .types import MetabolicCategory
 
+log = logging.getLogger(__name__)
+
+
+def _warm_caches() -> None:
+    """Pre-load ML model and policy index; optionally pre-compute demo payloads."""
+    from .policy_rag import _build_index
+    from .risk_model import _load_model
+
+    _load_model()
+    try:
+        _build_index()
+    except FileNotFoundError:
+        log.warning("Policy corpus missing — skipping RAG warm-up")
+
+    if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):
+        for site in service.DEMOS:
+            log.info("Warming demo payload for %s", site)
+            service.build_demo(site, 100)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _warm_caches)
+    yield
+
+
 app = FastAPI(
     title="HeatGuard API",
     version="0.1.0",
     description="Adaptive WBGT-driven work-rest-hydration scheduler for Gulf outdoor crews.",
+    lifespan=lifespan,
 )
 
 # Permissive by default for the local Vite dev server; lock down in production via
@@ -36,6 +68,11 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/health/", include_in_schema=False)
+def health_trailing_slash() -> RedirectResponse:
+    return RedirectResponse(url="/health", status_code=308)
 
 
 @app.get("/sites")
@@ -239,3 +276,57 @@ def decide(req: DecideRequest) -> dict:
         )
     except KeyError as exc:
         raise HTTPException(404, f"Unknown site '{req.site_key}'") from exc
+
+
+def _resolve_static_dirs() -> tuple[str | None, str | None]:
+    """Landing + dashboard static dirs from env, or repo defaults for local dev."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+
+    landing = os.environ.get("HEATGUARD_LANDING_DIR")
+    if landing:
+        landing = landing if Path(landing).is_dir() else None
+    else:
+        candidate = root / "landing"
+        landing = str(candidate) if candidate.is_dir() else None
+
+    static = os.environ.get("HEATGUARD_STATIC_DIR")
+    if static:
+        static = static if Path(static).is_dir() else None
+    else:
+        candidate = root / "web" / "dist"
+        static = str(candidate) if candidate.is_dir() else None
+
+    return landing, static
+
+
+def _mount_optional_static() -> None:
+    """Serve landing at / and the React dashboard at /dashboard/ (Cloud Run / Docker / dev)."""
+    from pathlib import Path
+
+    from fastapi.staticfiles import StaticFiles
+
+    landing_dir, static_dir = _resolve_static_dirs()
+
+    if static_dir and Path(static_dir).is_dir():
+        @app.get("/dashboard", include_in_schema=False)
+        def _dashboard_redirect() -> RedirectResponse:
+            return RedirectResponse(url="/dashboard/", status_code=308)
+
+        app.mount(
+            "/dashboard",
+            StaticFiles(directory=static_dir, html=True),
+            name="dashboard",
+        )
+
+    if landing_dir:
+        @app.get("/landing", include_in_schema=False)
+        @app.get("/landing/", include_in_schema=False)
+        def _landing_legacy_redirect() -> RedirectResponse:
+            return RedirectResponse(url="/", status_code=308)
+
+        app.mount("/", StaticFiles(directory=landing_dir, html=True), name="landing")
+
+
+_mount_optional_static()

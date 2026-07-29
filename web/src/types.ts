@@ -288,3 +288,76 @@ export interface PolicyAnswer {
   method: string;
   sources: PolicySource[];
 }
+
+/** GET /forecast/{site} — near-live Open-Meteo forecast with engine signals. */
+export interface ForecastRow {
+  hour: number;
+  time: string;
+  date: string;
+  tdb_c: number;
+  rh_pct: number;
+  wbgt_c: number;
+  wbgt_source: WbgtSource;
+  veteran: Advisory;
+  newcomer: Advisory;
+  banned: boolean;
+}
+
+export interface ForecastSummary {
+  total_work_hours: number;
+  danger_hours: number;
+  work_hours_permitted: number;
+  recommended_shift_start: string | null;
+  recommended_shift_end: string | null;
+  headline: string;
+}
+
+export interface ForecastTimeline {
+  site: { key: string; name: string; country: string };
+  intensity: Intensity;
+  source: string;
+  forecast_days: number;
+  past_days: number;
+  rows: ForecastRow[];
+  summary: ForecastSummary;
+}
+
+/** GET /datasets — committed data manifest and cache status. */
+export interface DatasetArchiveRow {
+  site_key: string;
+  start: string;
+  end: string;
+  note: string | null;
+  cache_file: string;
+  cached: boolean;
+}
+
+export interface DatasetForecastRow {
+  site_key: string;
+  forecast_days: number;
+  past_days: number;
+  cache_file: string;
+  cached: boolean;
+}
+
+export interface DatasetInventory {
+  manifest_version: number;
+  sites_registered: number;
+  weather: {
+    source: string;
+    source_url: string;
+    archive: DatasetArchiveRow[];
+    archive_cached: number;
+    archive_total: number;
+    forecast: DatasetForecastRow[];
+    forecast_cached: number;
+    forecast_total: number;
+  };
+  policy: {
+    files: { id: string; title: string; path: string }[];
+    file_count: number;
+  };
+  epidemiology: { path: string; source_count: number };
+  intervention: { path: string };
+  economics: { path: string; type: string };
+}

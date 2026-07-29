@@ -37,8 +37,8 @@ python3 -m http.server -d landing 8080
 # then visit http://localhost:8080
 ```
 
-The hero's "Live dashboard" buttons point at `http://localhost:5173` (the React
-dashboard from the main project) and "GitHub" at the repo.
+The hero's "Live dashboard" buttons point at `/dashboard/` (same host in Docker/Cloud Run;
+`http://localhost:5173/dashboard/` when using the Vite dev server).
 
 ## Deploy to GitHub Pages
 

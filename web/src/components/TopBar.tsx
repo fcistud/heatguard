@@ -1,3 +1,4 @@
+import { prettySiteKey } from "../lib/siteLabels";
 import { Brand } from "./ui/Brand";
 import type { Theme } from "../lib/theme";
 
@@ -13,10 +14,6 @@ interface Props {
   onToggleTheme: () => void;
   view: ViewMode;
   onView: (v: ViewMode) => void;
-}
-
-function pretty(key: string): string {
-  return key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 export function TopBar({
@@ -83,7 +80,7 @@ export function TopBar({
                       : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
                   }`}
                 >
-                  {pretty(d)}
+                  {prettySiteKey(d)}
                 </button>
               ))}
             </div>
