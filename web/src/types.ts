@@ -289,7 +289,6 @@ export interface PolicyAnswer {
   sources: PolicySource[];
 }
 
-
 /** GET /forecast/{site} — near-live Open-Meteo forecast with engine signals. */
 export interface ForecastRow {
   hour: number;
@@ -321,4 +320,44 @@ export interface ForecastTimeline {
   past_days: number;
   rows: ForecastRow[];
   summary: ForecastSummary;
+}
+
+/** GET /datasets — committed data manifest and cache status. */
+export interface DatasetArchiveRow {
+  site_key: string;
+  start: string;
+  end: string;
+  note: string | null;
+  cache_file: string;
+  cached: boolean;
+}
+
+export interface DatasetForecastRow {
+  site_key: string;
+  forecast_days: number;
+  past_days: number;
+  cache_file: string;
+  cached: boolean;
+}
+
+export interface DatasetInventory {
+  manifest_version: number;
+  sites_registered: number;
+  weather: {
+    source: string;
+    source_url: string;
+    archive: DatasetArchiveRow[];
+    archive_cached: number;
+    archive_total: number;
+    forecast: DatasetForecastRow[];
+    forecast_cached: number;
+    forecast_total: number;
+  };
+  policy: {
+    files: { id: string; title: string; path: string }[];
+    file_count: number;
+  };
+  epidemiology: { path: string; source_count: number };
+  intervention: { path: string };
+  economics: { path: string; type: string };
 }

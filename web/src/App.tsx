@@ -23,6 +23,7 @@ import { EconomicsPanel } from "./components/EconomicsPanel";
 import { WhatIfPanel } from "./components/WhatIfPanel";
 import { PolicyPanel } from "./components/PolicyPanel";
 import { ForecastPanel } from "./components/ForecastPanel";
+import { DatasetsPanel } from "./components/DatasetsPanel";
 import { SIGNAL_SHORT } from "./lib/signals";
 
 type WorkerKey = "veteran" | "newcomer";
@@ -728,6 +729,13 @@ export default function App() {
               subtitle="POST /policy/query · RAG over GCC bans + ILO WRS corpus"
             >
               <PolicyPanel />
+            </Card>
+
+            <Card
+              title="Data provenance"
+              subtitle="GET /datasets · committed Open-Meteo caches, policy corpus, and evidence files"
+            >
+              <DatasetsPanel />
             </Card>
 
             <footer className="pt-2 text-center text-xs text-slate-400">

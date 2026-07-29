@@ -5,6 +5,7 @@ import type {
   DecideRequest,
   DecideResponse,
   DemoPayload,
+  DatasetInventory,
   ForecastTimeline,
   HourAdvisory,
   ImpactReport,
@@ -108,6 +109,7 @@ export const api = {
     getJSON<ScaleResponse>(`/scale/${siteKey}?workforce=${workforce}`),
   backtest: () => getJSON<Backtest>("/backtest"),
   forecast: (siteKey: string) => getJSON<ForecastTimeline>(`/forecast/${siteKey}`),
+  datasets: () => getJSON<DatasetInventory>("/datasets"),
   decide: (req: DecideRequest) =>
     getJSON<DecideResponse>("/decide", {
       method: "POST",
