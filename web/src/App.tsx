@@ -22,6 +22,7 @@ import { ScalePanel } from "./components/ScalePanel";
 import { EconomicsPanel } from "./components/EconomicsPanel";
 import { WhatIfPanel } from "./components/WhatIfPanel";
 import { PolicyPanel } from "./components/PolicyPanel";
+import { ForecastPanel } from "./components/ForecastPanel";
 import { SIGNAL_SHORT } from "./lib/signals";
 
 type WorkerKey = "veteran" | "newcomer";
@@ -653,6 +654,14 @@ export default function App() {
                 onSelectDay={selectDay}
                 loadingDay={loadingDay}
               />
+            </Card>
+
+            {/* 4b. Near-live forecast */}
+            <Card
+              title="Near-live forecast"
+              subtitle={`GET /forecast/${siteKey} · Open-Meteo · plan the next shift window`}
+            >
+              <ForecastPanel siteKey={siteKey} />
             </Card>
 
             {/* 5. Acclimatization tracker */}
