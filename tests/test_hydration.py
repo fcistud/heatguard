@@ -50,3 +50,30 @@ def test_sweat_rises_with_intensity(riyadh, veteran):
     s_mod = hydration.hydration_target(c_mod, veteran, 1.0, 60).sweat_loss_g_per_h
     s_heavy = hydration.hydration_target(c_heavy, veteran, 1.0, 60).sweat_loss_g_per_h
     assert s_heavy > s_mod
+
+
+def test_pinned_phs_envelope_clamp_edges(riyadh, veteran):
+    """Inputs outside ISO 7933 envelope clamp onto the same PHS surface as the edges."""
+    inside = build_conditions(
+        weather(12, 50, 10, wind=3.0, sw=1000, direct=850), riyadh, MC.HEAVY
+    )
+    outside = build_conditions(
+        weather(12, 55, 10, wind=5.0, sw=1100, direct=935), riyadh, MC.HEAVY
+    )
+    mins_in, valid_in = hydration.max_safe_minutes(inside, veteran)
+    mins_out, valid_out = hydration.max_safe_minutes(outside, veteran)
+    assert valid_in is True and valid_out is True
+    assert mins_in == mins_out == 18.0
+    hin = hydration.hydration_target(inside, veteran, 0.5, mins_in)
+    hout = hydration.hydration_target(outside, veteran, 0.5, mins_out)
+    assert round(hin.water_ml_per_h, 6) == round(hout.water_ml_per_h, 6) == 794.192151
+    assert hin.phs_valid is True and hout.phs_valid is True
+
+    cool = build_conditions(
+        weather(12, 10, 50, wind=0.1, sw=50, direct=20), riyadh, MC.HEAVY
+    )
+    mins_c, valid_c = hydration.max_safe_minutes(cool, veteran)
+    assert valid_c is True and mins_c == 480.0
+    hc = hydration.hydration_target(cool, veteran, 0.5, mins_c)
+    assert round(hc.water_ml_per_h, 6) == 67.122489
+    assert hc.phs_valid is True

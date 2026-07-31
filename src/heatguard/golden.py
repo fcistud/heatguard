@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
+import json
 import os
 import platform
 import subprocess
@@ -329,6 +330,13 @@ def file_tree_bytes(root: Path) -> dict[str, bytes]:
     return out
 
 
+def _manifest_for_compare(raw: bytes) -> bytes:
+    """Drop volatile fields so parity checks survive new commits on the same science."""
+    data = json.loads(raw.decode("utf-8"))
+    data.pop("git_commit", None)
+    return canonical.dumps_bytes(data) + b"\n"
+
+
 def compare_trees(expected: Path, actual: Path) -> list[str]:
     """Return a list of human-readable differences (empty ⇒ byte-identical)."""
     a = file_tree_bytes(expected)
@@ -339,8 +347,12 @@ def compare_trees(expected: Path, actual: Path) -> list[str]:
             diffs.append(f"+ only in actual: {key}")
         elif key not in b:
             diffs.append(f"- missing in actual: {key}")
-        elif a[key] != b[key]:
-            diffs.append(f"! bytes differ: {key} ({len(a[key])} vs {len(b[key])} bytes)")
+        else:
+            left, right = a[key], b[key]
+            if key.endswith("MANIFEST.json") or key == "MANIFEST.json":
+                left, right = _manifest_for_compare(left), _manifest_for_compare(right)
+            if left != right:
+                diffs.append(f"! bytes differ: {key} ({len(a[key])} vs {len(b[key])} bytes)")
     return diffs
 
 

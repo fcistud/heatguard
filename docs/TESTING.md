@@ -112,6 +112,19 @@ These are intentional failure drills — do not merge:
 # 4) Introduce an ESLint error in web/src → web-build red
 ```
 
+## Measured suite size
+
+As of the golden-masters gate (WO-001–003), ``pytest --collect-only`` on
+Python 3.11 reports **152** collected tests (measured 2026-07-31). The old
+“79 vs 110” ambiguity is resolved by that measured number. CI output remains
+authoritative if the suite grows.
+
+### Characterization baseline replaced by WO-003
+
+`tests/test_demo_narrative.py` previously used tolerance bands
+(`gap_hours >= 10`, `danger_hours_caught_vs_ban > 100`, etc.). Those are gone;
+the module now byte-compares against `tests/golden/<site>/`.
+
 ## Tests
 
 ```bash

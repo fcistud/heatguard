@@ -8,6 +8,25 @@ TZ3 = timezone(timedelta(hours=3))
 TZ4 = timezone(timedelta(hours=4))
 
 
+def test_saudi_window_boundaries_pinned():
+    """Inclusive start and end — ``daily_start <= t <= daily_end`` (SA 12:00–15:00)."""
+    assert cb.is_banned("SA", datetime(2024, 7, 15, 11, 59, tzinfo=TZ3)) is False
+    assert cb.is_banned("SA", datetime(2024, 7, 15, 12, 0, tzinfo=TZ3)) is True
+    assert cb.is_banned("SA", datetime(2024, 7, 15, 14, 59, tzinfo=TZ3)) is True
+    assert cb.is_banned("SA", datetime(2024, 7, 15, 15, 0, tzinfo=TZ3)) is True
+    assert cb.is_banned("SA", datetime(2024, 7, 15, 15, 1, tzinfo=TZ3)) is False
+
+
+def test_uae_and_kuwait_edges_pinned():
+    assert cb.is_banned("AE", datetime(2024, 7, 15, 12, 29, tzinfo=TZ4)) is False
+    assert cb.is_banned("AE", datetime(2024, 7, 15, 12, 30, tzinfo=TZ4)) is True
+    assert cb.is_banned("AE", datetime(2024, 7, 15, 15, 0, tzinfo=TZ4)) is True
+    assert cb.is_banned("AE", datetime(2024, 7, 15, 15, 1, tzinfo=TZ4)) is False
+    assert cb.is_banned("KW", datetime(2024, 6, 5, 11, 0, tzinfo=TZ3)) is True
+    assert cb.is_banned("KW", datetime(2024, 6, 5, 16, 0, tzinfo=TZ3)) is True
+    assert cb.is_banned("KW", datetime(2024, 6, 5, 16, 1, tzinfo=TZ3)) is False
+
+
 def test_saudi_window():
     assert cb.is_banned("SA", datetime(2024, 7, 15, 13, 0, tzinfo=TZ3)) is True
     assert cb.is_banned("SA", datetime(2024, 7, 15, 9, 0, tzinfo=TZ3)) is False
