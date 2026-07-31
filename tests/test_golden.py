@@ -66,3 +66,33 @@ def test_regenerate_matches_committed_golden_tree():
 def test_dumps_bytes_empty_input():
     assert dumps_bytes({}) == b"{}"
     assert dumps_bytes([]) == b"[]"
+
+
+def test_manifest_compare_ignores_host_fields(tmp_path):
+    """platform / git_commit / python_implementation must not fail parity."""
+    base = {
+        "site_key": "dubai",
+        "python_version": "3.11.15",
+        "packages": {"numpy": "1.26.4"},
+        "input_cache_sha256": {"a.json": "abc"},
+        "compliance_chain_verified": True,
+        "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "platform": "macOS-26.6-arm64-arm-64bit",
+        "python_implementation": "CPython",
+    }
+    other = dict(base)
+    other["git_commit"] = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    other["platform"] = "Linux-6.17.0-x86_64-with-glibc2.39"
+    other["python_implementation"] = "CPython"
+    exp = tmp_path / "exp"
+    act = tmp_path / "act"
+    exp.mkdir()
+    act.mkdir()
+    canonical.dump(base, exp / "MANIFEST.json")
+    canonical.dump(other, act / "MANIFEST.json")
+    assert golden.compare_trees(exp, act) == []
+
+    other["packages"] = {"numpy": "2.2.6"}
+    canonical.dump(other, act / "MANIFEST.json")
+    diffs = golden.compare_trees(exp, act)
+    assert len(diffs) == 1 and "MANIFEST.json" in diffs[0]

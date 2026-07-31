@@ -330,10 +330,15 @@ def file_tree_bytes(root: Path) -> dict[str, bytes]:
     return out
 
 
+# Host / VCS fields that must not fail parity (science + package pins are kept).
+_MANIFEST_VOLATILE = frozenset({"git_commit", "platform", "python_implementation"})
+
+
 def _manifest_for_compare(raw: bytes) -> bytes:
-    """Drop volatile fields so parity checks survive new commits on the same science."""
+    """Drop host/VCS fields so Linux CI can match goldens captured on macOS."""
     data = json.loads(raw.decode("utf-8"))
-    data.pop("git_commit", None)
+    for key in _MANIFEST_VOLATILE:
+        data.pop(key, None)
     return canonical.dumps_bytes(data) + b"\n"
 
 

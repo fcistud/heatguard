@@ -44,6 +44,12 @@ heatguard golden check
 | `compliance_chain.json` | Full hash chain (`prev_hash`, `record_hash`, genesis) + verify result |
 | `MANIFEST.json` | Python/platform/git/package versions, input cache SHA-256, chain verified |
 
+Parity compares strip host/VCS fields from `MANIFEST.json` (`git_commit`,
+`platform`, `python_implementation`) so Linux CI can match goldens captured on
+macOS. Package pins and cache checksums still fail the gate if they drift.
+
+CI installs `requirements.txt` **before** `pip install -e ".[api,ml,dev]"` so
+`numpy==1.26.4` wins over a floating pyproject lower bound.
 ## Canonical JSON
 
 All golden files are written by `heatguard.canonical`:
