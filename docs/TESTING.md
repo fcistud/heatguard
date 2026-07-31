@@ -65,9 +65,57 @@ Regenerate and replace `tests/golden/` **only** when:
 
 Do **not** regenerate solely because a newer Python or NumPy is convenient.
 
+## CI parity gate
+
+Every push / PR runs (see `.github/workflows/ci.yml`):
+
+| Job | Role |
+|-----|------|
+| **Interpreter version drift** | Dockerfile runtime Python == CI canonical (`3.11`) and satisfies `requires-python` |
+| **Python engine + API tests** | Full pytest on Python **3.11** (matches Dockerfile) |
+| **Dependency resolution determinism** | Two successive `pip install -e ".[api,ml,dev]"` freezes must be identical |
+| **Golden parity (3.11)** | `golden.check_against_committed()` offline — **required** |
+| **Golden parity (3.12)** | Same check on the migration target — **advisory** (`continue-on-error`) until WO-008 |
+| **React dashboard build + lint** | Node **24**, `npm run lint` then `npm run build` |
+
+Actions are SHA-pinned (checkout v7, setup-python v6, setup-node v6, upload-artifact v7).
+
+### Branch protection (operator action)
+
+Mark these as required status checks on `main`:
+
+- Interpreter version drift
+- Python engine + API tests
+- Dependency resolution determinism
+- Golden parity (Python 3.11)
+- React dashboard build + lint
+
+Do **not** require Golden parity (Python 3.12) until that matrix leg is green after the 3.12 migration.
+
+### When the golden-parity gate fails
+
+1. Open the failed job → download the `golden-diff-py3.11` (or `…3.12`) artifact.
+2. Read `diff.txt` (bounded: first 20 differing paths) and `run_manifest.json` (interpreter + package versions).
+3. Triage:
+   - **Numerics / runner drift** — same science, different float stack → do **not** regenerate; pin deps / align interpreter.
+   - **Intentional science change** — regenerate with `heatguard golden capture` on Python 3.11, justify every file in the PR, get reviewer sign-off.
+4. To revert a bad baseline move: `git checkout origin/main -- tests/golden data/cache/CHECKSUMS.json` and re-run `heatguard golden check`.
+
+### Proving the gate (scratch branches)
+
+These are intentional failure drills — do not merge:
+
+```bash
+# 1) Perturb WBGT by 0.01°C → golden-parity must go red
+# 2) Mutate a pin in requirements.txt → determinism / install drift
+# 3) Change Dockerfile `python:3.11` → `python:3.12` → version-drift red
+# 4) Introduce an ESLint error in web/src → web-build red
+```
+
 ## Tests
 
 ```bash
 pytest -q tests/test_canonical.py tests/test_golden.py
-pytest -q -m slow   # includes full regenerate-vs-committed check
+pytest -q   # full suite (measured count is the source of truth)
+python scripts/ci_version_drift.py --ci-python 3.11
 ```
