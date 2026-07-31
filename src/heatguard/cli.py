@@ -8,12 +8,14 @@ Subcommands:
   fetch-datasets  cache all archive + forecast rows in data/datasets.json
   demo       run the narrative (signal timeline, calendar-vs-adaptive gap, impact)
   backtest   reproduce the Nicaragua effect sizes
+  golden     capture / check byte-identical golden-master references
 """
 from __future__ import annotations
 
 import argparse
 import sys
 from datetime import date, datetime
+from pathlib import Path
 
 from . import calendar_ban, economics, impact
 from .compliance import ComplianceLog
@@ -209,6 +211,36 @@ def cmd_backtest(args) -> int:
     return 0 if bt["passed"] else 1
 
 
+def cmd_golden_capture(args) -> int:
+    from . import golden
+
+    sites = args.sites or None
+    out = Path(args.out) if args.out else None
+    print(
+        f"Capturing golden masters for {sites or golden.demo_site_keys()} "
+        f"(crew={args.crew}, network disabled) …"
+    )
+    target = golden.capture_all(out_dir=out, sites=sites, crew=args.crew)
+    print(f"  wrote {target}")
+    return 0
+
+
+def cmd_golden_check(args) -> int:
+    from . import golden
+
+    sites = args.sites or None
+    against = Path(args.against) if args.against else None
+    print("Regenerating into a temp directory and byte-comparing …")
+    diffs = golden.check_against_committed(committed=against, sites=sites, crew=args.crew)
+    if diffs:
+        print("GOLDEN MISMATCH:")
+        for d in diffs:
+            print(f"  {d}")
+        return 1
+    print("OK — regenerated artifacts are byte-identical to the committed tree.")
+    return 0
+
+
 def cmd_policy_query(args) -> int:
     from .policy_rag import query_policy
 
@@ -275,6 +307,27 @@ def build_parser() -> argparse.ArgumentParser:
     pq.add_argument("question")
     pq.add_argument("--top-k", type=int, default=3, dest="top_k")
     pq.set_defaults(func=cmd_policy_query)
+
+    gold = sub.add_parser("golden", help="golden-master capture / check")
+    gold_sub = gold.add_subparsers(dest="golden_cmd", required=True)
+    gc = gold_sub.add_parser("capture", help="write tests/golden from committed caches")
+    gc.add_argument("--out", default=None, help="output directory (default: tests/golden)")
+    gc.add_argument("--crew", type=int, default=100)
+    gc.add_argument(
+        "--sites",
+        nargs="+",
+        default=None,
+        help="subset of demo site keys (default: all archive.demo)",
+    )
+    gc.set_defaults(func=cmd_golden_capture)
+    gk = gold_sub.add_parser(
+        "check",
+        help="regenerate into a temp dir and byte-compare against committed golden tree",
+    )
+    gk.add_argument("--against", default=None, help="reference tree (default: tests/golden)")
+    gk.add_argument("--crew", type=int, default=100)
+    gk.add_argument("--sites", nargs="+", default=None)
+    gk.set_defaults(func=cmd_golden_check)
     return p
 
 
