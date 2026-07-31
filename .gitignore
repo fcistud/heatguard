@@ -29,3 +29,10 @@ htmlcov/
 # Presentations
 HeatGuard.pdf
 HeatGuard*.pptx
+
+# Forge (local agent artifacts — do not commit)
+.forge-commit-ready
+.forge/project-id
+.cursor/hooks.json
+.cursor/hooks/
+.cursor/rules/forge-workflow.mdc
