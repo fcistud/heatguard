@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import socket
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -13,6 +14,41 @@ from heatguard.types import Site, Weather, Worker
 TZ3 = timezone(timedelta(hours=3))
 TZ4 = timezone(timedelta(hours=4))
 GOLDEN_DIR = _REPO_ROOT / "tests" / "golden"
+
+
+@pytest.fixture(autouse=True)
+def _block_outbound_network(request, monkeypatch):
+    """Fail loudly if any test attempts an outbound socket connect.
+
+    Opt out with ``@pytest.mark.network`` (suite default skips those via
+    ``addopts = -m 'not network'``).
+    """
+    if request.node.get_closest_marker("network"):
+        yield
+        return
+
+    def _blocked_connect(self, address):  # noqa: ANN001
+        host = address[0] if isinstance(address, tuple) else address
+        raise RuntimeError(
+            f"Outbound network blocked in tests (host={host!r}, "
+            f"test={request.node.nodeid}). Use committed caches or "
+            "@pytest.mark.network if live access is intentional."
+        )
+
+    monkeypatch.setattr(socket.socket, "connect", _blocked_connect)
+
+    import httpx
+
+    def _blocked_httpx(*_a, **_k):
+        raise RuntimeError(
+            f"httpx network blocked in tests (test={request.node.nodeid}). "
+            "Use committed caches under data/cache/."
+        )
+
+    monkeypatch.setattr(httpx, "get", _blocked_httpx)
+    monkeypatch.setattr(httpx, "request", _blocked_httpx)
+    # Do not patch httpx.Client — Starlette TestClient uses ASGI transport via Client.
+    yield
 
 
 @pytest.fixture
@@ -55,7 +91,6 @@ def assert_golden(obj, site_key: str, artifact: str) -> None:
     actual = canonical.dumps(obj) + "\n"
     expected = golden_bytes(site_key, artifact).decode("utf-8")
     if actual != expected:
-        # Truncated unified-style hint for triage
         a_lines = actual.splitlines()
         e_lines = expected.splitlines()
         excerpt = []

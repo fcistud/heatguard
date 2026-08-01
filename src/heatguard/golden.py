@@ -85,14 +85,15 @@ def sha256_file(path: Path) -> str:
 
 
 def write_cache_checksums(path: Path = CHECKSUMS_PATH) -> dict[str, str]:
-    """SHA-256 every ``*.json`` under ``data/cache/`` except CHECKSUMS itself."""
-    checksums: dict[str, str] = {}
-    for p in sorted(CACHE_DIR.glob("*.json")):
-        if p.name == "CHECKSUMS.json":
-            continue
-        checksums[p.name] = sha256_file(p)
-    canonical.dump({"version": 1, "files": checksums}, path)
-    return checksums
+    """SHA-256 every ``*.json`` under ``data/cache/`` except CHECKSUMS itself.
+
+    Writes the v2 enriched manifest via ``cache_integrity`` and returns the
+    flat ``{filename: sha256}`` map used by golden capture.
+    """
+    from . import cache_integrity
+
+    entries = cache_integrity.write_checksums_manifest(path=path)
+    return {name: e.sha256 for name, e in entries.items()}
 
 
 def load_cache_checksums(path: Path = CHECKSUMS_PATH) -> dict[str, str]:
@@ -100,8 +101,9 @@ def load_cache_checksums(path: Path = CHECKSUMS_PATH) -> dict[str, str]:
         raise FileNotFoundError(
             f"Missing {path}. Run write_cache_checksums() or heatguard golden capture first."
         )
-    data = canonical.load(path)
-    return dict(data["files"])
+    from . import cache_integrity
+
+    return cache_integrity.sha256_map(cache_integrity.load_checksum_entries(path))
 
 
 def verify_input_caches(site_key: str, checksums: dict[str, str]) -> dict[str, str]:
