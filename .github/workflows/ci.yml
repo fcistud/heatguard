@@ -7,7 +7,6 @@ on:
 
 # Single supported interpreter after WO-008. Golden parity is required on 3.12.
 env:
-  GOLDEN_PYTHON_VERSIONS: "3.12"
   CANONICAL_PYTHON: "3.12"
   CANONICAL_NODE: "24"
   UV_VERSION: "0.12.1"
@@ -99,7 +98,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        # Driven by CANONICAL_PYTHON so the env block is the single source of truth.
+        python-version: ["${{ env.CANONICAL_PYTHON }}"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
