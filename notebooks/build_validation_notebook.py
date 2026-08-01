@@ -1,16 +1,32 @@
 """Build (and execute) notebooks/heatguard_validation.ipynb from source cells.
 
 Run:  python notebooks/build_validation_notebook.py
+      python notebooks/build_validation_notebook.py --output /tmp/out.ipynb
 This keeps the narrated validation notebook reproducible from version control.
 """
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import nbformat as nbf
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "heatguard_validation.ipynb"
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--output",
+        type=Path,
+        default=HERE / "heatguard_validation.ipynb",
+        help="Where to write the notebook",
+    )
+    return p.parse_args(argv)
+
+
+_ARGS = _parse_args()
+OUT = _ARGS.output
 
 nb = nbf.v4.new_notebook()
 cells: list = []

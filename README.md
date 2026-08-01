@@ -38,11 +38,22 @@ HeatGuard is built as one pure, deterministic **Python engine** deployed via a s
 ## 🚀 Quick Start (Local Setup)
 
 ```bash
-pip install -e . && pip install -r requirements.txt
+# Python 3.11 + uv (authoritative lock). WO-008 raises the floor to 3.12.
+uv sync --frozen --extra api --extra ml --extra dev
+# Or: pip install -r requirements.txt && pip install -e ".[api,ml,dev]"
 pytest -q                 # full suite incl. API, policy RAG, and ML overlay
 heatguard fetch-datasets  # cache weather + forecasts
 heatguard fetch-demo      # cache the two demo archives
+# Dashboard needs Node 24 / npm 11 (see web/package.json engines)
 scripts/run_demo.sh       # API + dashboard in one command  →  http://localhost:5173
+```
+
+### Deck & validation notebook (optional extras)
+
+```bash
+uv sync --frozen --extra deck --extra notebook
+python scripts/build_deck.py --dry-run
+python notebooks/build_validation_notebook.py --output /tmp/heatguard_validation.ipynb
 ```
 
 > 📖 **New here?** The [**Handbook**](docs/HANDBOOK.md) explains everything (plain-language + technical), with an FAQ and a detailed roadmap.

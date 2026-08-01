@@ -13,7 +13,7 @@ decision engine (with personal-risk overlay), and a **Policy gap auditor**
 
 ## Prerequisites
 
-- Node 24 / npm 11 (any recent Node 18+ works)
+- Node 24 / npm 11.8 (enforced via `engines` + `packageManager` in `package.json`)
 - The HeatGuard FastAPI backend running.
 
 ## 1. Start the API first (from the repo root)
