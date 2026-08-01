@@ -21,7 +21,11 @@ SIGNALS = {s.value for s in Signal}
 
 
 def test_health():
-    assert client.get("/health").json()["status"] == "ok"
+    body = client.get("/health").json()
+    assert body["status"] == "ok"
+    assert "python" in body
+    assert body["python"]["major"] == 3
+    assert body["python"]["minor"] >= 12
 
 
 def test_sites_and_demos():

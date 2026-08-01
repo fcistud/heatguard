@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from datetime import date
 
@@ -42,6 +43,13 @@ def _warm_caches() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    v = sys.version_info
+    log.info(
+        "heatguard.runtime python=%s.%s.%s",
+        v.major,
+        v.minor,
+        v.micro,
+    )
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _warm_caches)
     yield
@@ -67,7 +75,17 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    # Interpreter observability for WO-008 drift / Cloud Run triage.
+    v = sys.version_info
+    return {
+        "status": "ok",
+        "python": {
+            "major": v.major,
+            "minor": v.minor,
+            "patch": v.micro,
+            "version": f"{v.major}.{v.minor}.{v.micro}",
+        },
+    }
 
 
 @app.get("/health/", include_in_schema=False)

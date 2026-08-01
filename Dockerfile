@@ -15,7 +15,7 @@ ENV VITE_API_BASE=${VITE_API_BASE}
 RUN npm run build
 
 # --- API (Python) -------------------------------------------------------------
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

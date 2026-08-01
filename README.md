@@ -38,7 +38,7 @@ HeatGuard is built as one pure, deterministic **Python engine** deployed via a s
 ## 🚀 Quick Start (Local Setup)
 
 ```bash
-# Python 3.11 + uv (authoritative lock). WO-008 raises the floor to 3.12.
+# Python 3.12 + uv (authoritative lock).
 uv sync --frozen --extra api --extra ml --extra dev
 # Or: pip install -r requirements.txt && pip install -e ".[api,ml,dev]"
 pytest -q                 # full suite incl. API, policy RAG, and ML overlay
