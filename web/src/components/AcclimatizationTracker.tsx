@@ -59,7 +59,7 @@ export function AcclimatizationTracker({
             : reached || allDone
               ? "bg-indigo-300"
               : "bg-slate-200";
-          const Tag: any = interactive ? "button" : "div";
+          const Tag = (interactive ? "button" : "div") as "button" | "div";
           return (
             <Tag
               key={r.day}

@@ -1,70 +1,104 @@
-"""Golden-file style tests for the demo narrative (committed weather cache)."""
+"""Byte-identical golden parity for the four demo narratives.
+
+Characterization baseline (pre WO-003):
+- Collected suite size: 128 tests (post WO-003 pins: 152 collected)
+- Tolerance bands in this module were:
+  - dubai focus: gap_hours >= 10 (README claimed 12)
+  - riyadh focus: gap_hours >= 5
+  - abu_dhabi focus: gap_hours >= 10
+  - doha focus: gap_hours >= 5
+  - dubai season: danger_hours_caught_vs_ban > 100; ban_coverage_pct < 100
+  - riyadh season: ban_only_safe_hours > 0
+  - abu_dhabi/doha season: danger_hours_caught_vs_ban > 0
+Those bands are replaced by byte equality against tests/golden/.
+"""
 from __future__ import annotations
 
-from heatguard.service import DEMOS, build_demo, timeline_for_day
+import pytest
+
+from heatguard import golden
+from heatguard.service import DEMOS, build_demo, forecast_timeline, timeline_for_day
+from conftest import assert_golden, golden_tree_fingerprint
 
 
-def test_dubai_may_focus_day_has_calendar_gap():
-    """May 2025: HeatGuard protects hours the UAE calendar ban does not cover."""
-    cfg = DEMOS["dubai"]
-    tl = timeline_for_day("dubai", cfg["focus_day"])
-    assert tl["date"] == str(cfg["focus_day"])
-    assert tl["country"] == "AE"
-    # README/demo: 12 gap hours on focus day; allow small drift if cache updates
-    assert tl["gap_hours"] >= 10
-    assert any(r["gap"] for r in tl["rows"])
+@pytest.mark.parametrize("site_key", ["dubai", "riyadh", "abu_dhabi", "doha"])
+def test_focus_day_hourly_matches_golden(site_key):
+    cfg = DEMOS[site_key]
+    tl = timeline_for_day(site_key, cfg["focus_day"])
+    payload = {
+        "site_key": site_key,
+        "date": str(cfg["focus_day"]),
+        "rows": golden._hourly_from_timeline(tl),
+    }
+    assert_golden(payload, site_key, "hourly.json")
 
 
-def test_dubai_focus_day_ban_not_active_in_may():
-    """UAE ban season starts 15 June — May focus day should have zero banned hours."""
-    cfg = DEMOS["dubai"]
-    tl = timeline_for_day("dubai", cfg["focus_day"])
-    assert sum(1 for r in tl["rows"] if r["banned"]) == 0
+@pytest.mark.parametrize("site_key", ["dubai", "riyadh", "abu_dhabi", "doha"])
+def test_focus_day_timeline_matches_golden(site_key):
+    cfg = DEMOS[site_key]
+    tl = timeline_for_day(site_key, cfg["focus_day"])
+    demo = build_demo(site_key, crew=100)
+    payload = {
+        "site_key": site_key,
+        "timeline": tl,
+        "demo_headline": demo["headline"],
+        "demo_focus_day": demo["focus_day"],
+        "demo_intensity": demo["intensity"],
+    }
+    assert_golden(payload, site_key, "focus_day.json")
 
 
-def test_riyadh_focus_day_has_morning_gap():
-    """Riyadh summer: humid morning danger outside the noon ban window."""
-    cfg = DEMOS["riyadh"]
-    tl = timeline_for_day("riyadh", cfg["focus_day"])
-    assert tl["gap_hours"] >= 5
-    banned_hours = {r["hour"] for r in tl["rows"] if r["banned"]}
-    gap_hours = {r["hour"] for r in tl["rows"] if r["gap"]}
-    assert gap_hours - banned_hours, "some gap hours fall outside the ban window"
+@pytest.mark.parametrize("site_key", ["dubai", "riyadh", "abu_dhabi", "doha"])
+def test_forecast_matches_golden(site_key):
+    forecast = forecast_timeline(site_key)
+    assert_golden({"site_key": site_key, "forecast": forecast}, site_key, "forecast.json")
 
 
-def test_dubai_season_impact_caught_vs_ban():
-    demo = build_demo("dubai", crew=100)
-    imp = demo["impact"]
-    assert imp["danger_hours_caught_vs_ban"] > 100
-    assert imp["ban_coverage_pct"] < 100.0
+@pytest.mark.parametrize("site_key", ["dubai", "riyadh", "abu_dhabi", "doha"])
+def test_impact_economics_sensitivity_matches_golden(site_key):
+    demo = build_demo(site_key, crew=100)
+    payload = {
+        "site_key": site_key,
+        "crew": 100,
+        "impact": demo["impact"],
+        "economics": demo["economics"],
+        "sensitivity": demo["sensitivity"],
+    }
+    assert_golden(payload, site_key, "impact_economics_sensitivity.json")
 
 
-def test_riyadh_season_has_ban_overrestriction():
-    demo = build_demo("riyadh", crew=100)
-    assert demo["impact"]["ban_only_safe_hours"] > 0
+@pytest.mark.parametrize("site_key", ["dubai", "riyadh", "abu_dhabi", "doha"])
+def test_compliance_chain_matches_golden(site_key):
+    demo = build_demo(site_key, crew=100)
+    # Rebuild the same way capture does for a stable surface
+    from dataclasses import asdict
+    from heatguard.service import compliance_for_day
+
+    log = compliance_for_day(site_key, DEMOS[site_key]["focus_day"])
+    assert log.verify_chain()
+    payload = {
+        "site_key": site_key,
+        "site_name": log.site_name,
+        "genesis": "0" * 64,
+        "verified": True,
+        "head_hash": log.head_hash,
+        "summary": log.summary(),
+        "records": [asdict(r) for r in log.records],
+    }
+    assert_golden(payload, site_key, "compliance_chain.json")
+    # Narrative still surfaces the demo export for the UI path
+    assert demo["compliance"]["summary"]["verified"] is True
 
 
-def test_abu_dhabi_focus_day_has_calendar_gap():
-    """May 2025 shoulder season — adaptive signals before UAE ban season."""
-    cfg = DEMOS["abu_dhabi"]
-    tl = timeline_for_day("abu_dhabi", cfg["focus_day"])
-    assert tl["country"] == "AE"
-    assert tl["gap_hours"] >= 10
-    assert sum(1 for r in tl["rows"] if r["banned"]) == 0
+def test_full_tree_regenerate_byte_identical():
+    diffs = golden.check_against_committed()
+    assert diffs == [], "\n".join(diffs)
 
 
-def test_doha_focus_day_has_morning_gap():
-    """Qatar WBGT ban covers mid-day but not humid morning danger."""
-    cfg = DEMOS["doha"]
-    tl = timeline_for_day("doha", cfg["focus_day"])
-    assert tl["country"] == "QA"
-    assert tl["gap_hours"] >= 5
-    banned_hours = {r["hour"] for r in tl["rows"] if r["banned"]}
-    gap_hours = {r["hour"] for r in tl["rows"] if r["gap"]}
-    assert gap_hours - banned_hours
-
-
-def test_abu_dhabi_and_doha_season_impact():
-    for key in ("abu_dhabi", "doha"):
-        demo = build_demo(key, crew=100)
-        assert demo["impact"]["danger_hours_caught_vs_ban"] > 0
+def test_normal_suite_helper_does_not_write_goldens():
+    """assert_golden / check paths are read-only — fingerprint must be stable."""
+    before = golden_tree_fingerprint()
+    # Exercise read-only helpers
+    _ = golden.check_against_committed(sites=["dubai"])
+    after = golden_tree_fingerprint()
+    assert before == after

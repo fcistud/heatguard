@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
+from heatguard import canonical, golden
+from heatguard._paths import _REPO_ROOT
 from heatguard.types import Site, Weather, Worker
 
 TZ3 = timezone(timedelta(hours=3))
 TZ4 = timezone(timedelta(hours=4))
+GOLDEN_DIR = _REPO_ROOT / "tests" / "golden"
 
 
 @pytest.fixture
@@ -36,3 +41,42 @@ def veteran() -> Worker:
 @pytest.fixture
 def newcomer() -> Worker:
     return Worker("new-1", days_on_job=0, acclimatized=False)
+
+
+def golden_bytes(site_key: str, artifact: str) -> bytes:
+    path = GOLDEN_DIR / site_key / artifact
+    if not path.exists():
+        raise FileNotFoundError(f"Missing golden artifact: {path}")
+    return path.read_bytes()
+
+
+def assert_golden(obj, site_key: str, artifact: str) -> None:
+    """Canonicalize *obj* and byte-compare to ``tests/golden/<site>/<artifact>``."""
+    actual = canonical.dumps(obj) + "\n"
+    expected = golden_bytes(site_key, artifact).decode("utf-8")
+    if actual != expected:
+        # Truncated unified-style hint for triage
+        a_lines = actual.splitlines()
+        e_lines = expected.splitlines()
+        excerpt = []
+        for i, (al, el) in enumerate(zip(a_lines, e_lines)):
+            if al != el:
+                excerpt.append(f"line {i}: expected={el[:120]!r} actual={al[:120]!r}")
+            if len(excerpt) >= 5:
+                break
+        if len(a_lines) != len(e_lines):
+            excerpt.append(f"length {len(e_lines)} vs {len(a_lines)}")
+        raise AssertionError(
+            f"Golden mismatch {site_key}/{artifact}:\n" + "\n".join(excerpt)
+        )
+
+
+def golden_tree_fingerprint() -> str:
+    """SHA-256 over every file under tests/golden (sorted paths)."""
+    h = hashlib.sha256()
+    root = GOLDEN_DIR
+    for p in sorted(root.rglob("*")):
+        if p.is_file():
+            h.update(p.relative_to(root).as_posix().encode())
+            h.update(p.read_bytes())
+    return h.hexdigest()

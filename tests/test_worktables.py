@@ -21,7 +21,7 @@ def test_published_tlv_values():
 
 
 def test_step_mapping_boundaries_moderate():
-    # moderate acclimatized: 100->28, 75->29, 50->30, 25->31.5
+    # moderate acclimatized: 100->28, 75->29, 50->30, 25->31.5 (inclusive ceilings)
     assert frac(20.0, MC.MODERATE) == 1.00      # below screening
     assert frac(28.0, MC.MODERATE) == 1.00      # exactly the 100% ceiling
     assert frac(28.1, MC.MODERATE) == 0.75
@@ -29,6 +29,23 @@ def test_step_mapping_boundaries_moderate():
     assert frac(30.0, MC.MODERATE) == 0.50
     assert frac(31.5, MC.MODERATE) == 0.25
     assert frac(31.6, MC.MODERATE) == 0.00      # above 25% ceiling -> STOP
+
+
+def test_heavy_tlv_and_al_step_edges():
+    """Heavy TLV/AL adjacent pins — inclusive ceiling semantics."""
+    assert frac(27.49, MC.HEAVY, ACC) == 1.00
+    assert frac(27.5, MC.HEAVY, ACC) == 0.75
+    assert frac(27.51, MC.HEAVY, ACC) == 0.50
+    assert frac(29.0, MC.HEAVY, ACC) == 0.50
+    assert frac(29.01, MC.HEAVY, ACC) == 0.25
+    assert frac(30.5, MC.HEAVY, ACC) == 0.25
+    assert frac(30.51, MC.HEAVY, ACC) == 0.00
+    # Action Limit (unacclimatized) is stricter at the same WBGT
+    assert frac(23.99, MC.HEAVY, UNACC) == 1.00
+    assert frac(24.0, MC.HEAVY, UNACC) == 0.75
+    assert frac(25.5, MC.HEAVY, UNACC) == 0.50
+    assert frac(28.0, MC.HEAVY, UNACC) == 0.25
+    assert frac(28.01, MC.HEAVY, UNACC) == 0.00
 
 
 def test_dashed_cells_allow_full_work_below_threshold():

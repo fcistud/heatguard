@@ -14,6 +14,14 @@ def test_requires_tzaware():
         cos_solar_zenith_angle(datetime(2024, 7, 15, 12, 0), 24.7, 46.7)
 
 
+def test_pinned_summer_noon_cossza_riyadh():
+    """Exact solar geometry vector — summer solstice local noon, Riyadh."""
+    cz = cos_solar_zenith_angle(datetime(2024, 6, 21, 12, 0, tzinfo=TZ3), 24.7136, 46.6753)
+    elev = solar_elevation_deg(datetime(2024, 6, 21, 12, 0, tzinfo=TZ3), 24.7136, 46.6753)
+    assert round(cz, 10) == 0.9995690181
+    assert round(elev, 10) == 88.3177801396
+
+
 def test_high_at_summer_solar_noon_riyadh():
     # ~solar noon (local ~12:00) mid-summer in Riyadh -> sun nearly overhead
     elev = solar_elevation_deg(datetime(2024, 6, 21, 12, 0, tzinfo=TZ3), 24.7136, 46.6753)

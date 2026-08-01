@@ -48,6 +48,8 @@ def test_decide_attaches_personal_risk_without_changing_signal(dubai_hot_hour, d
 
 def test_ml_overlay_never_changes_regulatory_signal(dubai_hot_hour, dubai, monkeypatch):
     """Personal risk is advisory-only — signal and cycle must not depend on ML output."""
+    from heatguard import canonical
+
     worker = Worker(
         "n",
         days_on_job=0,
@@ -66,6 +68,11 @@ def test_ml_overlay_never_changes_regulatory_signal(dubai_hot_hour, dubai, monke
     )
     forced = schedule(dubai_hot_hour, dubai, worker, MetabolicCategory.HEAVY)
 
+    # Byte-identical regulatory surface (signal + work-rest cycle)
+    reg = lambda a: canonical.dumps(
+        {"signal": a.signal.value, "cycle": a.to_dict()["cycle"]}
+    )
+    assert reg(baseline) == reg(forced)
     assert baseline.signal == forced.signal
     assert baseline.cycle == forced.cycle
     assert baseline.hydration.sweat_loss_g_per_h == forced.hydration.sweat_loss_g_per_h

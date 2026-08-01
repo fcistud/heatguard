@@ -30,5 +30,19 @@ def test_thresholds_switch_after_ramp_completes():
     assert acc.is_ramping(_new(5)) is False
 
 
+def test_pinned_niosh_ramp_inflection_days():
+    """Exact fractions at every NIOSH ramp day and the day-5 TLV switch."""
+    assert [acc.allowed_fraction(_new(d)) for d in range(6)] == [
+        0.20, 0.40, 0.60, 0.80, 1.00, 1.00,
+    ]
+    assert acc.is_ramping(_new(4)) is True
+    assert acc.is_ramping(_new(5)) is False
+    assert acc.use_unacclimatized_thresholds(_new(4)) is True
+    assert acc.use_unacclimatized_thresholds(_new(5)) is False
+    assert [acc.allowed_fraction(_new(d, experienced=True)) for d in (0, 1, 2)] == [
+        0.50, 1.00, 1.00,
+    ]
+
+
 def test_ramp_past_end_is_full():
     assert acc.allowed_fraction(_new(10)) == 1.0

@@ -12,7 +12,7 @@ license = { text = "MIT" }
 dependencies = [
     "pythermalcomfort==4.0.1",
     "thermofeel==2.2.0",
-    "numpy>=1.24",
+    "numpy==1.26.4",
     "httpx>=0.24",
 ]
 
@@ -29,6 +29,9 @@ heatguard = "heatguard.cli:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-markers = ["network: tests that hit the public internet (skipped by default)"]
+markers = [
+    "network: tests that hit the public internet (skipped by default)",
+    "slow: long-running golden regeneration / season replay tests",
+]
 addopts = "-m 'not network'"
 testpaths = ["tests"]

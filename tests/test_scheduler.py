@@ -55,3 +55,25 @@ def test_live_signal_sequence(riyadh, veteran):
     else:
         # a non-stopped hour broadcasts work and at least one drink prompt
         assert Signal.DRINK_NOW in signals
+
+
+def test_pinned_tlv_boundary_signals(riyadh, veteran):
+    """Measured-WBGT pins at Heavy TLV steps (cool ambient so PHS does not dominate)."""
+    w = weather(8, 32, 30, wind=2.0, sw=400, direct=300)
+
+    below = schedule(w, riyadh, veteran, MC.HEAVY, measured_wbgt_c=27.49)
+    at_75 = schedule(w, riyadh, veteran, MC.HEAVY, measured_wbgt_c=27.5)
+    into_50 = schedule(w, riyadh, veteran, MC.HEAVY, measured_wbgt_c=27.51)
+    # PHS (~40 min) binds below the 75% step; table step to 50% binds just above 27.5
+    assert below.signal is Signal.WORK and round(below.cycle.work_fraction, 6) == 0.666667
+    assert at_75.signal is Signal.WORK and round(at_75.cycle.work_fraction, 6) == 0.666667
+    assert into_50.signal is Signal.WORK and into_50.cycle.work_fraction == 0.5
+    assert into_50.cycle.work_min_per_hour == 30
+
+    rest = schedule(w, riyadh, veteran, MC.HEAVY, measured_wbgt_c=29.01)
+    assert rest.signal is Signal.REST_IN_SHADE
+    assert rest.cycle.work_fraction == 0.25 and rest.cycle.work_min_per_hour == 15
+
+    stop = schedule(w, riyadh, veteran, MC.HEAVY, measured_wbgt_c=30.51)
+    assert stop.signal is Signal.STOP
+    assert stop.cycle.work_fraction == 0.0 and stop.cycle.work_min_per_hour == 0

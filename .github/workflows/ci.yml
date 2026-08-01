@@ -5,38 +5,174 @@ on:
     branches: [main]
   pull_request:
 
+# Interpreter matrix for golden parity. Keep 3.11 (pre-upgrade / Dockerfile)
+# required; 3.12 is the migration target and may fail until WO-008 lands.
+env:
+  GOLDEN_PYTHON_VERSIONS: "3.11, 3.12"
+  CANONICAL_PYTHON: "3.11"
+
 permissions:
   contents: read
 
 jobs:
+  version-drift:
+    name: Interpreter version drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Assert Dockerfile / CI / requires-python agree
+        run: python scripts/ci_version_drift.py --ci-python "${{ env.CANONICAL_PYTHON }}"
+
   python-tests:
     name: Python engine + API tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.12"
+          python-version: ${{ env.CANONICAL_PYTHON }}
           cache: pip
-      - name: Install (engine + api + ml + dev extras)
+      - name: Install pinned deps (requirements.txt + extras)
         run: |
           python -m pip install --upgrade pip
+          # requirements.txt pins the numerics stack used for golden capture
+          # (numpy==1.26.4); editable install alone would float to numpy 2.x.
+          pip install -r requirements.txt
           pip install -e ".[api,ml,dev]"
+      - name: Assert numerics pins match golden capture
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          assert version("numpy") == "1.26.4", version("numpy")
+          assert version("pythermalcomfort") == "4.0.1"
+          assert version("thermofeel") == "2.2.0"
+          print("OK — numpy/pythermalcomfort/thermofeel match golden MANIFEST pins")
+          PY
       - name: Run tests
         run: pytest -q   # network tests are skipped by default (see pyproject addopts)
 
-  web-build:
-    name: React dashboard build
+  dependency-determinism:
+    name: Dependency resolution determinism
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          node-version: "22"
+          python-version: ${{ env.CANONICAL_PYTHON }}
+          cache: pip
+      - name: Resolve pinned set twice and diff
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m venv /tmp/hg-a && python -m venv /tmp/hg-b
+          /tmp/hg-a/bin/pip install -r requirements.txt
+          /tmp/hg-a/bin/pip install -e ".[api,ml,dev]"
+          /tmp/hg-b/bin/pip install -r requirements.txt
+          /tmp/hg-b/bin/pip install -e ".[api,ml,dev]"
+          /tmp/hg-a/bin/pip freeze | sort > /tmp/resolve-a.txt
+          /tmp/hg-b/bin/pip freeze | sort > /tmp/resolve-b.txt
+          if ! diff -u /tmp/resolve-a.txt /tmp/resolve-b.txt; then
+            echo "Determinism check FAILED — two resolutions of the same commit differ."
+            exit 1
+          fi
+          echo "OK — two successive resolutions are identical."
+          mkdir -p artifacts
+          cp /tmp/resolve-a.txt artifacts/resolved-deps.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: resolved-dependency-set
+          path: artifacts/resolved-deps.txt
+          if-no-files-found: ignore
+
+  golden-parity:
+    name: Golden parity (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12 is the post-upgrade target. Until WO-008 proves parity, treat
+        # 3.12 drift as an explicit signal (job still reports) without blocking
+        # merges — required check is Golden parity (Python 3.11).
+        python-version: ["3.11", "3.12"]
+    continue-on-error: ${{ matrix.python-version == '3.12' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e ".[api,ml,dev]"
+          python -c "from importlib.metadata import version; assert version('numpy')=='1.26.4', version('numpy')"
+      - name: Golden check (offline — networking disabled in harness)
+        id: golden
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/golden-diff
+          python - <<'PY'
+          import json, platform, sys
+          from importlib.metadata import version
+          from pathlib import Path
+          from heatguard import golden
+
+          meta = {
+              "python_version": sys.version.split()[0],
+              "platform": platform.platform(),
+              "packages": {
+                  "numpy": version("numpy"),
+                  "pythermalcomfort": version("pythermalcomfort"),
+                  "thermofeel": version("thermofeel"),
+                  "scikit-learn": version("scikit-learn"),
+              },
+          }
+          Path("artifacts/golden-diff/run_manifest.json").write_text(
+              json.dumps(meta, indent=2, sort_keys=True) + "\n"
+          )
+          diffs = golden.check_against_committed()
+          if diffs:
+              # Bound the log / artifact: first 20 files, short messages.
+              shown = diffs[:20]
+              report = "\n".join(shown)
+              if len(diffs) > 20:
+                  report += f"\n… and {len(diffs) - 20} more"
+              Path("artifacts/golden-diff/diff.txt").write_text(report + "\n")
+              # Copy committed MANIFEST.json files for triage
+              for site in golden.demo_site_keys():
+                  src = golden.GOLDEN_DIR / site / "MANIFEST.json"
+                  if src.exists():
+                      Path(f"artifacts/golden-diff/{site}-MANIFEST.json").write_bytes(src.read_bytes())
+              print("GOLDEN MISMATCH:")
+              print(report)
+              raise SystemExit(1)
+          print("OK — golden tree is byte-identical.")
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: golden-diff-py${{ matrix.python-version }}
+          path: artifacts/golden-diff/
+          if-no-files-found: ignore
+
+  web-build:
+    name: React dashboard build + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Install + build
+      - name: Install + lint + build
         working-directory: web
         run: |
           npm ci
+          npm run lint
           npm run build

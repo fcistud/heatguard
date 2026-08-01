@@ -17,6 +17,27 @@ def test_wet_bulb_rises_with_humidity():
     assert stull_wet_bulb(40.0, 60.0) > stull_wet_bulb(40.0, 20.0)
 
 
+def test_pinned_liljegren_daytime_vector(riyadh):
+    """Boundary-hot heavy-work hour — Liljegren branch with exact rounded WBGT."""
+    w = weather(12, 45, 18, wind=2.0, sw=940, direct=820)
+    est = estimate_wbgt(w, riyadh)
+    assert est.source == "liljegren"
+    assert round(est.wbgt_c, 6) == 34.768199
+    assert round(est.globe_c, 6) == 62.878429
+
+
+def test_pinned_fallback_night_vector(riyadh):
+    """Night / low-solar branch — Stull fallback with exact rounded WBGT."""
+    w = weather(2, 33, 40, wind=1.5, sw=0, direct=0)
+    est = estimate_wbgt(w, riyadh)
+    assert est.source == "fallback"
+    assert round(est.wbgt_c, 6) == 25.921732
+
+
+def test_pinned_stull_wet_bulb():
+    assert round(stull_wet_bulb(40.0, 60.0), 10) == 32.9810009690
+
+
 def test_daytime_uses_liljegren(riyadh):
     w = weather(12, 45, 18, wind=2.0, sw=940, direct=820)
     est = estimate_wbgt(w, riyadh)
