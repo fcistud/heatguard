@@ -170,9 +170,10 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Install + lint + build
+      - name: Install + lint + test + build
         working-directory: web
         run: |
           npm ci
           npm run lint
+          npm run test
           npm run build

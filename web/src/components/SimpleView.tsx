@@ -3,7 +3,7 @@ import {
   SIGNAL_COLOR,
   SIGNAL_LABEL,
   SIGNAL_SHORT,
-  WBGT_SOURCE_LABEL,
+  wbgtSourceLabel,
 } from "../lib/signals";
 import { Logo } from "./ui/Brand";
 
@@ -257,7 +257,7 @@ export function SimpleView({
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
             <span className="h-1.5 w-1.5 rounded-full bg-heat-orange" />
-            {WBGT_SOURCE_LABEL[source] ?? source}
+            {wbgtSourceLabel(source)}
           </span>
         </div>
 
