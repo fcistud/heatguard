@@ -4,11 +4,11 @@
 
 HeatGuard’s ISO 7243 / ISO 7933 PHS / ACGIH / NIOSH engine must stay **byte-stable**
 across interpreter and dependency upgrades. Golden masters under `tests/golden/` are
-the pre-migration reference captured on **Python 3.11** with the currently pinned
+the authoritative reference, currently captured on **Python 3.12** with the pinned
 numerics stack (`numpy==1.26.4`, `pythermalcomfort==4.0.1`, `thermofeel==2.2.0`).
 
-Once the interpreter or those packages move, the pre-migration reference **cannot**
-be recaptured honestly — treat regeneration as a deliberate, reviewed sign-off.
+The pre-migration (Python 3.11) baseline remains in git history (Gate 0 / PR #15).
+See `tests/golden/README.md` for the WO-008 re-baseline justification.
 
 ## Capture (offline)
 
@@ -17,9 +17,7 @@ read. SHA-256 digests live in `data/cache/CHECKSUMS.json` and are mirrored into 
 site’s `MANIFEST.json`.
 
 ```bash
-# Prefer the heatguard conda env (Python 3.11)
-conda activate heatguard
-pip install -e ".[api,ml,dev]"
+uv sync --frozen --extra api --extra ml --extra dev   # Python 3.12
 
 # Write / refresh CHECKSUMS + tests/golden/<site>/
 heatguard golden capture
@@ -48,8 +46,6 @@ Parity compares strip host/VCS fields from `MANIFEST.json` (`git_commit`,
 `platform`, `python_implementation`) so Linux CI can match goldens captured on
 macOS. Package pins and cache checksums still fail the gate if they drift.
 
-CI installs `requirements.txt` **before** `pip install -e ".[api,ml,dev]"` so
-`numpy==1.26.4` wins over a floating pyproject lower bound.
 ## Canonical JSON
 
 All golden files are written by `heatguard.canonical`:
@@ -65,11 +61,12 @@ Equality checks are **byte comparisons** of file contents (including the trailin
 
 Regenerate and replace `tests/golden/` **only** when:
 
-1. You intentionally change engine behaviour or the committed weather caches, **and**
+1. You intentionally change engine behaviour, the committed weather caches, **or**
+   the supported interpreter (with a documented float-parity investigation), **and**
 2. The PR description records the interpreter + dependency versions, **and**
 3. Reviewers accept the diff as an intentional baseline move (not silent drift).
 
-Do **not** regenerate solely because a newer Python or NumPy is convenient.
+Do **not** regenerate solely because a newer NumPy is convenient.
 
 ## CI parity gate
 
@@ -77,12 +74,12 @@ Every push / PR runs (see `.github/workflows/ci.yml`):
 
 | Job | Role |
 |-----|------|
-| **Interpreter version drift** | Dockerfile runtime Python == CI canonical (`3.11`) and satisfies `requires-python` |
-| **Python engine + API tests** | Full pytest on Python **3.11** (matches Dockerfile) |
-| **Dependency resolution determinism** | Two successive `pip install -e ".[api,ml,dev]"` freezes must be identical |
-| **Golden parity (3.11)** | `golden.check_against_committed()` offline — **required** |
-| **Golden parity (3.12)** | Same check on the migration target — **advisory** (`continue-on-error`) until WO-008 |
-| **React dashboard build + lint** | Node **24**, `npm run lint` then `npm run build` |
+| **Interpreter version drift** | Dockerfile runtime Python == CI canonical (`3.12`) == `requires-python` floor |
+| **Python engine + API tests** | Full pytest on Python **3.12** (matches Dockerfile) |
+| **Dependency resolution determinism** | Two successive frozen `uv export`s must be identical |
+| **Golden parity (3.12)** | `golden.check_against_committed()` offline — **required** |
+| **React dashboard build + lint** | Node **24**, lint + test + build |
+| **Container image smoke** | Build image; assert tooling extras absent; health reports 3.12; demo/forecast/dashboard |
 
 Actions are SHA-pinned (checkout v7, setup-python v6, setup-node v6, upload-artifact v7).
 
@@ -93,18 +90,17 @@ Mark these as required status checks on `main`:
 - Interpreter version drift
 - Python engine + API tests
 - Dependency resolution determinism
-- Golden parity (Python 3.11)
+- Golden parity (Python 3.12)
 - React dashboard build + lint
-
-Do **not** require Golden parity (Python 3.12) until that matrix leg is green after the 3.12 migration.
+- Container image smoke
 
 ### When the golden-parity gate fails
 
-1. Open the failed job → download the `golden-diff-py3.11` (or `…3.12`) artifact.
+1. Open the failed job → download the `golden-diff-py3.12` artifact.
 2. Read `diff.txt` (bounded: first 20 differing paths) and `run_manifest.json` (interpreter + package versions).
 3. Triage:
    - **Numerics / runner drift** — same science, different float stack → do **not** regenerate; pin deps / align interpreter.
-   - **Intentional science change** — regenerate with `heatguard golden capture` on Python 3.11, justify every file in the PR, get reviewer sign-off.
+   - **Intentional science or interpreter move** — regenerate with `heatguard golden capture` on Python 3.12, justify every file in the PR (see `tests/golden/README.md`), get reviewer sign-off.
 4. To revert a bad baseline move: `git checkout origin/main -- tests/golden data/cache/CHECKSUMS.json` and re-run `heatguard golden check`.
 
 ### Proving the gate (scratch branches)
@@ -114,16 +110,15 @@ These are intentional failure drills — do not merge:
 ```bash
 # 1) Perturb WBGT by 0.01°C → golden-parity must go red
 # 2) Mutate a pin in requirements.txt → determinism / install drift
-# 3) Change Dockerfile `python:3.11` → `python:3.12` → version-drift red
+# 3) Change Dockerfile `python:3.12` → `python:3.11` → version-drift red
 # 4) Introduce an ESLint error in web/src → web-build red
 ```
 
 ## Measured suite size
 
 As of the golden-masters gate (WO-001–003), ``pytest --collect-only`` on
-Python 3.11 reports **152** collected tests (measured 2026-07-31). The old
-“79 vs 110” ambiguity is resolved by that measured number. CI output remains
-authoritative if the suite grows.
+Python 3.11 reported **152** collected tests (measured 2026-07-31). After Gate 1
+toolchain work the suite is larger (~170); CI output remains authoritative.
 
 ### Characterization baseline replaced by WO-003
 
@@ -134,7 +129,7 @@ the module now byte-compares against `tests/golden/<site>/`.
 ## Tests
 
 ```bash
-pytest -q tests/test_canonical.py tests/test_golden.py
-pytest -q   # full suite (measured count is the source of truth)
-python scripts/ci_version_drift.py --ci-python 3.11
+uv run pytest -q tests/test_canonical.py tests/test_golden.py
+uv run pytest -q   # full suite
+python scripts/check_python_version_drift.py --ci-python 3.12
 ```

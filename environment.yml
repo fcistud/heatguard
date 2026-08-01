@@ -1,8 +1,7 @@
 # HeatGuard — shared Conda environment (cross-platform)
 # ======================================================
 # Works with Miniforge, Miniconda, Anaconda, or Mambaforge on macOS, Linux, and Windows.
-# Python 3.11 from conda-forge (osx-arm64, osx-64, linux-64, win-64).
-# Floor stays on 3.11 until WO-008 raises the lock + runtime to 3.12.
+# Python 3.12 from conda-forge (osx-arm64, osx-64, linux-64, win-64).
 #
 # SETUP (run from the repository root — the folder that contains this file)
 # -------------------------------------------------------------------------
@@ -35,17 +34,17 @@
 # TROUBLESHOOTING
 # ---------------
 # - Run create/update from the repo root (paths below are relative to this file).
-# - Use Python 3.11 for now — WO-008 moves the supported floor to 3.12.
+# - Use Python 3.12 — matches Dockerfile runtime and CI canonical interpreter.
 # - If `heatguard` is missing after activate: pip install -e .
 # - No Conda? Prefer: uv sync --frozen --extra api --extra ml --extra dev
-#   Or: python3.11 -m venv .venv && pip install -r requirements.txt && pip install -e ".[api,ml,dev]"
+#   Or: python3.12 -m venv .venv && pip install -r requirements.txt && pip install -e ".[api,ml,dev]"
 #
 name: heatguard
 channels:
   - conda-forge
 channel_priority: strict
 dependencies:
-  - python=3.11
+  - python=3.12
   - pip>=24
   - setuptools>=68
   - wheel

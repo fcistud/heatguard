@@ -4,7 +4,8 @@
 Exit 0 on success. Exit 1 with all three values printed on drift.
 
 Usage:
-  python scripts/ci_version_drift.py --ci-python 3.11
+  python scripts/ci_version_drift.py --ci-python 3.12
+  python scripts/check_python_version_drift.py --ci-python 3.12
 """
 from __future__ import annotations
 
@@ -58,10 +59,15 @@ def main(argv: list[str] | None = None) -> int:
         messages.append(
             f"Dockerfile runtime python ({docker_py}) != CI interpreter ({ci_py})"
         )
-    if majmin(ci_py) < majmin(floor):
+    if majmin(floor) != majmin(ci_py):
         ok = False
         messages.append(
-            f"CI interpreter ({ci_py}) is below pyproject requires-python floor ({floor})"
+            f"pyproject requires-python floor ({floor}) != CI interpreter ({ci_py})"
+        )
+    if majmin(docker_py) != majmin(floor):
+        ok = False
+        messages.append(
+            f"Dockerfile runtime python ({docker_py}) != pyproject floor ({floor})"
         )
 
     print("version-drift check:")

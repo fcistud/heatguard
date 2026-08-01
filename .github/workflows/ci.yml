@@ -5,11 +5,10 @@ on:
     branches: [main]
   pull_request:
 
-# Interpreter matrix for golden parity. Keep 3.11 (pre-upgrade / Dockerfile)
-# required; 3.12 is the migration target and may fail until WO-008 lands.
+# Single supported interpreter after WO-008. Golden parity is required on 3.12.
 env:
-  GOLDEN_PYTHON_VERSIONS: "3.11, 3.12"
-  CANONICAL_PYTHON: "3.11"
+  GOLDEN_PYTHON_VERSIONS: "3.12"
+  CANONICAL_PYTHON: "3.12"
   CANONICAL_NODE: "24"
   UV_VERSION: "0.12.1"
 
@@ -26,7 +25,7 @@ jobs:
         with:
           python-version: ${{ env.CANONICAL_PYTHON }}
       - name: Assert Dockerfile / CI / requires-python agree
-        run: python scripts/ci_version_drift.py --ci-python "${{ env.CANONICAL_PYTHON }}"
+        run: python scripts/check_python_version_drift.py --ci-python "${{ env.CANONICAL_PYTHON }}"
       - name: Assert Dockerfile / CI / engines.node agree
         run: python scripts/ci_node_version_drift.py --ci-node "${{ env.CANONICAL_NODE }}"
 
@@ -100,11 +99,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.12 is the post-upgrade target. Until WO-008 proves parity, treat
-        # 3.12 drift as an explicit signal (job still reports) without blocking
-        # merges — required check is Golden parity (Python 3.11).
-        python-version: ["3.11", "3.12"]
-    continue-on-error: ${{ matrix.python-version == '3.12' }}
+        python-version: ["3.12"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
@@ -187,7 +182,6 @@ jobs:
           test -f dist/index.html
           grep -q '/dashboard/' dist/index.html || grep -q 'dashboard' dist/index.html
           ls dist/assets/*.js | head
-          # Manual chunks from vite.config (react / charts) should appear when split.
           ls dist/assets/ | tee /tmp/assets.txt
           grep -E 'react|charts|index' /tmp/assets.txt
 
@@ -209,7 +203,7 @@ jobs:
           assert not hit, f"tooling extras leaked into runtime image: {hit}"
           print("OK — deck/notebook packages absent from runtime closure")
           PY
-      - name: Serve dashboard + health
+      - name: Serve health, dashboard, demo, forecast
         run: |
           set -euo pipefail
           docker run -d --name hg -p 8080:8080 heatguard:ci
@@ -218,9 +212,26 @@ jobs:
             sleep 2
           done
           curl -sf http://127.0.0.1:8080/health | tee /tmp/health.json
+          python - <<'PY'
+          import json
+          h = json.load(open("/tmp/health.json"))
+          assert h["status"] == "ok", h
+          assert h["python"]["major"] == 3 and h["python"]["minor"] == 12, h
+          print("OK — health reports Python 3.12")
+          PY
+          curl -sf http://127.0.0.1:8080/sites | tee /tmp/sites.json >/dev/null
+          curl -sf http://127.0.0.1:8080/demo/dubai | tee /tmp/demo.json >/dev/null
+          python - <<'PY'
+          import json
+          demo = json.load(open("/tmp/demo.json"))
+          assert demo, demo
+          print("OK — /demo/dubai well-formed")
+          PY
+          curl -sf "http://127.0.0.1:8080/forecast/dubai" | tee /tmp/forecast.json >/dev/null || \
+            curl -sf "http://127.0.0.1:8080/forecast/dubai?days=3" | tee /tmp/forecast.json >/dev/null
+          test -s /tmp/forecast.json
           curl -sfI http://127.0.0.1:8080/dashboard/ | head -n 20 | tee /tmp/dash.hdr
           grep -qi '200\|text/html' /tmp/dash.hdr
-          # Fetch one hashed asset if present
           ASSET=$(curl -sf http://127.0.0.1:8080/dashboard/ | grep -oE '/dashboard/assets/[^"]+\.js' | head -1 || true)
           if [ -n "$ASSET" ]; then
             curl -sfI "http://127.0.0.1:8080${ASSET}" | tee /tmp/asset.hdr

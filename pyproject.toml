@@ -7,8 +7,8 @@ name = "heatguard"
 version = "0.1.0"
 description = "Adaptive WBGT-driven work-rest-hydration scheduler for outdoor labour crews in the Gulf"
 readme = "README.md"
-# Floor matches Dockerfile runtime (python:3.11). WO-008 raises this to >=3.12.
-requires-python = ">=3.11"
+# Floor matches Dockerfile runtime (python:3.12-slim-bookworm).
+requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
     "pythermalcomfort==4.0.1",

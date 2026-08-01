@@ -15,7 +15,7 @@ OUT = ROOT / "requirements.txt"
 
 HEADER = """\
 # GENERATED FILE — do not hand-edit.
-# Source of truth: uv.lock (Python 3.11; WO-008 raises the lock target to 3.12).
+# Source of truth: uv.lock (Python 3.12).
 # Regenerate with:  python scripts/export_requirements.py
 #
 """
