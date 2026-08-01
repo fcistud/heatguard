@@ -7,6 +7,7 @@ support / Demo), and embeds dashboard screenshots so the .pptx is self-contained
 
 Usage:
     python scripts/build_deck.py [TEMPLATE.pptx] [OUTPUT.pptx]
+    python scripts/build_deck.py --dry-run
 """
 from __future__ import annotations
 
@@ -18,6 +19,10 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Inches, Pt
+
+if "--dry-run" in sys.argv:
+    print("OK — python-pptx import graph resolves (dry-run).")
+    raise SystemExit(0)
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = Path(sys.argv[1]) if len(sys.argv) > 1 else next(
