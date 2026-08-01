@@ -69,8 +69,18 @@ def test_epidemiology_loads():
 def test_inventory_reports_policy_and_weather():
     inv = datasets.inventory()
     assert inv["weather"]["archive_total"] >= 7
+    assert inv["weather"]["archive_required_cached"] == inv["weather"]["archive_required"]
+    assert inv["weather"]["forecast_cached"] == inv["weather"]["forecast_total"]
     assert inv["policy"]["file_count"] >= 4
     assert inv["epidemiology"]["source_count"] >= 1
+
+
+def test_required_archives_are_cached_not_just_declared():
+    """Manifest-only counts must not pass when a required cache file is missing."""
+    required = [a for a in datasets.archive_specs() if a.required]
+    assert len(required) == 4
+    assert all(a.cached for a in required)
+    assert all(f.cached for f in datasets.forecast_specs())
 
 
 def test_forecast_timeline_uses_cache(dubai, dubai_forecast_cache):

@@ -35,6 +35,7 @@ class ArchiveSpec:
     note: str | None
     cache_file: str
     cached: bool
+    required: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +49,8 @@ class ForecastSpec:
 
 def archive_specs() -> list[ArchiveSpec]:
     out: list[ArchiveSpec] = []
+    m = load_manifest()
+    demo_keys = {r["site_key"] for r in m["weather"]["archive"]["demo"]}
     for row in _archive_entries():
         site = get_site(row["site_key"])
         start = date.fromisoformat(row["start"])
@@ -61,6 +64,7 @@ def archive_specs() -> list[ArchiveSpec]:
                 note=row.get("note"),
                 cache_file=name,
                 cached=(CACHE_DIR / name).exists(),
+                required=row["site_key"] in demo_keys,
             )
         )
     return out
@@ -162,10 +166,13 @@ def inventory() -> dict:
                     "note": a.note,
                     "cache_file": f"data/cache/{a.cache_file}",
                     "cached": a.cached,
+                    "required": a.required,
                 }
                 for a in archives
             ],
             "archive_cached": sum(1 for a in archives if a.cached),
+            "archive_required": sum(1 for a in archives if a.required),
+            "archive_required_cached": sum(1 for a in archives if a.required and a.cached),
             "archive_total": len(archives),
             "forecast": [
                 {

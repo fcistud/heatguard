@@ -81,8 +81,12 @@
               <tr><th>Asset</th><th>What it is</th><th>Access</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>data/cache/dubai_…json</code></td><td>3,312 hourly rows, Dubai (25.20 N, 55.30 E), Open-Meteo archive</td><td>committed</td></tr>
-              <tr><td><code>data/cache/riyadh_…json</code></td><td>2,568 hourly rows, Riyadh (24.71 N, 46.69 E)</td><td>committed</td></tr>
+              <tr><td><code>dubai_2025-05-01_2025-09-15.json</code></td><td>Dubai archive (demo) — Open-Meteo; see <code>CHECKSUMS.json</code> for SHA-256 + row count</td><td>committed</td></tr>
+              <tr><td><code>riyadh_2024-06-01_2024-09-15.json</code></td><td>Riyadh archive (demo)</td><td>committed</td></tr>
+              <tr><td><code>abu_dhabi_2025-05-01_2025-09-15.json</code></td><td>Abu Dhabi archive (demo)</td><td>committed</td></tr>
+              <tr><td><code>doha_2024-06-01_2024-09-15.json</code></td><td>Doha archive (demo)</td><td>committed</td></tr>
+              <tr><td><code>*_forecast_2d_past1d.json</code></td><td>Forecast caches for dubai, riyadh, abu_dhabi, doha (offline demos)</td><td>committed</td></tr>
+              <tr><td><code>data/cache/CHECKSUMS.json</code></td><td>SHA-256 digests + row counts for every committed cache file</td><td>committed</td></tr>
               <tr><td>Variables per row</td><td><code>temperature_2m</code>, <code>relative_humidity_2m</code>, <code>wind_speed_10m</code>, <code>shortwave_radiation</code>, <code>direct_radiation</code>, <code>dew_point_2m</code>, <code>surface_pressure</code></td><td>—</td></tr>
               <tr><td><code>data/locales.json</code></td><td>7 demo sites (lat/lon/elevation/tz/country)</td><td>committed</td></tr>
               <tr><td><code>data/nicaragua_baseline.json</code></td><td>Intervention effect sizes + cost items</td><td>committed</td></tr>
@@ -110,7 +114,7 @@
             </thead>
             <tbody>
               <tr><td><strong>Open-Meteo Historical (Archive) API</strong></td><td><span class="tag free">free</span></td><td>uses-now</td><td>Key-less ERA5/ERA5-Land reanalysis, hourly, 1940→present, global.</td></tr>
-              <tr><td><strong>Open-Meteo Forecast API</strong></td><td><span class="tag free">free</span></td><td>uses-now</td><td>Same variables; near-live signal. Not cached in-repo (hits network).</td></tr>
+              <tr><td><strong>Open-Meteo Forecast API</strong></td><td><span class="tag free">free</span></td><td>uses-now</td><td>Same variables; near-live signal. Demo sites cached in-repo as <code>*_forecast_2d_past1d.json</code> (refresh via <code>heatguard fetch-datasets</code>).</td></tr>
               <tr><td>ERA5 single-levels (Copernicus CDS)</td><td><span class="tag reg">free+reg</span></td><td>could-use</td><td>The authoritative source Open-Meteo repackages. 0.25° (~28 km), hourly, 1940→. ERA5T ~5-day, final ERA5 ~2–3-month latency.</td></tr>
               <tr><td>ERA5-Land (Copernicus CDS)</td><td><span class="tag reg">free+reg</span></td><td>could-use</td><td>Land-only, 0.1° (~9–11 km), hourly, 1950→.</td></tr>
               <tr><td>ERA5-HEAT (C3S thermal-comfort)</td><td><span class="tag reg">free+reg</span></td><td>reference</td><td>⚠️ Contains UTCI + mean-radiant-temperature only — <strong>NOT WBGT</strong>. There is no official Copernicus WBGT variable.</td></tr>
