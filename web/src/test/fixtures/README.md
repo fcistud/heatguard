@@ -1,0 +1,1 @@
+Fixtures derived from `tests/golden/dubai/hourly.json` for WO-004 frontend parity tests.\nDRINK_NOW and measured provenance are synthetic overlays on golden advisories.\n

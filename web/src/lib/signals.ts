@@ -63,3 +63,9 @@ export const WBGT_SOURCE_LABEL: Record<string, string> = {
   measured: "Measured (sensor)",
   fallback: "Fallback estimate",
 };
+
+/** Display label for WBGT provenance — never blank (evidentiary surface). */
+export function wbgtSourceLabel(source: string | null | undefined): string {
+  if (source == null || source === "") return "Provenance unavailable";
+  return WBGT_SOURCE_LABEL[source] ?? `Unverified source (${source})`;
+}

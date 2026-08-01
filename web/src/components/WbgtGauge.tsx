@@ -1,4 +1,4 @@
-import { riskColor, WBGT_SOURCE_LABEL } from "../lib/signals";
+import { riskColor, wbgtSourceLabel } from "../lib/signals";
 import type { WbgtSource } from "../types";
 
 interface WbgtGaugeProps {
@@ -129,7 +129,7 @@ export function WbgtGauge({ wbgt, riskScore, airTemp, rh, source }: WbgtGaugePro
 
       <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
         <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-        {WBGT_SOURCE_LABEL[source] ?? source}
+        {wbgtSourceLabel(source)}
       </div>
     </div>
   );
