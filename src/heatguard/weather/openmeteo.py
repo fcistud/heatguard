@@ -1,9 +1,9 @@
 """Open-Meteo client — free, no API key.
 
 Archive (reanalysis) for replaying real days/seasons, and the forecast endpoint
-for a near-live signal. Responses are cached to ``data/cache/`` so the stage demo
-never touches the network. Wind is requested in m/s and pressure comes in hPa,
-matching the engine's ``Weather`` units.
+for a near-live signal. Responses are cached under ``HEATGUARD_CACHE_DIR``
+(default ``data/cache/``) so the stage demo never touches the network. Wind is
+requested in m/s and pressure comes in hPa, matching the engine's ``Weather`` units.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from .._paths import CACHE_DIR, cache_file
+from .._paths import CACHE_DIR, cache_file, ensure_cache_writable
 from ..types import Site, Weather
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -90,7 +90,7 @@ def fetch_archive(
     use_cache: bool = True,
     refresh: bool = False,
 ) -> list[Weather]:
-    """Hourly reanalysis for [start, end]. Cached under ``data/cache/``."""
+    """Hourly reanalysis for [start, end]. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
     path = cache_file(cache_name_for(site, start, end))
     if use_cache and not refresh and path.exists():
         payload = json.loads(path.read_text())
@@ -101,7 +101,7 @@ def fetch_archive(
         resp = httpx.get(ARCHIVE_URL, params=params, timeout=90)
         resp.raise_for_status()
         payload = resp.json()
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_cache_writable(CACHE_DIR)
         path.write_text(json.dumps(payload))
     return _parse(payload, site)
 
@@ -113,7 +113,7 @@ def fetch_forecast(
     use_cache: bool = True,
     refresh: bool = False,
 ) -> list[Weather]:
-    """Near-live hourly forecast. Cached under ``data/cache/`` like archive data."""
+    """Near-live hourly forecast. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
     path = cache_file(forecast_cache_name_for(site, forecast_days, past_days))
     if use_cache and not refresh and path.exists():
         payload = json.loads(path.read_text())
@@ -124,7 +124,7 @@ def fetch_forecast(
         resp = httpx.get(FORECAST_URL, params=params, timeout=60)
         resp.raise_for_status()
         payload = resp.json()
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_cache_writable(CACHE_DIR)
         path.write_text(json.dumps(payload))
     return _parse(payload, site)
 

@@ -27,6 +27,8 @@ jobs:
         run: python scripts/check_python_version_drift.py --ci-python "${{ env.CANONICAL_PYTHON }}"
       - name: Assert Dockerfile / CI / engines.node agree
         run: python scripts/ci_node_version_drift.py --ci-node "${{ env.CANONICAL_NODE }}"
+      - name: Assert Dockerfile FROM lines are digest-pinned
+        run: python scripts/check_dockerfile_digests.py
 
   python-tests:
     name: Python engine + API tests
@@ -186,7 +188,7 @@ jobs:
           grep -E 'react|charts|index' /tmp/assets.txt
 
   container-smoke:
-    name: Container image smoke
+    name: Container image smoke (hardened)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -203,14 +205,28 @@ jobs:
           assert not hit, f"tooling extras leaked into runtime image: {hit}"
           print("OK — deck/notebook packages absent from runtime closure")
           PY
-      - name: Serve health, dashboard, demo, forecast
+      - name: Assert non-root UID 10001
         run: |
           set -euo pipefail
-          docker run -d --name hg -p 8080:8080 heatguard:ci
+          uid="$(docker run --rm --entrypoint id heatguard:ci -u)"
+          test "${uid}" = "10001"
+          echo "OK — default user UID ${uid}"
+      - name: Serve health, sites, demo, forecast (read-only + tmpfs cache)
+        run: |
+          set -euo pipefail
+          docker run -d --name hg -p 8080:8080 \
+            --read-only \
+            --tmpfs /tmp:rw,mode=1777 \
+            --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
+            -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
+            heatguard:ci
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:8080/health >/dev/null; then break; fi
             sleep 2
           done
+          proc_uid="$(docker exec hg id -u)"
+          test "${proc_uid}" = "10001"
+          echo "OK — running process UID ${proc_uid}"
           curl -sf http://127.0.0.1:8080/health | tee /tmp/health.json
           python - <<'PY'
           import json
@@ -227,9 +243,14 @@ jobs:
           assert demo, demo
           print("OK — /demo/dubai well-formed")
           PY
-          curl -sf "http://127.0.0.1:8080/forecast/dubai" | tee /tmp/forecast.json >/dev/null || \
-            curl -sf "http://127.0.0.1:8080/forecast/dubai?days=3" | tee /tmp/forecast.json >/dev/null
+          docker exec hg sh -c 'rm -f /var/cache/heatguard/*_forecast_*.json'
+          curl -sf "http://127.0.0.1:8080/forecast/dubai" | tee /tmp/forecast.json >/dev/null
           test -s /tmp/forecast.json
+          docker exec hg sh -c 'ls /var/cache/heatguard/*_forecast_*.json | head -1' | tee /tmp/forecast-cache.path
+          test -s /tmp/forecast-cache.path
+          curl -sf "http://127.0.0.1:8080/forecast/dubai" | tee /tmp/forecast2.json >/dev/null
+          test -s /tmp/forecast2.json
+          echo "OK — forecast cache-miss write + warm read"
           curl -sfI http://127.0.0.1:8080/dashboard/ | head -n 20 | tee /tmp/dash.hdr
           grep -qi '200\|text/html' /tmp/dash.hdr
           ASSET=$(curl -sf http://127.0.0.1:8080/dashboard/ | grep -oE '/dashboard/assets/[^"]+\.js' | head -1 || true)
@@ -238,3 +259,17 @@ jobs:
             grep -qi '200\|javascript\|text/javascript\|application/javascript' /tmp/asset.hdr
           fi
           docker rm -f hg
+
+  build-determinism:
+    name: Container build determinism
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Build twice and diff dependency sets
+        run: bash scripts/check_build_determinism.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: build-determinism
+          path: artifacts/build-determinism/
+          if-no-files-found: ignore

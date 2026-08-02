@@ -2,6 +2,7 @@
 # Manual submit: gcloud builds submit --config cloudbuild.yaml
 #
 # Uses $BUILD_ID for image tags (always set). $COMMIT_SHA is only set on repo triggers.
+# Deploy uses the immutable image digest (not :latest).
 #
 # Substitutions (override with --substitutions=KEY=VALUE):
 #   _REGION       Cloud Run region (default us-central1)
@@ -30,22 +31,31 @@ steps:
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - run
-      - deploy
-      - ${_SERVICE}
-      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
-      - --region=${_REGION}
-      - --platform=managed
-      - --allow-unauthenticated
-      - --memory=1Gi
-      - --cpu=1
-      - --min-instances=0
-      - --max-instances=3
-      - --timeout=120
-      - --project=$PROJECT_ID
-      - --set-env-vars=HEATGUARD_DATA_DIR=/app/data,HEATGUARD_STATIC_DIR=/app/static,HEATGUARD_LANDING_DIR=/app/landing
+      - -c
+      - |
+        set -euo pipefail
+        IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}"
+        DIGEST="$(gcloud artifacts docker images describe "${IMAGE}:$BUILD_ID" \
+          --format='get(image_summary.digest)')"
+        echo "Deploying ${IMAGE}@${DIGEST}"
+        gcloud run deploy "${_SERVICE}" \
+          --image="${IMAGE}@${DIGEST}" \
+          --region="${_REGION}" \
+          --platform=managed \
+          --allow-unauthenticated \
+          --memory=1Gi \
+          --cpu=1 \
+          --min-instances=0 \
+          --max-instances=3 \
+          --timeout=120 \
+          --project="$PROJECT_ID" \
+          --set-env-vars="HEATGUARD_DATA_DIR=/app/data,HEATGUARD_CACHE_DIR=/var/cache/heatguard,HEATGUARD_STATIC_DIR=/app/static,HEATGUARD_LANDING_DIR=/app/landing,NUMBA_CACHE_DIR=/tmp/numba_cache" \
+          --add-volume=name=hg-cache,type=in-memory,size-limit=256Mi \
+          --add-volume-mount=volume=hg-cache,mount-path=/var/cache/heatguard \
+          --add-volume=name=hg-tmp,type=in-memory,size-limit=128Mi \
+          --add-volume-mount=volume=hg-tmp,mount-path=/tmp
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID

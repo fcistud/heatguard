@@ -29,6 +29,8 @@ def main() -> int:
             "--frozen",
             "--extra",
             "api",
+            "--extra",
+            "ml",
             "--no-emit-project",
         ],
         cwd=ROOT,
