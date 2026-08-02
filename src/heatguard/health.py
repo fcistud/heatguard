@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 from typing import Callable, Literal
 
-from ._paths import CACHE_DIR, data_file
+from ._paths import data_file
 
 Kind = Literal["hard", "optional"]
 ReadyStatus = Literal["ready", "degraded", "not_ready"]
@@ -95,8 +95,11 @@ def _check_sites() -> str | None:
     from .sites import load_sites
 
     sites = load_sites()
-    if len(sites) != EXPECTED_SITE_COUNT:
-        return f"expected {EXPECTED_SITE_COUNT} sites in locales.json, found {len(sites)}"
+    if len(sites) < EXPECTED_SITE_COUNT:
+        return (
+            f"expected at least {EXPECTED_SITE_COUNT} sites in locales.json, "
+            f"found {len(sites)}"
+        )
     return None
 
 
@@ -148,14 +151,11 @@ def _check_policy_rag() -> str | None:
 def _check_archive_caches() -> str | None:
     from .datasets import archive_specs
 
-    missing = [s.site_key for s in archive_specs() if s.required and not s.cached]
-    # Also surface non-required absences lightly via any missing required demos.
+    specs = archive_specs()
+    missing = [s.site_key for s in specs if s.required and not s.cached]
     if missing:
         return "missing required archive cache for: " + ", ".join(sorted(set(missing)))
-    # Optional: note any non-required archive gaps without failing hard.
-    optional_missing = [
-        s.site_key for s in archive_specs() if (not s.required) and not (CACHE_DIR / s.cache_file).exists()
-    ]
+    optional_missing = [s.site_key for s in specs if (not s.required) and not s.cached]
     if optional_missing:
         return "missing optional archive cache for: " + ", ".join(sorted(set(optional_missing)))
     return None

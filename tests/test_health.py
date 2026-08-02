@@ -13,6 +13,7 @@ from heatguard import health as health_mod  # noqa: E402
 from heatguard._paths import _REPO_ROOT  # noqa: E402
 from heatguard.api import app  # noqa: E402
 from heatguard.health import (  # noqa: E402
+    EXPECTED_SITE_COUNT,
     DependencyCheck,
     clear_readiness_cache,
     get_readiness,
@@ -171,6 +172,25 @@ def test_api_ready_503_when_data_dir_broken(monkeypatch: pytest.MonkeyPatch) -> 
     body = ready.json()
     assert body["status"] == "not_ready"
     assert body["failed"]
+
+
+def test_check_sites_allows_more_than_expected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Extra locales must not fail readiness (forward-compatible registry growth)."""
+    monkeypatch.setattr(
+        "heatguard.sites.load_sites",
+        lambda: {f"s{i}": object() for i in range(EXPECTED_SITE_COUNT + 2)},
+    )
+    assert health_mod._check_sites() is None
+
+
+def test_check_sites_fails_when_below_expected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "heatguard.sites.load_sites",
+        lambda: {f"s{i}": object() for i in range(EXPECTED_SITE_COUNT - 1)},
+    )
+    reason = health_mod._check_sites()
+    assert reason is not None
+    assert "at least" in reason
 
 
 def test_valid_fixture_satisfies_hard_deps(monkeypatch: pytest.MonkeyPatch) -> None:
