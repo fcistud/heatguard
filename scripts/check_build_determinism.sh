@@ -14,9 +14,9 @@ cleanup() {
 trap cleanup EXIT
 
 echo "==> Build A"
-docker build -t "${TAG_A}" .
+docker build --no-cache -t "${TAG_A}" .
 echo "==> Build B"
-docker build -t "${TAG_B}" .
+docker build --no-cache -t "${TAG_B}" .
 
 extract_python() {
   local tag="$1" dest="$2"

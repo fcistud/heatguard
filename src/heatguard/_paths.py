@@ -11,6 +11,7 @@ without relocating the baked offline baseline under ``data/``.
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -57,9 +58,10 @@ def ensure_cache_writable(cache_dir: Path | None = None) -> Path:
     path = cache_dir if cache_dir is not None else CACHE_DIR
     try:
         path.mkdir(parents=True, exist_ok=True)
-        probe = path / ".heatguard_write_probe"
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink()
+        # Unique probe name avoids races when multiple processes check concurrently.
+        fd, probe_path = tempfile.mkstemp(prefix=".heatguard_write_probe_", dir=path)
+        os.close(fd)
+        Path(probe_path).unlink(missing_ok=True)
     except OSError as exc:
         raise RuntimeError(
             f"HeatGuard cache directory is not writable: {path}. "

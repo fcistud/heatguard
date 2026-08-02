@@ -14,7 +14,7 @@ FROM node:24-bookworm-slim@sha256:235600a8101ab264e117b1768e925532262668dc9b581e
 WORKDIR /build/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci \
-    && npm ls --all --omit=dev --package-lock-only >/tmp/npm-ls.txt 2>&1 || npm ls --all >/tmp/npm-ls.txt 2>&1 \
+    && (npm ls --all --omit=dev --package-lock-only >/tmp/npm-ls.txt 2>&1 || npm ls --all >/tmp/npm-ls.txt 2>&1) \
     && sort -u /tmp/npm-ls.txt > /tmp/npm-deps.txt
 COPY web/ ./
 # Same origin as API — empty base URL so fetch("/health") works on Cloud Run.
