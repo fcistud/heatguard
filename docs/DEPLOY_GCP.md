@@ -83,10 +83,32 @@ gcloud run services describe heatguard --region="${REGION}" --format='value(stat
 
 ```bash
 docker build -t heatguard .
-docker run --rm -p 8080:8080 -e PORT=8080 heatguard
+# Hardened local run (matches CI): read-only root + writable cache tmpfs
+docker run --rm -p 8080:8080 --read-only \
+  --tmpfs /tmp:rw,mode=1777 \
+  --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
+  -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
+  -e PORT=8080 \
+  heatguard
 ```
 
 Open http://localhost:8080/ (landing) and http://localhost:8080/dashboard/ (dashboard).
+
+The image runs as UID/GID **10001**. Cloud Build deploys by **immutable image digest** (not `:latest`) and attaches an in-memory volume at `/var/cache/heatguard`.
+
+### Updating base image digests
+
+Dockerfile `FROM` lines are pinned with `@sha256:…`. When applying security patches:
+
+1. `docker pull python:3.12-slim-bookworm` and `docker pull node:24-bookworm-slim`
+2. Read digests: `docker image inspect … --format '{{index .RepoDigests 0}}'`
+3. Update both `FROM` lines in `Dockerfile`
+4. Confirm `python scripts/check_dockerfile_digests.py` and CI container-smoke pass
+5. Owner: whoever merges the digest bump PR (same as other infra changes)
+
+### Runtime write-path audit
+
+Under a read-only root, the only intentional runtime write path is the weather cache (`HEATGUARD_CACHE_DIR`). Offline training (`risk_model.train_and_save`), golden capture, and similar tooling write under `DATA_DIR` and are not used by the API process in production.
 
 ### Why Docker feels slow
 
@@ -112,7 +134,9 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | Variable | Default (container) | Purpose |
 |----------|---------------------|---------|
 | `PORT` | `8080` | Cloud Run injects this |
-| `HEATGUARD_DATA_DIR` | `/app/data` | Weather cache, models, policy |
+| `HEATGUARD_DATA_DIR` | `/app/data` | Baked models, policy, offline weather baseline |
+| `HEATGUARD_CACHE_DIR` | `/var/cache/heatguard` | Writable weather cache (tmpfs / in-memory volume) |
+| `NUMBA_CACHE_DIR` | `/tmp/numba_cache` | Writable Numba cache (requires `/tmp` tmpfs under read-only root) |
 | `HEATGUARD_STATIC_DIR` | `/app/static` | Built React app (mounted at `/dashboard/`) |
 | `HEATGUARD_LANDING_DIR` | `/app/landing` | Marketing page (mounted at `/`) |
 | `HEATGUARD_CORS_ORIGINS` | `*` | Comma-separated origins if dashboard is hosted elsewhere |

@@ -11,7 +11,7 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from .._paths import CACHE_DIR, cache_file
+from .._paths import CACHE_DIR, cache_file, ensure_cache_writable
 from ..types import Site, Weather
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -101,7 +101,7 @@ def fetch_archive(
         resp = httpx.get(ARCHIVE_URL, params=params, timeout=90)
         resp.raise_for_status()
         payload = resp.json()
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_cache_writable(CACHE_DIR)
         path.write_text(json.dumps(payload))
     return _parse(payload, site)
 
@@ -124,7 +124,7 @@ def fetch_forecast(
         resp = httpx.get(FORECAST_URL, params=params, timeout=60)
         resp.raise_for_status()
         payload = resp.json()
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        ensure_cache_writable(CACHE_DIR)
         path.write_text(json.dumps(payload))
     return _parse(payload, site)
 
