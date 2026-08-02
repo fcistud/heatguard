@@ -23,12 +23,13 @@ python3 -m uvicorn heatguard.api:app --port "${API_PORT}" > /tmp/heatguard_api.l
 API_PID=$!
 trap 'kill ${API_PID} 2>/dev/null || true' EXIT
 
-# wait for the API to answer
+# wait for the API process (liveness); readiness is separate for orchestrators
 for _ in $(seq 1 30); do
-  curl -s "http://localhost:${API_PORT}/health" >/dev/null 2>&1 && break
+  curl -s "http://localhost:${API_PORT}/health/live" >/dev/null 2>&1 && break
   sleep 1
 done
-echo "    API health: $(curl -s "http://localhost:${API_PORT}/health" || echo 'not up — see /tmp/heatguard_api.log')"
+echo "    API live: $(curl -s "http://localhost:${API_PORT}/health/live" || echo 'not up — see /tmp/heatguard_api.log')"
+echo "    API ready: $(curl -s "http://localhost:${API_PORT}/health/ready" || echo 'not ready')"
 
 echo "==> Starting dashboard on http://localhost:${WEB_PORT}/dashboard/  (Ctrl-C to stop both)"
 echo "    (CLI alternative:  heatguard demo dubai   |   heatguard roi riyadh)"

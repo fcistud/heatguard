@@ -14,9 +14,10 @@ from datetime import date
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
+from . import health as health_probes
 from . import service
 from .sites import get_site
 from .types import MetabolicCategory
@@ -73,9 +74,9 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
-def health() -> dict:
-    # Interpreter observability for WO-008 drift / Cloud Run triage.
+def _legacy_health_body() -> dict:
+    # Deprecated alias — unconditional 200 for Docker HEALTHCHECK / run_demo.sh.
+    # Interpreter observability retained for WO-008 drift / Cloud Run triage.
     v = sys.version_info
     return {
         "status": "ok",
@@ -88,9 +89,55 @@ def health() -> dict:
     }
 
 
-@app.get("/health/", include_in_schema=False)
-def health_trailing_slash() -> RedirectResponse:
-    return RedirectResponse(url="/health", status_code=308)
+@app.get(
+    "/health/live",
+    summary="Liveness probe",
+    description="Process liveness only. Never touches disk, caches, or the network.",
+)
+def health_live(response: Response) -> dict:
+    response.headers["Cache-Control"] = "no-store"
+    return health_probes.liveness()
+
+
+@app.get(
+    "/health/ready",
+    summary="Readiness probe",
+    description=(
+        "Dependency readiness. Returns 200 ready, 200 degraded (optional deps missing), "
+        "or 503 not_ready (hard deps missing). Open-Meteo is never probed."
+    ),
+    responses={503: {"description": "Hard dependency missing"}},
+)
+def health_ready(response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    result = health_probes.get_readiness()
+    body = result.to_dict()
+    if result.status == "not_ready":
+        return JSONResponse(body, status_code=503, headers={"Cache-Control": "no-store"})
+    return body
+
+
+@app.get(
+    "/health",
+    deprecated=True,
+    summary="Deprecated health alias",
+    description=(
+        "Deprecated unconditional 200 alias retained for backwards compatibility. "
+        "Prefer GET /health/live (liveness) or GET /health/ready (readiness)."
+    ),
+)
+def health() -> dict:
+    return _legacy_health_body()
+
+
+@app.get(
+    "/health/",
+    include_in_schema=False,
+    deprecated=True,
+)
+def health_trailing_slash() -> dict:
+    """Deprecated unconditional 200 alias (trailing slash)."""
+    return _legacy_health_body()
 
 
 @app.get("/sites")

@@ -6,7 +6,7 @@ One **Cloud Run** service serves:
 |----------|---------|
 | `/` | Static marketing landing page |
 | `/dashboard/` | React supervisor dashboard |
-| `/health`, `/demo/…`, etc. | FastAPI engine |
+| `/health/live`, `/health/ready`, `/demo/…` | FastAPI engine (probes + API) |
 
 Weather caches, policy corpus, and ML model are **baked into the image** (~1.2 MB data) so the demo runs without external databases.
 
@@ -137,6 +137,7 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_DATA_DIR` | `/app/data` | Baked models, policy, offline weather baseline |
 | `HEATGUARD_CACHE_DIR` | `/var/cache/heatguard` | Writable weather cache (tmpfs / in-memory volume) |
 | `NUMBA_CACHE_DIR` | `/tmp/numba_cache` | Writable Numba cache (requires `/tmp` tmpfs under read-only root) |
+| `HEATGUARD_READINESS_TTL_SECONDS` | `5` | Memoisation window for `/health/ready` dependency checks |
 | `HEATGUARD_STATIC_DIR` | `/app/static` | Built React app (mounted at `/dashboard/`) |
 | `HEATGUARD_LANDING_DIR` | `/app/landing` | Marketing page (mounted at `/`) |
 | `HEATGUARD_CORS_ORIGINS` | `*` | Comma-separated origins if dashboard is hosted elsewhere |
@@ -185,7 +186,7 @@ Connect the repo to [Cloud Build triggers](https://cloud.google.com/build/docs/a
 | Issue | Fix |
 |-------|-----|
 | `503` on first request | Cold start — wait or set `--min-instances=1` |
-| Dashboard loads but API errors | Check `/health`; ensure `HEATGUARD_DATA_DIR` points at baked-in `data/` |
+| Dashboard loads but API errors | Check `/health/ready` (deps) and `/health/live` (process); ensure `HEATGUARD_DATA_DIR` points at baked-in `data/` |
 | `fetch-demo` / missing cache | Data is in the image; rebuild if you added new cache files |
 | Build fails on `npm ci` | Commit `web/package-lock.json` |
 | Out of memory | Increase to `--memory=2Gi` |

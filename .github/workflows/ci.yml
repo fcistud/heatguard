@@ -228,12 +228,18 @@ jobs:
           test "${proc_uid}" = "10001"
           echo "OK — running process UID ${proc_uid}"
           curl -sf http://127.0.0.1:8080/health | tee /tmp/health.json
+          curl -sf http://127.0.0.1:8080/health/live | tee /tmp/live.json
+          curl -sf http://127.0.0.1:8080/health/ready | tee /tmp/ready.json
           python - <<'PY'
           import json
           h = json.load(open("/tmp/health.json"))
           assert h["status"] == "ok", h
           assert h["python"]["major"] == 3 and h["python"]["minor"] == 12, h
-          print("OK — health reports Python 3.12")
+          live = json.load(open("/tmp/live.json"))
+          assert live["status"] == "ok" and "uptime_seconds" in live, live
+          ready = json.load(open("/tmp/ready.json"))
+          assert ready["status"] in {"ready", "degraded"}, ready
+          print("OK — health / live / ready probes")
           PY
           curl -sf http://127.0.0.1:8080/sites | tee /tmp/sites.json >/dev/null
           curl -sf http://127.0.0.1:8080/demo/dubai | tee /tmp/demo.json >/dev/null
