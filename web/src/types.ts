@@ -2,6 +2,7 @@
 
 export type Signal = "WORK" | "REST_IN_SHADE" | "DRINK_NOW" | "STOP";
 export type WbgtSource = "liljegren" | "fallback" | "measured";
+export type ModelSource = "ml" | "heuristic";
 export type Intensity = "light" | "moderate" | "heavy" | "very_heavy";
 
 export interface SiteSummary {
@@ -75,6 +76,8 @@ export interface Timeline {
 /** Response of GET /hour/{site}/{day}/{hour} — a single recomputed hour. */
 export interface HourAdvisory {
   advisory: Advisory;
+  /** Personal-risk overlay provenance: trained model vs heuristic fallback. */
+  model_source: ModelSource;
   estimated_wbgt_c: number;
   estimated_source: string;
   measured: boolean;
@@ -268,6 +271,8 @@ export interface DecideRequest {
 
 export interface DecideResponse {
   advisory: Advisory;
+  /** Personal-risk overlay provenance: trained model vs heuristic fallback. */
+  model_source: ModelSource;
   banned: boolean;
   ban_description: string;
   live: Signal[]; // 60 signals
@@ -287,8 +292,10 @@ export interface PolicyAnswer {
   answer: string;
   method: string;
   sources: PolicySource[];
-  degraded?: boolean;
-  degraded_reason?: string | null;
+  /** Always present; true when the policy index is unavailable. */
+  degraded: boolean;
+  /** Stable public reason when degraded, otherwise null. */
+  degraded_reason: string | null;
 }
 
 /** GET /forecast/{site} — near-live Open-Meteo forecast with engine signals. */
