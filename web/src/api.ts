@@ -31,12 +31,16 @@ function qs(params: Record<string, string | number | undefined>): string {
 export const API_BASE: string =
   (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8000";
 
+export type ApiErrorKind = "http" | "network" | "parse_error";
+
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  kind: ApiErrorKind;
+  constructor(message: string, status: number, kind: ApiErrorKind = "http") {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.kind = kind;
   }
 }
 
@@ -49,6 +53,7 @@ async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(
       "Could not reach the HeatGuard API. Is it running?",
       0,
+      "network",
     );
   }
   if (!res.ok) {
@@ -57,11 +62,15 @@ async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
       const body = (await res.json()) as { detail?: string };
       if (body?.detail) detail = body.detail;
     } catch {
-      /* ignore parse errors */
+      /* error body may be non-JSON — keep statusText */
     }
-    throw new ApiError(detail, res.status);
+    throw new ApiError(detail, res.status, "http");
   }
-  return (await res.json()) as T;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new ApiError("Failed to parse API response as JSON", res.status, "parse_error");
+  }
 }
 
 export const api = {

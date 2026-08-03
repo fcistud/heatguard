@@ -1,0 +1,45 @@
+{
+  "utc_offset_seconds": 14400,
+  "hourly": {
+    "time": [
+      "2025-05-16T05:00",
+      "2025-05-16T06:00",
+      "2025-05-16T07:00"
+    ],
+    "temperature_2m": [
+      32.0,
+      33.0,
+      34.0
+    ],
+    "relative_humidity_2m": [
+      null,
+      null,
+      null
+    ],
+    "wind_speed_10m": [
+      2.0,
+      2.1,
+      2.2
+    ],
+    "shortwave_radiation": [
+      100.0,
+      200.0,
+      300.0
+    ],
+    "direct_radiation": [
+      80.0,
+      160.0,
+      240.0
+    ],
+    "dew_point_2m": [
+      15.0,
+      16.0,
+      17.0
+    ],
+    "surface_pressure": [
+      null,
+      null,
+      null
+    ]
+  }
+}

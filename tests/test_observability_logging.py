@@ -23,6 +23,12 @@ from heatguard.observability import (
     configure_logging,
     emit_auth_deprecated_anonymous,
 )
+from heatguard.observability.events import (
+    ENGINE_PHS_WARNING,
+    POLICY_INDEX_UNAVAILABLE,
+    RISK_MODEL_HEURISTIC_FALLBACK,
+    WEATHER_FIELD_SUBSTITUTED,
+)
 from heatguard.observability import logging as obs_logging
 from heatguard.observability.logging import redact_processor
 
@@ -34,6 +40,10 @@ EXPECTED = json.loads(
 @pytest.fixture
 def captured_logs():
     """Capture structlog event dicts while keeping request-context + redaction processors."""
+    from heatguard.observability import degradation as deg
+
+    # One-shot degradation events must be re-emit-able per capture window.
+    deg.clear_degradation_state()
     entries: list[dict[str, Any]] = []
 
     def _capture(
@@ -61,6 +71,7 @@ def captured_logs():
     )
     yield entries
     sink.close()
+    deg.clear_degradation_state()
     configure_logging(level="INFO")
 
 
@@ -206,8 +217,17 @@ def test_event_schemas_for_instrumented_paths(captured_logs: list[dict]) -> None
     )
     client.get("/compliance/dubai/export?fmt=csv")
 
+    # Degraded-path / dual-mode events are schema-covered by the fixture and
+    # exercised in dedicated tests — not expected on this happy-path smoke.
+    skip_presence = {
+        AUTH_DEPRECATED_ANONYMOUS,
+        WEATHER_FIELD_SUBSTITUTED,
+        POLICY_INDEX_UNAVAILABLE,
+        RISK_MODEL_HEURISTIC_FALLBACK,
+        ENGINE_PHS_WARNING,
+    }
     for name, keys in EXPECTED.items():
-        if name == AUTH_DEPRECATED_ANONYMOUS:
+        if name in skip_presence:
             continue
         matched = _events(captured_logs, name)
         assert matched, f"expected at least one {name} event in {[e.get('event') for e in captured_logs]}"

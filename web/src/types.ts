@@ -287,6 +287,8 @@ export interface PolicyAnswer {
   answer: string;
   method: string;
   sources: PolicySource[];
+  degraded?: boolean;
+  degraded_reason?: string | null;
 }
 
 /** GET /forecast/{site} — near-live Open-Meteo forecast with engine signals. */

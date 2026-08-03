@@ -56,6 +56,8 @@ class PolicyAnswer:
     answer: str
     sources: list[PolicyHit]
     method: str = "tfidf-retrieval"
+    degraded: bool = False
+    degraded_reason: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -63,6 +65,8 @@ class PolicyAnswer:
             "answer": self.answer,
             "method": self.method,
             "sources": [asdict(s) for s in self.sources],
+            "degraded": self.degraded,
+            "degraded_reason": self.degraded_reason,
         }
 
 
@@ -125,7 +129,9 @@ def retrieve(question: str, top_k: int = 3) -> list[PolicyHit]:
     from .observability.tracing import ATTR_ROWS, set_attrs, span
 
     with span("policy.retrieve") as sp:
-        if not _HAS_SKLEARN:
+        available, reason = policy_index_status()
+        if not available:
+            _report_policy_unavailable(reason or "unavailable")
             set_attrs(sp, **{ATTR_ROWS: 0})
             return []
 
@@ -155,7 +161,42 @@ def retrieve(question: str, top_k: int = 3) -> list[PolicyHit]:
         return hits
 
 
-def _synthesize(question: str, hits: list[PolicyHit]) -> str:
+def policy_index_status() -> tuple[bool, str | None]:
+    """Return ``(available, reason)`` for the policy index."""
+    if not _HAS_SKLEARN:
+        return False, "sklearn missing"
+    try:
+        idx = _build_index()
+    except Exception as exc:  # noqa: BLE001
+        return False, f"{type(exc).__name__}: {exc}"
+    if not idx.chunks:
+        return False, "empty corpus"
+    return True, None
+
+
+def _report_policy_unavailable(reason: str) -> None:
+    from .observability import degradation as deg
+    from .observability.metrics import observe_degraded_condition
+
+    deg.report_degraded(
+        deg.POLICY_INDEX_UNAVAILABLE,
+        detail=reason,
+        once_key=f"policy.index_unavailable:{reason}",
+        log_event=deg.POLICY_INDEX_UNAVAILABLE_EVENT,
+        log_fields={"reason": reason},
+        increment_metric=lambda: observe_degraded_condition(
+            reason_code=deg.POLICY_INDEX_UNAVAILABLE
+        ),
+    )
+
+
+def _synthesize(question: str, hits: list[PolicyHit], *, degraded: bool = False) -> str:
+    if degraded:
+        return (
+            "Policy index unavailable — HeatGuard cannot retrieve regulatory excerpts "
+            "in this process (missing scikit-learn or empty corpus). "
+            "Deterministic WBGT scheduling remains available."
+        )
     if not hits:
         return (
             "No matching excerpts in the committed policy corpus. "
@@ -180,6 +221,19 @@ def _synthesize(question: str, hits: list[PolicyHit]) -> str:
 def query_policy(question: str, top_k: int = 3) -> PolicyAnswer:
     """Answer a policy question via retrieval + cited extractive synthesis."""
     from .observability import POLICY_QUERY, get_logger
+
+    available, reason = policy_index_status()
+    if not available:
+        _report_policy_unavailable(reason or "unavailable")
+        get_logger(__name__).info(POLICY_QUERY, top_k=top_k, hit_count=0, degraded=True)
+        return PolicyAnswer(
+            question=question,
+            answer=_synthesize(question, [], degraded=True),
+            sources=[],
+            method="unavailable",
+            degraded=True,
+            degraded_reason=reason,
+        )
 
     hits = retrieve(question, top_k=top_k)
     get_logger(__name__).info(

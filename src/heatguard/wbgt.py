@@ -104,14 +104,56 @@ def _estimate_wbgt_impl(
         try:
             val = wbgt_liljegren(w, site, cossza)
             if math.isfinite(val) and (w.tdb_c - 40.0) < val < (w.tdb_c + 8.0):
+                _report_wbgt_path("liljegren")
                 return WbgtEstimate(val, "liljegren", _globe_from_wbgt(val, w.tdb_c, w.rh_pct))
-        except Exception:
-            pass
+            _report_wbgt_path("fallback_invalid")
+        except Exception as exc:
+            _report_wbgt_path(
+                "fallback_exception",
+                exception_type=type(exc).__name__,
+                latch_degraded=True,
+            )
+            val, tg = wbgt_fallback(w.tdb_c, w.rh_pct, w.shortwave_wm2, w.wind_ms)
+            return WbgtEstimate(val, "fallback", tg)
+    else:
+        _report_wbgt_path("fallback_night")
 
     val, tg = wbgt_fallback(w.tdb_c, w.rh_pct, w.shortwave_wm2, w.wind_ms)
     return WbgtEstimate(val, "fallback", tg)
 
 
+def _report_wbgt_path(
+    path: str,
+    *,
+    exception_type: str | None = None,
+    latch_degraded: bool = False,
+) -> None:
+    """Emit path metric always; log + readiness latch are deduplicated."""
+    from .observability import degradation as deg
+    from .observability.metrics import observe_degraded_condition, observe_wbgt_path
+
+    observe_wbgt_path(path=path)
+    fields = {"path": path, "exception_type": exception_type}
+    if latch_degraded:
+        deg.report_degraded(
+            deg.WBGT_FALLBACK_ACTIVE,
+            detail=exception_type or path,
+            once_key=f"wbgt:{path}:{exception_type or ''}",
+            log_event=deg.WBGT_PATH_SELECTED,
+            log_fields=fields,
+            increment_metric=lambda: observe_degraded_condition(
+                reason_code=deg.WBGT_FALLBACK_ACTIVE
+            ),
+        )
+    else:
+        deg.emit_once(
+            f"wbgt.path_selected:{path}",
+            deg.WBGT_PATH_SELECTED,
+            **fields,
+        )
+
+
 def from_measured(wbgt_c: float, tdb_c: float, rh_pct: float) -> WbgtEstimate:
     """Wrap a supervisor's on-site WBGT-meter reading (bypasses estimation)."""
+    _report_wbgt_path("measured")
     return WbgtEstimate(wbgt_c, "measured", _globe_from_wbgt(wbgt_c, tdb_c, rh_pct))

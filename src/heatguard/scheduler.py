@@ -157,6 +157,7 @@ def _decide_impl(c: Conditions, worker: Worker) -> Advisory:
         personal_risk_score=personal.score,
         elevated_risk=personal.elevated,
         personal_risk_note=personal.note,
+        personal_risk_model_source=personal.model_source,
     )
 
 

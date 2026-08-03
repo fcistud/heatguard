@@ -39,5 +39,24 @@
     "origin",
     "user_agent",
     "request_id"
+  ],
+  "wbgt.path_selected": [
+    "path",
+    "exception_type"
+  ],
+  "weather.field_substituted": [
+    "site_key",
+    "field",
+    "count"
+  ],
+  "policy.index_unavailable": [
+    "reason"
+  ],
+  "risk_model.heuristic_fallback": [
+    "reason"
+  ],
+  "engine.phs_warning": [
+    "category",
+    "message"
   ]
 }

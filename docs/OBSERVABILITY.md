@@ -85,6 +85,26 @@ Compression: `histogram_quantile(0.5, rate(heatguard_response_compression_ratio_
 
 Chain integrity: `increase(heatguard_compliance_chain_verify_total{result="failed"}[7d]) == 0`.
 
+## Degraded-mode signals (WO-016)
+
+Silent fallbacks are announced via `src/heatguard/observability/degradation.py`.
+
+Stable readiness reason codes (never escalate to 503):
+
+| Code | Meaning |
+|------|---------|
+| `wbgt_fallback_active` | Liljegren path failed; Stull fallback in use |
+| `weather_fields_substituted` | Null Open-Meteo fields replaced with defaults |
+| `policy_index_unavailable` | sklearn missing or empty policy corpus |
+| `risk_model_heuristic` | Personal-risk ML overlay using heuristic |
+
+Counters: `heatguard_wbgt_path_total{path}`, `heatguard_weather_field_substituted_total{field}`,
+`heatguard_risk_model_fallback_total`, `heatguard_degraded_conditions_total{reason_code}`.
+
+Events: `wbgt.path_selected`, `weather.field_substituted`, `policy.index_unavailable`,
+`risk_model.heuristic_fallback`, `engine.phs_warning`.
+
+
 ## Tracing (WO-015)
 
 OpenTelemetry SDK in `src/heatguard/observability/tracing.py`. FastAPI and httpx

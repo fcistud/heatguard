@@ -177,6 +177,7 @@ def hour_advisory(
     observe_engine_decision(signal=adv.signal.value, wbgt_source=adv.wbgt_source)
     return {
         "advisory": adv.to_dict(),
+        "model_source": adv.personal_risk_model_source,
         "estimated_wbgt_c": round(est.wbgt_c, 1),
         "estimated_source": est.source,
         "measured": measured_wbgt is not None,
@@ -349,6 +350,7 @@ def decide_one(
     )
     return {
         "advisory": av.to_dict(),
+        "model_source": av.personal_risk_model_source,
         "banned": calendar_ban.is_banned(site.country, ts, av.wbgt_c),
         "ban_description": calendar_ban.describe(site.country),
         "live": [live_signal(av, m).value for m in range(60)],

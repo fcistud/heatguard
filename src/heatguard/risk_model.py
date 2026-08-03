@@ -111,19 +111,33 @@ def _heuristic(c: Conditions, worker: Worker) -> PersonalRisk:
         drivers.append("age ≥ 50")
     score = min(1.0, score)
     note = "Heuristic stratification: " + (", ".join(drivers) if drivers else "low individual risk")
-    return PersonalRisk(score=score, elevated=score >= ELEVATED_THRESHOLD, note=note)
+    return PersonalRisk(
+        score=score,
+        elevated=score >= ELEVATED_THRESHOLD,
+        note=note,
+        model_source="heuristic",
+    )
+
+
+_HEURISTIC_REASON: str | None = None
 
 
 @lru_cache(maxsize=1)
 def _load_model():
+    global _HEURISTIC_REASON
     path = model_path()
     if not path.exists():
+        _HEURISTIC_REASON = "model file missing"
         return None
     try:
         import importlib
         joblib = importlib.import_module("joblib")
         return joblib.load(path)
     except ImportError:
+        _HEURISTIC_REASON = "joblib unavailable"
+        return None
+    except Exception as exc:  # noqa: BLE001 — corrupt/unloadable model
+        _HEURISTIC_REASON = f"{type(exc).__name__}: {exc}"
         return None
 
 
@@ -153,6 +167,7 @@ def assess(c: Conditions, worker: Worker) -> PersonalRisk:
     """Return personal risk overlay for one (conditions, worker) pair."""
     model = _load_model()
     if model is None:
+        _report_heuristic_fallback(_HEURISTIC_REASON or "model unavailable")
         return _heuristic(c, worker)
 
     x = feature_vector(c, worker).reshape(1, -1)
@@ -161,7 +176,24 @@ def assess(c: Conditions, worker: Worker) -> PersonalRisk:
     meta = _load_meta()
     source = meta.get("label_source", "ISO 7933 PHS on cached Gulf weather")
     note = _explain(proba, worker, c) + f" [{source}]"
-    return PersonalRisk(score=proba, elevated=elevated, note=note)
+    return PersonalRisk(score=proba, elevated=elevated, note=note, model_source="ml")
+
+
+def _report_heuristic_fallback(reason: str) -> None:
+    from .observability import degradation as deg
+    from .observability.metrics import observe_degraded_condition, observe_risk_model_fallback
+
+    deg.report_degraded(
+        deg.RISK_MODEL_HEURISTIC,
+        detail=reason,
+        once_key="risk_model.heuristic_fallback",
+        log_event=deg.RISK_MODEL_HEURISTIC_FALLBACK,
+        log_fields={"reason": reason},
+        increment_metric=lambda: (
+            observe_risk_model_fallback(),
+            observe_degraded_condition(reason_code=deg.RISK_MODEL_HEURISTIC),
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -137,6 +137,7 @@ class PersonalRisk:
     score: float       # 0-1 probability of elevated individual strain
     elevated: bool     # flag for outreach / stricter monitoring
     note: str          # human-readable drivers
+    model_source: str = "ml"  # "ml" | "heuristic"
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +178,7 @@ class Advisory:
     personal_risk_score: float = 0.0
     elevated_risk: bool = False
     personal_risk_note: str = ""
+    personal_risk_model_source: str = "ml"
 
     def to_dict(self) -> dict:
         """JSON-serialisable view (used by the compliance log and the API)."""
