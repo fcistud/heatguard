@@ -34,7 +34,10 @@ def _warm_caches() -> None:
     try:
         _build_index()
     except FileNotFoundError:
-        log.warning("policy_corpus_missing", msg="Policy corpus missing — skipping RAG warm-up")
+        log.warning(
+            "policy_corpus_missing",
+            message="Policy corpus missing — skipping RAG warm-up",
+        )
 
     if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):
         for site in service.DEMOS:

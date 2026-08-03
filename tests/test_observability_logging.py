@@ -74,6 +74,18 @@ def test_expected_event_keys_fixture_covers_all_named_events() -> None:
     assert set(EXPECTED) == set(ALL_EVENT_NAMES)
 
 
+def test_sanitize_request_id_rejects_unsafe_tokens() -> None:
+    from heatguard.observability.logging import resolve_request_id, sanitize_request_id
+
+    assert sanitize_request_id("ok-id_1.2") == "ok-id_1.2"
+    assert sanitize_request_id("bad id with spaces") is None
+    assert sanitize_request_id("emoji-🔥") is None
+    # Unsafe inbound header must be replaced with a generated UUID.
+    rid = resolve_request_id({"x-request-id": "not safe\n"})
+    assert sanitize_request_id(rid) == rid
+    assert " " not in rid and "\n" not in rid
+
+
 def test_http_request_emitted_once_per_request(captured_logs: list[dict]) -> None:
     client = TestClient(app)
     resp = client.get("/health/live")

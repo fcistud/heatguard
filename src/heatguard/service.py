@@ -229,14 +229,14 @@ def compliance_for_day(site_key: str, day: date) -> ComplianceLog:
     finally:
         obs_logging.compliance_bulk_reset(token)
     # One summary event for the season-day replay (volume ceiling).
-    last_seq = clog.records[-1].seq if clog.records else -1
-    get_logger(__name__).info(
-        COMPLIANCE_APPEND,
-        site_key=site_key,
-        seq=last_seq,
-        kind="season_day_summary",
-        record_count=len(clog.records),
-    )
+    if clog.records:
+        get_logger(__name__).info(
+            COMPLIANCE_APPEND,
+            site_key=site_key,
+            seq=clog.records[-1].seq,
+            kind="season_day_summary",
+            record_count=len(clog.records),
+        )
     return clog
 
 

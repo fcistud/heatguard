@@ -169,22 +169,45 @@ def current_request_id() -> str | None:
     return _request_context.get().get("request_id")
 
 
+def sanitize_request_id(raw: str | None) -> str | None:
+    """Return a safe ASCII request id token, or None if unsuitable to echo."""
+    if not raw:
+        return None
+    token = str(raw).strip()
+    if not token or len(token) > 128:
+        return None
+    # Restrict to printable ASCII token chars safe for HTTP header values.
+    if not re.fullmatch(r"[A-Za-z0-9._\-:/]+", token):
+        return None
+    try:
+        token.encode("ascii")
+    except UnicodeEncodeError:
+        return None
+    return token
+
+
 def resolve_request_id(headers: Any) -> str:
-    """Honour X-Request-Id or X-Cloud-Trace-Context; else mint a UUID4."""
+    """Honour X-Request-Id or X-Cloud-Trace-Context; else mint a UUID4.
+
+    Inbound values are sanitized to a safe ASCII token before use/echo.
+    """
     rid = None
     try:
         rid = headers.get("x-request-id") or headers.get("X-Request-Id")
     except Exception:  # noqa: BLE001
         rid = None
-    if rid:
-        return str(rid).strip()
+    cleaned = sanitize_request_id(rid)
+    if cleaned:
+        return cleaned
     try:
         trace = headers.get("x-cloud-trace-context") or headers.get("X-Cloud-Trace-Context")
     except Exception:  # noqa: BLE001
         trace = None
     if trace:
         # Format: TRACE_ID/SPAN_ID;o=TRACE_TRUE
-        return str(trace).split("/", 1)[0].strip() or str(uuid4())
+        cleaned = sanitize_request_id(str(trace).split("/", 1)[0].strip())
+        if cleaned:
+            return cleaned
     return str(uuid4())
 
 

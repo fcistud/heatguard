@@ -60,7 +60,8 @@ class CorrelationMiddleware:
 
         status_code = 500
         response_bytes = 0
-        cache_status = headers.get("x-cache-status") or "miss"
+        # Response-side cache hint only (never trust a client-supplied value).
+        cache_status = "miss"
         started = time.perf_counter()
 
         async def send_wrapper(message: dict[str, Any]) -> None:
@@ -72,8 +73,8 @@ class CorrelationMiddleware:
                     for hk, hv in (message.get("headers") or [])
                     if hk.lower() != b"x-request-id"
                 ]
-                raw_headers.append((b"x-request-id", request_id.encode("latin1")))
-                # Capture cache hint if the app sets one.
+                raw_headers.append((b"x-request-id", request_id.encode("ascii")))
+                # Capture cache hint if the app sets one on the response.
                 for hk, hv in raw_headers:
                     if hk.lower() == b"x-cache-status":
                         cache_status = hv.decode("latin1")
