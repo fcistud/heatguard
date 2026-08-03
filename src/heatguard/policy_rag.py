@@ -179,9 +179,11 @@ def policy_index_status() -> tuple[bool, str | None]:
     except FileNotFoundError:
         return False, "empty corpus"
     except Exception as exc:  # noqa: BLE001
-        from .observability import get_logger
+        from .observability import degradation as deg
 
-        get_logger(__name__).warning(
+        # Once per exception type — readiness polling must not flood logs.
+        deg.emit_once(
+            f"policy.index_build_failed:{type(exc).__name__}",
             "policy.index_build_failed",
             exception_type=type(exc).__name__,
         )

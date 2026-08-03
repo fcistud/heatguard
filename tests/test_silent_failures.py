@@ -228,6 +228,21 @@ def test_policy_index_build_failure_sanitizes_api_reason(monkeypatch, captured_e
     assert any(e.get("event") == "policy.index_unavailable" for e in captured_events)
 
 
+def test_policy_index_build_failure_log_deduped_across_status_polls(monkeypatch, captured_events):
+    import heatguard.policy_rag as pr
+
+    def boom():
+        raise RuntimeError("persistently broken")
+
+    monkeypatch.setattr(pr, "_build_index", boom)
+    assert pr.policy_index_status() == (False, "index build failed")
+    assert pr.policy_index_status() == (False, "index build failed")
+    assert pr.policy_index_status() == (False, "index build failed")
+    build_logs = [e for e in captured_events if e.get("event") == "policy.index_build_failed"]
+    assert len(build_logs) == 1
+    assert build_logs[0].get("exception_type") == "RuntimeError"
+
+
 def test_risk_model_corrupt_joblib_heuristic(monkeypatch, captured_events):
     import heatguard.risk_model as rm
 
