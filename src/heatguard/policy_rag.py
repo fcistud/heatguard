@@ -180,11 +180,12 @@ def policy_index_status() -> tuple[bool, str | None]:
         return False, "empty corpus"
     except Exception as exc:  # noqa: BLE001
         from .observability import degradation as deg
+        from .observability.events import POLICY_INDEX_BUILD_FAILED
 
         # Once per exception type — readiness polling must not flood logs.
         deg.emit_once(
-            f"policy.index_build_failed:{type(exc).__name__}",
-            "policy.index_build_failed",
+            f"{POLICY_INDEX_BUILD_FAILED}:{type(exc).__name__}",
+            POLICY_INDEX_BUILD_FAILED,
             exception_type=type(exc).__name__,
         )
         return False, "index build failed"

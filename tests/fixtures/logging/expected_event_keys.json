@@ -52,8 +52,14 @@
   "policy.index_unavailable": [
     "reason"
   ],
+  "policy.index_build_failed": [
+    "exception_type"
+  ],
   "risk_model.heuristic_fallback": [
     "reason"
+  ],
+  "risk_model.load_failed": [
+    "exception_type"
   ],
   "engine.phs_warning": [
     "category",

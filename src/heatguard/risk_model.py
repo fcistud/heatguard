@@ -138,9 +138,10 @@ def _load_model():
         return None
     except Exception as exc:  # noqa: BLE001 — corrupt/unloadable model
         from .observability import get_logger
+        from .observability.events import RISK_MODEL_LOAD_FAILED
 
         get_logger(__name__).warning(
-            "risk_model.load_failed",
+            RISK_MODEL_LOAD_FAILED,
             exception_type=type(exc).__name__,
         )
         # Stable, bounded reason for logs/API — no paths or exception text.

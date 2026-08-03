@@ -8,6 +8,7 @@ requested in m/s and pressure comes in hPa, matching the engine's ``Weather`` un
 from __future__ import annotations
 
 import json
+import threading
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -23,6 +24,7 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 # Last ``_parse`` substitution counts (field → n). Empty when none substituted.
 _LAST_SUBSTITUTIONS: dict[str, int] = {}
+_LAST_SUBSTITUTIONS_LOCK = threading.Lock()
 
 HOURLY_VARS = [
     "temperature_2m",
@@ -66,7 +68,8 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
     """
     global _LAST_SUBSTITUTIONS
     # Clear first so a mid-parse failure never leaves a prior call's summary.
-    _LAST_SUBSTITUTIONS = {}
+    with _LAST_SUBSTITUTIONS_LOCK:
+        _LAST_SUBSTITUTIONS = {}
 
     h = payload["hourly"]
     offset = int(payload.get("utc_offset_seconds", 0))
@@ -101,14 +104,17 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
                 pressure_hpa=g("surface_pressure", 1013.0),
             )
         )
-    _LAST_SUBSTITUTIONS = {k: n for k, n in substitutions.items() if n}
-    _report_substitutions(site, _LAST_SUBSTITUTIONS)
+    summary = {k: n for k, n in substitutions.items() if n}
+    with _LAST_SUBSTITUTIONS_LOCK:
+        _LAST_SUBSTITUTIONS = summary
+    _report_substitutions(site, summary)
     return out
 
 
 def last_parse_substitutions() -> dict[str, int]:
     """Return substitution counts from the most recent ``_parse`` call."""
-    return dict(_LAST_SUBSTITUTIONS)
+    with _LAST_SUBSTITUTIONS_LOCK:
+        return dict(_LAST_SUBSTITUTIONS)
 
 
 def _report_substitutions(site: Site, summary: dict[str, int]) -> None:
