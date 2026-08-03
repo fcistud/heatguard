@@ -4,6 +4,16 @@
 # Uses $BUILD_ID for image tags (always set). $COMMIT_SHA is only set on repo triggers.
 # Deploy uses the immutable image digest (not :latest).
 #
+# Canary / rollback contract (WO-017 — see docs/RUNBOOKS.md#automated-rollback-and-canary):
+#   Progression: 10% → 50% → 100% traffic with 15-minute holds at each step.
+#   Abort and shift traffic to the previous revision when any trigger fires:
+#     - 5xx rate > 1% over 5 minutes
+#     - warm p95 > 800 ms over 5 minutes
+#     - any heatguard_compliance_chain_verify_total{result="failed"} increment
+#   Investor demo: pin 100% to a known-good revision (pinned-revision protection).
+#   This file still deploys directly today; canary traffic splits land with the
+#   deployment-pipeline story — keep the thresholds above in sync with alerts.
+#
 # Substitutions (override with --substitutions=KEY=VALUE):
 #   _REGION       Cloud Run region (default us-central1)
 #   _SERVICE      Cloud Run service name (default heatguard)

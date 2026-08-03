@@ -30,6 +30,26 @@ jobs:
       - name: Assert Dockerfile FROM lines are digest-pinned
         run: python scripts/check_dockerfile_digests.py
 
+  monitoring-config:
+    name: Monitoring policies + SLO/runbook links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Validate alert policies and doc anchors
+        env:
+          HEATGUARD_ENV: test
+        run: |
+          set -euo pipefail
+          uv run python scripts/validate_monitoring.py --check-docs-links
+          uv run pytest tests/test_monitoring_config.py -q
+
   python-tests:
     name: Python engine + API tests
     runs-on: ubuntu-latest

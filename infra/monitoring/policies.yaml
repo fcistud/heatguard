@@ -1,0 +1,103 @@
+# Declarative HeatGuard alert policies (WO-017).
+# Validated by scripts/validate_monitoring.py against the Prometheus metric
+# contract and docs/RUNBOOKS.md anchors.
+version: 1
+policies:
+  - id: readiness-not-ready
+    display_name: Readiness not_ready sustained
+    severity: critical
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#cold-start-or-latency-regression
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+    condition_summary: >
+      /health/ready returning status_class=5xx (not_ready) for >=5m.
+      Absence of samples must not be treated as healthy (scale-to-zero).
+
+  - id: http-5xx-rate
+    display_name: HTTP 5xx rate above 1 percent
+    severity: critical
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#cold-start-or-latency-regression
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+    condition_summary: >
+      sum(rate(5xx)) / sum(rate(all)) > 0.01 over 5m — automated rollback trigger.
+
+  - id: http-p95-latency
+    display_name: Warm p95 latency above 800ms
+    severity: critical
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#cold-start-or-latency-regression
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_request_duration_seconds
+      - heatguard_process_start_duration_seconds
+    condition_summary: >
+      histogram_quantile p95 > 0.8s over 5m on warm traffic; exclude isolated
+      cold starts classified via process_start_duration_seconds.
+
+  - id: weather-ingest-failure
+    display_name: Weather ingest failure ratio
+    severity: critical
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_30m
+    metrics:
+      - heatguard_weather_fetch_total
+      - heatguard_weather_fetch_duration_seconds
+    condition_summary: >
+      Non-success weather.fetch outcomes (timeout|http_error|parse_error)
+      exceed budget over 15m.
+
+  - id: forecast-cache-stale
+    display_name: Forecast cache age exceeds 26 hours
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_30m
+    metrics:
+      - heatguard_weather_fetch_total
+    ops_checks:
+      - forecast_cache_age_hours
+    condition_summary: >
+      Forecast cache artifact mtime age > 26h even when outcome=cache_hit keeps
+      success-ratio SLI looking healthy.
+
+  - id: ratelimit-rejected-spike
+    display_name: Rate-limit rejected spike
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#rate-limit-and-cpu-saturation
+    auto_close: after_ok_30m
+    metrics:
+      - heatguard_ratelimit_rejected_total
+    condition_summary: >
+      Sustained increase in heatguard_ratelimit_rejected_total by route/key_class.
+      Demo-key exemption and pinned revision take priority during pitches.
+
+  - id: compliance-chain-verify-failed
+    display_name: Compliance chain verification failed
+    severity: page
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#compliance-chain-verification-failure
+    auto_close: never
+    metrics:
+      - heatguard_compliance_chain_verify_total
+    condition_summary: >
+      Any increase in result="failed" — zero-tolerance page and rollback trigger.
+
+  - id: auth-deprecated-anonymous-quiet
+    display_name: Auth dual-mode promotion gate (72h quiet)
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#auth-dual-mode-promotion-gate
+    auto_close: never
+    metrics: []
+    log_events:
+      - auth.deprecated_anonymous
+    condition_summary: >
+      Monitored condition for dual→enforce promotion — requires absence of
+      auth.deprecated_anonymous events for 72 consecutive hours (WO-013).

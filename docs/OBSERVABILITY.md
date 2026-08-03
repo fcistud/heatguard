@@ -73,7 +73,14 @@ Unknown scanner paths use route label `unmatched`.
 - `observe_not_modified(route)` / `observe_compression_ratio(ratio)` — caching/compression
 - `observe_ratelimit_rejected(route, key_class)` — auth / trust boundary
 
-### SLO queries (consumed by WO-017)
+### SLO queries (WO-017)
+
+Authoritative SLI/SLO catalogue, error budgets, and owners: [SLO.md](SLO.md).
+
+Operational procedures and rollback/canary: [RUNBOOKS.md](RUNBOOKS.md).
+
+Alert policies as code (validated in CI): `infra/monitoring/policies.yaml`
+via `scripts/validate_monitoring.py`.
 
 Cold start: `heatguard_process_start_duration_seconds` (target under 5 s).
 

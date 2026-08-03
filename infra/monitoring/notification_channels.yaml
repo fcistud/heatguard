@@ -1,0 +1,10 @@
+# Notification channel references (not secrets).
+# Wire real channel IDs via Terraform data sources or pipeline substitutions.
+version: 1
+channels:
+  - id: oncall-pager
+    type: pager
+    description: Primary on-call paging destination
+  - id: ops-email
+    type: email
+    description: Non-page ops mailer for warning-severity alerts
