@@ -77,15 +77,7 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
         return h.get(key) or [None] * len(times)
 
     cols = {k: col(k) for k in HOURLY_VARS}
-    substitutions: dict[str, int] = {
-        "relative_humidity_2m": 0,
-        "surface_pressure": 0,
-        "wind_speed_10m": 0,
-        "temperature_2m": 0,
-        "shortwave_radiation": 0,
-        "direct_radiation": 0,
-        "dew_point_2m": 0,
-    }
+    substitutions: dict[str, int] = {k: 0 for k in HOURLY_VARS}
     out: list[Weather] = []
     for i, t in enumerate(times):
         ts = datetime.fromisoformat(t).replace(tzinfo=tz)
