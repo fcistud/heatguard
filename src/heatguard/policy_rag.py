@@ -167,13 +167,26 @@ def retrieve(question: str, top_k: int = 3, *, _index_checked: bool = False) -> 
 
 
 def policy_index_status() -> tuple[bool, str | None]:
-    """Return ``(available, reason)`` for the policy index."""
+    """Return ``(available, public_reason)`` for the policy index.
+
+    ``public_reason`` is a stable, client-safe string (no paths or exception
+    text). Internal diagnostics are logged server-side only.
+    """
     if not _HAS_SKLEARN:
         return False, "sklearn missing"
     try:
         idx = _build_index()
+    except FileNotFoundError:
+        return False, "empty corpus"
     except Exception as exc:  # noqa: BLE001
-        return False, f"{type(exc).__name__}: {exc}"
+        from .observability import get_logger
+
+        get_logger(__name__).warning(
+            "policy.index_build_failed",
+            exception_type=type(exc).__name__,
+            error=str(exc)[:200],
+        )
+        return False, "index build failed"
     if not idx.chunks:
         return False, "empty corpus"
     return True, None

@@ -30,13 +30,15 @@ def _reset_degradation():
     obs_metrics.reset_registry()
     clear_readiness_cache()
     rm._load_model.cache_clear()
-    pr._build_index.cache_clear()
+    if hasattr(pr._build_index, "cache_clear"):
+        pr._build_index.cache_clear()
     yield
     deg.clear_degradation_state()
     obs_metrics.reset_registry()
     clear_readiness_cache()
     rm._load_model.cache_clear()
-    pr._build_index.cache_clear()
+    if hasattr(pr._build_index, "cache_clear"):
+        pr._build_index.cache_clear()
 
 
 @pytest.fixture
@@ -192,6 +194,22 @@ def test_policy_index_unavailable_when_sklearn_missing(monkeypatch, captured_eve
     assert ans.sources == []
     assert "unavailable" in ans.answer.lower() or "Policy index unavailable" in ans.answer
     assert "policy_index_unavailable" in deg.active_reason_codes()
+    assert any(e.get("event") == "policy.index_unavailable" for e in captured_events)
+
+
+def test_policy_index_build_failure_sanitizes_api_reason(monkeypatch, captured_events):
+    import heatguard.policy_rag as pr
+
+    def boom():
+        raise RuntimeError("/secret/path/policy.bin: corrupt header XYZ")
+
+    monkeypatch.setattr(pr, "_build_index", boom)
+    ans = pr.query_policy("midday ban?")
+    assert ans.degraded is True
+    assert ans.degraded_reason == "index build failed"
+    dumped = json.dumps(ans.to_dict())
+    assert "/secret/path" not in dumped
+    assert "corrupt header" not in dumped
     assert any(e.get("event") == "policy.index_unavailable" for e in captured_events)
 
 
