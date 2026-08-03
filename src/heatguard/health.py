@@ -173,6 +173,8 @@ def default_checkers() -> list[DependencyCheck]:
 
 def run_readiness(checkers: list[DependencyCheck] | None = None) -> ReadinessResult:
     """Evaluate readiness. Never raises — every checker failure becomes a reason."""
+    from .observability.degradation import REASON_CODES, active_reason_codes
+
     outcomes: list[CheckOutcome] = []
     failed: list[str] = []
     degraded: list[str] = []
@@ -186,12 +188,7 @@ def run_readiness(checkers: list[DependencyCheck] | None = None) -> ReadinessRes
         outcomes.append(CheckOutcome(dep.name, dep.kind, ok, reason))
         if ok:
             continue
-        label = reason if reason in {
-            "risk_model_heuristic",
-            "wbgt_fallback_active",
-            "weather_fields_substituted",
-            "policy_index_unavailable",
-        } else f"{dep.name}: {reason}"
+        label = reason if reason in REASON_CODES else f"{dep.name}: {reason}"
         if dep.kind == "hard":
             failed.append(label)
         else:
@@ -199,8 +196,6 @@ def run_readiness(checkers: list[DependencyCheck] | None = None) -> ReadinessRes
 
     # Merge process-level degradation snapshot (WO-016) without escalating to 503.
     try:
-        from .observability.degradation import active_reason_codes
-
         for code in active_reason_codes():
             if code not in degraded:
                 degraded.append(code)

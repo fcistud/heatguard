@@ -11,6 +11,14 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from .events import (
+    ENGINE_PHS_WARNING,
+    RISK_MODEL_HEURISTIC_FALLBACK,
+    WBGT_PATH_SELECTED,
+    WEATHER_FIELD_SUBSTITUTED,
+)
+from .events import POLICY_INDEX_UNAVAILABLE as POLICY_INDEX_UNAVAILABLE_EVENT
+
 # Stable readiness reason codes (alerting keys off these strings).
 WBGT_FALLBACK_ACTIVE = "wbgt_fallback_active"
 WEATHER_FIELDS_SUBSTITUTED = "weather_fields_substituted"
@@ -24,12 +32,6 @@ REASON_CODES: frozenset[str] = frozenset({
     RISK_MODEL_HEURISTIC,
 })
 
-# Structured event names.
-WBGT_PATH_SELECTED = "wbgt.path_selected"
-WEATHER_FIELD_SUBSTITUTED = "weather.field_substituted"
-POLICY_INDEX_UNAVAILABLE_EVENT = "policy.index_unavailable"
-RISK_MODEL_HEURISTIC_FALLBACK = "risk_model.heuristic_fallback"
-ENGINE_PHS_WARNING = "engine.phs_warning"
 DEGRADATION_REPORTING_FAILED = "degradation.reporting_failed"
 
 _DEFAULT_TTL_SECONDS = 300.0
