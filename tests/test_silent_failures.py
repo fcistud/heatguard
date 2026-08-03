@@ -183,6 +183,18 @@ def test_weather_null_fields_substitute_and_count(captured_events):
     assert any(e.get("event") == "weather.field_substituted" for e in captured_events)
 
 
+def test_weather_parse_failure_clears_stale_substitutions():
+    site = get_site("dubai")
+    good = json.loads((FIXTURES / "openmeteo_null_fields.json").read_text())
+    openmeteo._parse(good, site)
+    assert openmeteo.last_parse_substitutions()
+    try:
+        openmeteo._parse({"hourly": {}}, site)  # missing "time"
+    except Exception:
+        pass
+    assert openmeteo.last_parse_substitutions() == {}
+
+
 def test_policy_index_unavailable_when_sklearn_missing(monkeypatch, captured_events):
     import heatguard.policy_rag as pr
 
@@ -238,7 +250,12 @@ def test_risk_model_corrupt_joblib_heuristic(monkeypatch, captured_events):
     assert "risk_model_heuristic" in deg.active_reason_codes()
     body = obs_metrics.render_prometheus().decode()
     assert "heatguard_risk_model_fallback_total" in body
-    assert any(e.get("event") == "risk_model.heuristic_fallback" for e in captured_events)
+    fallback_ev = [e for e in captured_events if e.get("event") == "risk_model.heuristic_fallback"]
+    assert fallback_ev
+    reason = fallback_ev[0].get("reason", "")
+    assert reason.startswith("load failed:")
+    assert "/" not in reason and "\\" not in reason
+    assert len(reason) < 80
 
 
 def test_phs_warning_captured(monkeypatch, captured_events):

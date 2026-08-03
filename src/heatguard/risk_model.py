@@ -137,7 +137,15 @@ def _load_model():
         _HEURISTIC_REASON = "joblib unavailable"
         return None
     except Exception as exc:  # noqa: BLE001 — corrupt/unloadable model
-        _HEURISTIC_REASON = f"{type(exc).__name__}: {exc}"
+        from .observability import get_logger
+
+        get_logger(__name__).warning(
+            "risk_model.load_failed",
+            exception_type=type(exc).__name__,
+            error=str(exc)[:200],
+        )
+        # Stable, bounded reason for logs/API — no paths or exception text.
+        _HEURISTIC_REASON = f"load failed:{type(exc).__name__}"
         return None
 
 
@@ -186,7 +194,7 @@ def _report_heuristic_fallback(reason: str) -> None:
     deg.report_degraded(
         deg.RISK_MODEL_HEURISTIC,
         detail=reason,
-        once_key="risk_model.heuristic_fallback",
+        once_key=f"risk_model.heuristic_fallback:{reason}",
         log_event=deg.RISK_MODEL_HEURISTIC_FALLBACK,
         log_fields={"reason": reason},
         increment_metric=lambda: (

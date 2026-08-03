@@ -64,6 +64,10 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
     1013 hPa, other fields 0). Substitutions are counted and reported without
     changing numeric values.
     """
+    global _LAST_SUBSTITUTIONS
+    # Clear first so a mid-parse failure never leaves a prior call's summary.
+    _LAST_SUBSTITUTIONS = {}
+
     h = payload["hourly"]
     offset = int(payload.get("utc_offset_seconds", 0))
     tz = timezone(timedelta(seconds=offset))
@@ -105,7 +109,6 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
                 pressure_hpa=g("surface_pressure", 1013.0),
             )
         )
-    global _LAST_SUBSTITUTIONS
     _LAST_SUBSTITUTIONS = {k: n for k, n in substitutions.items() if n}
     _report_substitutions(site, _LAST_SUBSTITUTIONS)
     return out
