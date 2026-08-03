@@ -123,6 +123,22 @@ def test_degradation_ttl_env_override(monkeypatch):
     assert "wbgt_fallback_active" not in deg.active_reason_codes()
 
 
+def test_degradation_ttl_zero_disables_snapshot_latch(monkeypatch, captured_events):
+    monkeypatch.setenv("HEATGUARD_DEGRADATION_TTL_SECONDS", "0")
+    calls: list[int] = []
+    deg.report_degraded(
+        deg.WBGT_FALLBACK_ACTIVE,
+        detail="no-latch",
+        once_key="wbgt:ttl0",
+        log_event=deg.WBGT_PATH_SELECTED,
+        log_fields={"path": "ttl0"},
+        increment_metric=lambda: calls.append(1),
+    )
+    assert "wbgt_fallback_active" not in deg.active_reason_codes()
+    assert len(calls) == 1
+    assert any(e.get("event") == "wbgt.path_selected" for e in captured_events)
+
+
 def test_report_degraded_dedupes_logs_but_always_increments_metric(captured_events):
     calls: list[int] = []
 

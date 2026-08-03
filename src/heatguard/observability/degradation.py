@@ -121,8 +121,12 @@ def report_degraded(
 
     Logs/events are de-duplicated by ``once_key`` so season-replay loops cannot
     flood structured logs. Metric callbacks always run so Prometheus counters
-    reflect repeated occurrences. Never raises; on internal failure emits at
-    most one ``degradation.reporting_failed`` event.
+    reflect repeated occurrences.
+
+    Snapshot TTL defaults to ``HEATGUARD_DEGRADATION_TTL_SECONDS`` (300s). A TTL
+    of ``0`` disables readiness latching (same semantics as readiness cache TTL)
+    while still emitting logs/metrics. Never raises; on internal failure emits
+    at most one ``degradation.reporting_failed`` event.
     """
     global _reporting_failed_logged
     try:
@@ -131,12 +135,15 @@ def report_degraded(
             # for readiness but may still log if log_event is set.
             pass
         ttl = _ttl() if ttl_seconds is None else ttl_seconds
-        expires = time.monotonic() + ttl if ttl > 0 else time.monotonic() + 1e9
+        now = time.monotonic()
 
         should_log = True
         with _lock:
-            if code in REASON_CODES:
-                _active[code] = _Entry(code=code, detail=detail or "", expires_at=expires)
+            # ttl <= 0: do not latch into the readiness snapshot (operator opt-out).
+            if code in REASON_CODES and ttl > 0:
+                _active[code] = _Entry(
+                    code=code, detail=detail or "", expires_at=now + ttl
+                )
             if once_key is not None:
                 if once_key in _logged_once:
                     should_log = False

@@ -104,6 +104,9 @@ Counters: `heatguard_wbgt_path_total{path}`, `heatguard_weather_field_substitute
 Events: `wbgt.path_selected`, `weather.field_substituted`, `policy.index_unavailable`,
 `risk_model.heuristic_fallback`, `engine.phs_warning`.
 
+Snapshot TTL defaults to `HEATGUARD_DEGRADATION_TTL_SECONDS=300`. Set `0` to disable
+readiness latching (logs/metrics still emit), matching readiness-cache TTL semantics.
+
 
 ## Tracing (WO-015)
 
