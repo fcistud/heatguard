@@ -332,6 +332,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .observability import configure_logging
+
+    configure_logging()
     args = build_parser().parse_args(argv)
     return args.func(args)
 

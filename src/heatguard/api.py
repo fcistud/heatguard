@@ -6,7 +6,6 @@ Thin layer over ``heatguard.service``.
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -19,10 +18,11 @@ from pydantic import BaseModel, Field
 
 from . import health as health_probes
 from . import service
+from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
 
-log = logging.getLogger(__name__)
+log = get_logger(__name__)
 
 
 def _warm_caches() -> None:
@@ -34,22 +34,21 @@ def _warm_caches() -> None:
     try:
         _build_index()
     except FileNotFoundError:
-        log.warning("Policy corpus missing — skipping RAG warm-up")
+        log.warning("policy_corpus_missing", msg="Policy corpus missing — skipping RAG warm-up")
 
     if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):
         for site in service.DEMOS:
-            log.info("Warming demo payload for %s", site)
+            log.info("warming_demo", site_key=site)
             service.build_demo(site, 100)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     v = sys.version_info
     log.info(
-        "heatguard.runtime python=%s.%s.%s",
-        v.major,
-        v.minor,
-        v.micro,
+        "heatguard.runtime",
+        python=f"{v.major}.{v.minor}.{v.micro}",
     )
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _warm_caches)
@@ -72,6 +71,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Outermost correlation / access log (Starlette runs last-added middleware first).
+app.add_middleware(CorrelationMiddleware)
 
 
 def _legacy_health_body() -> dict:

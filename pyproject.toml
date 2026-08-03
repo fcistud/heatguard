@@ -16,6 +16,7 @@ dependencies = [
     # Numerical-correctness control — float drift can flip ACGIH work-rest boundaries.
     "numpy==1.26.4",
     "httpx>=0.24,<0.29",
+    "structlog>=24.1,<26",
 ]
 
 [project.optional-dependencies]

@@ -8,11 +8,15 @@ requested in m/s and pressure comes in hPa, matching the engine's ``Weather`` un
 from __future__ import annotations
 
 import json
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .._paths import CACHE_DIR, cache_file, ensure_cache_writable
+from ..observability import WEATHER_FETCH, get_logger
 from ..types import Site, Weather
+
+log = get_logger(__name__)
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -92,7 +96,9 @@ def fetch_archive(
 ) -> list[Weather]:
     """Hourly reanalysis for [start, end]. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
     path = cache_file(cache_name_for(site, start, end))
-    if use_cache and not refresh and path.exists():
+    started = time.perf_counter()
+    cache_hit = bool(use_cache and not refresh and path.exists())
+    if cache_hit:
         payload = json.loads(path.read_text())
     else:
         import httpx
@@ -103,6 +109,14 @@ def fetch_archive(
         payload = resp.json()
         ensure_cache_writable(CACHE_DIR)
         path.write_text(json.dumps(payload))
+    duration_ms = round((time.perf_counter() - started) * 1000.0, 3)
+    log.info(
+        WEATHER_FETCH,
+        cache_hit=cache_hit,
+        site_key=site.name.lower().replace(" ", "_"),
+        source="archive",
+        duration_ms=duration_ms,
+    )
     return _parse(payload, site)
 
 
@@ -115,7 +129,9 @@ def fetch_forecast(
 ) -> list[Weather]:
     """Near-live hourly forecast. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
     path = cache_file(forecast_cache_name_for(site, forecast_days, past_days))
-    if use_cache and not refresh and path.exists():
+    started = time.perf_counter()
+    cache_hit = bool(use_cache and not refresh and path.exists())
+    if cache_hit:
         payload = json.loads(path.read_text())
     else:
         import httpx
@@ -126,6 +142,14 @@ def fetch_forecast(
         payload = resp.json()
         ensure_cache_writable(CACHE_DIR)
         path.write_text(json.dumps(payload))
+    duration_ms = round((time.perf_counter() - started) * 1000.0, 3)
+    log.info(
+        WEATHER_FETCH,
+        cache_hit=cache_hit,
+        site_key=site.name.lower().replace(" ", "_"),
+        source="forecast",
+        duration_ms=duration_ms,
+    )
     return _parse(payload, site)
 
 

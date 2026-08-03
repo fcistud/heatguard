@@ -1,0 +1,43 @@
+{
+  "http.request": [
+    "request_id",
+    "method",
+    "route",
+    "status_code",
+    "duration_ms",
+    "response_bytes",
+    "cache_status"
+  ],
+  "weather.fetch": [
+    "cache_hit",
+    "site_key",
+    "source",
+    "duration_ms"
+  ],
+  "engine.decide": [
+    "site_key",
+    "wbgt_c",
+    "wbgt_source",
+    "signal"
+  ],
+  "compliance.append": [
+    "site_key",
+    "seq",
+    "kind"
+  ],
+  "compliance.verify": [
+    "site_key",
+    "verified",
+    "record_count"
+  ],
+  "policy.query": [
+    "top_k",
+    "hit_count"
+  ],
+  "auth.deprecated_anonymous": [
+    "route",
+    "origin",
+    "user_agent",
+    "request_id"
+  ]
+}

@@ -174,7 +174,14 @@ def _synthesize(question: str, hits: list[PolicyHit]) -> str:
 
 def query_policy(question: str, top_k: int = 3) -> PolicyAnswer:
     """Answer a policy question via retrieval + cited extractive synthesis."""
+    from .observability import POLICY_QUERY, get_logger
+
     hits = retrieve(question, top_k=top_k)
+    get_logger(__name__).info(
+        POLICY_QUERY,
+        top_k=top_k,
+        hit_count=len(hits),
+    )
     return PolicyAnswer(
         question=question,
         answer=_synthesize(question, hits),
