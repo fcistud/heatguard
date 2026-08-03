@@ -123,7 +123,7 @@ def fetch_archive(
     refresh: bool = False,
 ) -> list[Weather]:
     """Hourly reanalysis for [start, end]. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
-    from ..observability.tracing import ATTR_CACHE_HIT, ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
+    from ..observability.tracing import ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
 
     with span("weather.fetch_archive", **{ATTR_SITE_KEY: _slug(site)}) as sp:
         rows = _fetch_archive_impl(site, start, end, use_cache=use_cache, refresh=refresh)
@@ -213,7 +213,7 @@ def fetch_forecast(
     refresh: bool = False,
 ) -> list[Weather]:
     """Near-live hourly forecast. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
-    from ..observability.tracing import ATTR_CACHE_HIT, ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
+    from ..observability.tracing import ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
 
     with span("weather.fetch_forecast", **{ATTR_SITE_KEY: _slug(site)}) as sp:
         rows = _fetch_forecast_impl(

@@ -16,10 +16,11 @@ from fastapi.testclient import TestClient
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.sampling import ParentBasedTraceIdRatio
+from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import StatusCode
 
 from heatguard._paths import _REPO_ROOT
+from heatguard.api import app
 from heatguard.observability import configure_logging, get_logger
 from heatguard.observability import logging as obs_logging
 from heatguard.observability import tracing as t
@@ -44,10 +45,12 @@ def memory_tracer(monkeypatch):
     monkeypatch.setenv("HEATGUARD_TRACE_EXPORTER", "none")
     monkeypatch.setenv("HEATGUARD_TRACE_SIMPLE", "1")
     exporter = InMemorySpanExporter()
-    provider = TracerProvider(sampler=ParentBasedTraceIdRatio(1.0))
+    provider = TracerProvider(sampler=ALWAYS_ON)
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     force_reconfigure()
-    reset_tracing_for_tests(provider)
+    # Re-bind FastAPI middleware to this provider — import-time instrumentation
+    # otherwise keeps a tracer from the process-global provider (often 5% sampled).
+    reset_tracing_for_tests(provider, app=app)
     yield exporter, provider
     exporter.clear()
 
@@ -57,13 +60,6 @@ def _by_name(spans):
     for s in spans:
         out.setdefault(s.name, []).append(s)
     return out
-
-
-def _parent_name(span, id_to_span) -> str | None:
-    if span.parent is None:
-        return None
-    parent = id_to_span.get(span.parent.span_id)
-    return parent.name if parent is not None else None
 
 
 def test_sample_ratio_defaults(monkeypatch) -> None:
@@ -145,10 +141,6 @@ def test_log_trace_correlation(memory_tracer) -> None:
 def test_health_and_metrics_excluded(memory_tracer, monkeypatch) -> None:
     exporter, _ = memory_tracer
     monkeypatch.setenv("HEATGUARD_METRICS_ENABLED", "1")
-    from heatguard.api import app
-    from heatguard.observability.tracing import configure_tracing
-
-    configure_tracing(app)
     client = TestClient(app)
     exporter.clear()
     assert client.get("/health/live").status_code == 200
@@ -163,11 +155,8 @@ def test_health_and_metrics_excluded(memory_tracer, monkeypatch) -> None:
 
 def test_demo_span_tree_matches_fixture(memory_tracer) -> None:
     exporter, _ = memory_tracer
-    from heatguard.api import app
-    from heatguard.observability.tracing import configure_tracing
     from heatguard.service import _season_hourly
 
-    configure_tracing(app)
     _season_hourly.cache_clear()
     client = TestClient(app)
     exporter.clear()
@@ -177,12 +166,11 @@ def test_demo_span_tree_matches_fixture(memory_tracer) -> None:
     spans = list(exporter.get_finished_spans())
     names = {s.name for s in spans}
     for required in FIXTURE["required_span_names"]:
-        assert required in names, f"missing span {required}"
+        assert required in names, f"missing span {required}; got {sorted(names)}"
 
-    id_to_span = {s.context.span_id: s for s in spans}
     by_name = _by_name(spans)
 
-    # Nesting: required children appear under build_demo (possibly via FastAPI parent).
+    # Nesting: required children must be descendants of build_demo.
     build = by_name["service.build_demo"][0]
     descendants: set[str] = set()
 
@@ -196,7 +184,9 @@ def test_demo_span_tree_matches_fixture(memory_tracer) -> None:
 
     walk(build.context.span_id)
     for child in FIXTURE["nesting"]["service.build_demo"]:
-        assert child in descendants or child in names, f"expected {child} under build_demo"
+        assert child in descendants, (
+            f"expected {child} under build_demo; descendants={sorted(descendants)}"
+        )
 
     # Per-hour engine spans must not nest under season_replay.
     season_ids = {s.context.span_id for s in by_name["service.season_replay"]}
@@ -250,13 +240,13 @@ def test_cloud_trace_propagator_extracts(memory_tracer) -> None:
     from opentelemetry.propagate import extract
 
     t._install_propagators()
-    carrier = {
-        "x-cloud-trace-context": "4bf92f3577b34da6a3ce929d0e0e4736/00f067aa0ba902b7;o=1"
-    }
+    # SPAN_ID is decimal per Google Cloud Trace header format.
+    carrier = {"x-cloud-trace-context": "4bf92f3577b34da6a3ce929d0e0e4736/123;o=1"}
     ctx = extract(carrier)
     span_ctx = otel_trace.get_current_span(ctx).get_span_context()
     assert span_ctx.is_valid
     assert format(span_ctx.trace_id, "032x") == "4bf92f3577b34da6a3ce929d0e0e4736"
+    assert span_ctx.span_id == 123
 
 
 def test_policy_retrieve_span(memory_tracer) -> None:
@@ -277,10 +267,6 @@ def test_forecast_timeline_span(memory_tracer) -> None:
     try:
         forecast_timeline("dubai")
     except Exception as exc:  # network/cache may fail offline
-        if "forecast" not in type(exc).__name__.lower() and "http" not in str(exc).lower():
-            # Still expect the outer span if we entered the function
-            pass
-        # If cache exists, should succeed; otherwise skip soft.
         spans = [s for s in exporter.get_finished_spans() if s.name == "service.forecast_timeline"]
         if not spans:
             pytest.skip(f"forecast unavailable offline: {exc}")
@@ -290,4 +276,3 @@ def test_forecast_timeline_span(memory_tracer) -> None:
     attrs = dict(spans[0].attributes or {})
     assert attrs.get("heatguard.site_key") == "dubai"
     assert "heatguard.horizon_hours" in attrs
-

@@ -190,7 +190,8 @@ def _season_hourly(site_key: str):
     """One representative-worker season replay -> (hourly[(advisory, banned)], season_days).
 
     Cached per site — season replay is expensive (PHS + scheduler on every work hour).
-    Engine per-hour spans are suppressed; this span carries ``heatguard.rows`` only.
+    Engine per-hour spans are suppressed; this span carries ``heatguard.site_key``
+    and ``heatguard.rows``.
     """
     from .observability.tracing import (
         ATTR_ROWS,

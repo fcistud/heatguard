@@ -22,7 +22,7 @@ os.environ["HEATGUARD_TRACE_SIMPLE"] = "1"
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.sdk.trace.sampling import ParentBasedTraceIdRatio
+from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,21 +42,19 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
 
     exporter = InMemorySpanExporter()
-    provider = TracerProvider(sampler=ParentBasedTraceIdRatio(1.0))
+    provider = TracerProvider(sampler=ALWAYS_ON)
     provider.add_span_processor(SimpleSpanProcessor(exporter))
 
     from heatguard.observability import tracing as t
 
     t.force_reconfigure()
-    t.reset_tracing_for_tests(provider)
 
     from fastapi.testclient import TestClient
 
     from heatguard.api import app
-    from heatguard.observability.tracing import configure_tracing
     from heatguard.service import _season_hourly
 
-    configure_tracing(app)
+    t.reset_tracing_for_tests(provider, app=app)
     _season_hourly.cache_clear()
 
     client = TestClient(app)

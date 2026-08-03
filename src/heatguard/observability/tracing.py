@@ -129,9 +129,12 @@ class _CloudTraceContextPropagator(TextMapPropagator):
             if len(trace_id_s) != 32:
                 return ctx
             trace_id = int(trace_id_s, 16)
-            span_id = int(span_id_s, 16) if span_id_s else 0
+            # GCP X-Cloud-Trace-Context SPAN_ID is a decimal uint64, not hex.
+            if not span_id_s:
+                return ctx
+            span_id = int(span_id_s, 10)
             if span_id == 0:
-                span_id = 1
+                return ctx
             sampled = "o=1" in opts.replace(" ", "").lower()
             sc = SpanContext(
                 trace_id=trace_id,
@@ -159,7 +162,8 @@ class _CloudTraceContextPropagator(TextMapPropagator):
         setter.set(
             carrier,
             self._HEADER,
-            f"{format(sc.trace_id, '032x')}/{format(sc.span_id, '016x')};o={o}",
+            # Trace id hex; span id decimal (Cloud Trace wire format).
+            f"{format(sc.trace_id, '032x')}/{sc.span_id};o={o}",
         )
 
     @property
@@ -223,19 +227,26 @@ def configure_tracing(app: Any | None = None) -> TracerProvider | None:
     return provider
 
 
-def _instrument_app(app: Any) -> None:
+def _instrument_app(app: Any, *, force: bool = False, tracer_provider: Any = None) -> None:
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        # Avoid double-instrumentation under TestClient remounts.
-        if getattr(app, "state", None) is not None and getattr(
+        already = getattr(app, "state", None) is not None and getattr(
             app.state, "_heatguard_otel", False
-        ):
-            return
-        FastAPIInstrumentor.instrument_app(
-            app,
-            excluded_urls=",".join(EXCLUDED_URLS),
         )
+        if already and not force:
+            return
+        if already:
+            try:
+                FastAPIInstrumentor.uninstrument_app(app)
+            except Exception:
+                pass
+            if getattr(app, "state", None) is not None:
+                app.state._heatguard_otel = False
+        kwargs: dict[str, Any] = {"excluded_urls": ",".join(EXCLUDED_URLS)}
+        if tracer_provider is not None:
+            kwargs["tracer_provider"] = tracer_provider
+        FastAPIInstrumentor.instrument_app(app, **kwargs)
         if getattr(app, "state", None) is not None:
             app.state._heatguard_otel = True
     except Exception:
@@ -250,18 +261,34 @@ def _instrument_app(app: Any) -> None:
             pass
 
 
-def reset_tracing_for_tests(provider: TracerProvider | None = None) -> None:
-    """Replace the global provider (tests).
+def reset_tracing_for_tests(
+    provider: TracerProvider | None = None,
+    app: Any | None = None,
+) -> None:
+    """Replace the global provider and re-bind FastAPI instrumentation (tests).
 
-    OpenTelemetry's ``set_tracer_provider`` is once-only; tests assign the
-    private module attribute so an InMemory exporter can capture spans.
+    OpenTelemetry's ``set_tracer_provider`` is once-only, and FastAPI
+    instrumentation caches a tracer at instrument time — so tests must both
+    assign the private provider attribute and force re-instrumentation.
     """
     global _CONFIGURED
     if provider is None:
-        provider = TracerProvider(sampler=ParentBasedTraceIdRatio(1.0))
+        from opentelemetry.sdk.trace.sampling import ALWAYS_ON
+
+        provider = TracerProvider(sampler=ALWAYS_ON)
+
+    old = trace.get_tracer_provider()
+    if old is not None and old is not provider and hasattr(old, "shutdown"):
+        try:
+            old.shutdown()
+        except Exception:
+            pass
+
     # Bypass Once-guard — required for pytest isolation.
     trace._TRACER_PROVIDER = provider  # noqa: SLF001
     _CONFIGURED = True
+    if app is not None:
+        _instrument_app(app, force=True, tracer_provider=provider)
 
 
 def force_reconfigure() -> None:
