@@ -36,11 +36,13 @@ export type ApiErrorKind = "http" | "network" | "parse_error";
 export class ApiError extends Error {
   status: number;
   kind: ApiErrorKind;
-  constructor(message: string, status: number, kind: ApiErrorKind = "http") {
+  constructor(message: string, status: number, kind?: ApiErrorKind) {
     super(message);
     this.name = "ApiError";
     this.status = status;
-    this.kind = kind;
+    // status 0 is the conventional network-unreachable sentinel used by callers
+    // that omit kind (e.g. ForecastPanel tests).
+    this.kind = kind ?? (status === 0 ? "network" : "http");
   }
 }
 

@@ -142,7 +142,6 @@ def _report_substitutions(site: Site, summary: dict[str, int]) -> None:
     deg.report_degraded(
         deg.WEATHER_FIELDS_SUBSTITUTED,
         detail=f"{total} substitutions across {len(summary)} fields",
-        once_key=f"weather.fields:{site_key}",
         increment_metric=lambda: observe_degraded_condition(
             reason_code=deg.WEATHER_FIELDS_SUBSTITUTED
         ),

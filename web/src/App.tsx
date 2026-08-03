@@ -440,7 +440,7 @@ export default function App() {
                 >
                   {timelineStaleAgeSec == null
                     ? "Timeline unavailable — no successful fetch yet."
-                    : `Showing stale timeline data (${timelineStaleAgeSec}s old). Latest refresh failed.`}
+                    : `Showing stale timeline data (about ${timelineStaleAgeSec}s old when the latest refresh failed).`}
                 </p>
               )}
               <div className="flex flex-wrap items-start justify-between gap-4">
