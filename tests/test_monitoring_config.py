@@ -121,3 +121,37 @@ def test_forecast_cache_stale_uses_ops_check() -> None:
     data = vm.load_yaml(POLICIES)
     stale = next(p for p in data["policies"] if p["id"] == "forecast-cache-stale")
     assert "forecast_cache_age_hours" in stale["ops_checks"]
+
+
+def test_runbook_url_escaping_repo_root_fails(tmp_path: Path) -> None:
+    path = tmp_path / "escape.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: escape
+    display_name: Path escape
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: ../../etc/passwd#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("escapes repo root" in e for e in result.errors)
+
+
+def test_ensure_src_on_path_is_idempotent() -> None:
+    import sys
+
+    src = str(REPO / "src")
+    before = sys.path.count(src)
+    vm._ensure_src_on_path()
+    vm._ensure_src_on_path()
+    vm.load_metric_names()
+    vm.load_event_names()
+    assert sys.path.count(src) == max(before, 1)

@@ -46,10 +46,25 @@ def _repo_root() -> Path:
     return ROOT
 
 
+def _ensure_src_on_path() -> None:
+    src = str(_repo_root() / "src")
+    if src not in sys.path:
+        sys.path.insert(0, src)
+
+
+def _is_within_root(path: Path, root: Path) -> bool:
+    """True when ``path`` resolves inside ``root`` (no traversal escape)."""
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def load_metric_names() -> frozenset[str]:
     """Prefer live registry; fall back to committed fixture for offline use."""
     try:
-        sys.path.insert(0, str(_repo_root() / "src"))
+        _ensure_src_on_path()
         from heatguard.observability.metrics import registered_metric_label_names
 
         return frozenset(registered_metric_label_names())
@@ -66,7 +81,7 @@ def load_metric_names() -> frozenset[str]:
 
 def load_event_names() -> frozenset[str]:
     try:
-        sys.path.insert(0, str(_repo_root() / "src"))
+        _ensure_src_on_path()
         from heatguard.observability.events import ALL_EVENT_NAMES
 
         return frozenset(ALL_EVENT_NAMES)
@@ -282,22 +297,27 @@ def _validate_runbook_url(
         result.fail(f"{loc}: runbook_url empty #anchor: {runbook_url}")
         return
 
-    target = (root / path_part).resolve() if path_part else (root / "docs" / "RUNBOOKS.md")
-    if path_part and not target.is_file():
-        result.fail(f"{loc}: runbook file not found: {path_part}")
-        return
+    root_resolved = root.resolve()
+    if path_part:
+        target = (root / path_part).resolve()
+        if not _is_within_root(target, root_resolved):
+            result.fail(f"{loc}: runbook_url escapes repo root: {runbook_url}")
+            return
+        if not target.is_file():
+            result.fail(f"{loc}: runbook file not found: {path_part}")
+            return
+    else:
+        target = (root / "docs" / "RUNBOOKS.md").resolve()
 
-    # Recompute anchors if pointing at a different markdown file.
-    file_anchors = anchors
-    if path_part and target.name != "RUNBOOKS.md":
+    # Recompute anchors when the URL names a concrete markdown file.
+    if path_part and target.is_file():
         file_anchors = collect_markdown_anchors(target)
-    elif path_part and target.is_file():
-        file_anchors = collect_markdown_anchors(target)
+    else:
+        file_anchors = anchors
 
     if fragment not in file_anchors:
-        result.fail(
-            f"{loc}: runbook anchor '#{fragment}' not found in {target.relative_to(root)}"
-        )
+        rel = target.relative_to(root_resolved)
+        result.fail(f"{loc}: runbook anchor '#{fragment}' not found in {rel}")
 
 
 def check_docs_links(repo_root: Path | None = None) -> ValidationResult:
@@ -326,6 +346,9 @@ def check_docs_links(repo_root: Path | None = None) -> ValidationResult:
             if not link_path:
                 continue
             target = (path.parent / link_path).resolve()
+            if not _is_within_root(target, root):
+                result.fail(f"{rel}: link escapes repo root: {href}")
+                continue
             if not target.exists():
                 result.fail(f"{rel}: broken link to {href}")
                 continue
