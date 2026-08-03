@@ -95,10 +95,11 @@ jobs:
           echo "OK — tooling extras smoke passed"
 
   golden-parity:
-    name: Golden parity (Python ${{ env.CANONICAL_PYTHON }})
+    name: Golden parity (Python 3.12)
     runs-on: ubuntu-latest
     # No strategy.matrix — a single interpreter is enough, and ``env.*`` is illegal
-    # inside matrix (fails the whole workflow at startup with zero jobs).
+    # inside matrix / job ``name`` (fails the whole workflow at startup with zero jobs).
+    # setup-python below still uses ``env.CANONICAL_PYTHON`` (valid in steps).
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
