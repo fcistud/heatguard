@@ -122,32 +122,37 @@ def _build_index() -> _Index:
 
 def retrieve(question: str, top_k: int = 3) -> list[PolicyHit]:
     """Return the top ``top_k`` policy excerpts for a natural-language question."""
-    if not _HAS_SKLEARN:
-        return []
+    from .observability.tracing import ATTR_ROWS, set_attrs, span
 
-    idx = _build_index()
-    k = max(1, min(top_k, len(idx.chunks)))
-    q = idx.vectorizer.transform([_normalise(question)])
-    scores = cosine_similarity(q, idx.matrix).ravel()
-    order = np.argsort(scores)[::-1][:k]
-    hits: list[PolicyHit] = []
-    for i in order:
-        score = float(scores[i])
-        if score <= 0.0:
-            continue
-        c = idx.chunks[int(i)]
-        excerpt = c.text if len(c.text) <= 480 else c.text[:477] + "…"
-        hits.append(
-            PolicyHit(
-                doc_id=c.doc_id,
-                title=c.title,
-                path=c.path,
-                excerpt=excerpt,
-                score=round(score, 4),
-                chunk_index=c.chunk_index,
+    with span("policy.retrieve") as sp:
+        if not _HAS_SKLEARN:
+            set_attrs(sp, **{ATTR_ROWS: 0})
+            return []
+
+        idx = _build_index()
+        k = max(1, min(top_k, len(idx.chunks)))
+        q = idx.vectorizer.transform([_normalise(question)])
+        scores = cosine_similarity(q, idx.matrix).ravel()
+        order = np.argsort(scores)[::-1][:k]
+        hits: list[PolicyHit] = []
+        for i in order:
+            score = float(scores[i])
+            if score <= 0.0:
+                continue
+            c = idx.chunks[int(i)]
+            excerpt = c.text if len(c.text) <= 480 else c.text[:477] + "…"
+            hits.append(
+                PolicyHit(
+                    doc_id=c.doc_id,
+                    title=c.title,
+                    path=c.path,
+                    excerpt=excerpt,
+                    score=round(score, 4),
+                    chunk_index=c.chunk_index,
+                )
             )
-        )
-    return hits
+        set_attrs(sp, **{ATTR_ROWS: len(hits)})
+        return hits
 
 
 def _synthesize(question: str, hits: list[PolicyHit]) -> str:

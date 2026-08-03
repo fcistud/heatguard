@@ -96,35 +96,52 @@ class ComplianceLog:
 
     def append(self, advisory: Advisory, water_available: bool = True) -> LogRecord:
         """Log a full advisory plus the supervisor's water-availability attestation."""
-        payload = advisory.to_dict()
-        payload["water_available"] = bool(water_available)
-        return self._add(advisory.timestamp.isoformat(), "advisory", payload)
+        from .observability.tracing import ATTR_SIGNAL, ATTR_SITE_KEY, ATTR_WBGT_SOURCE, span
+
+        with span(
+            "compliance.append",
+            **{
+                ATTR_SITE_KEY: self.site_key,
+                ATTR_SIGNAL: advisory.signal.value,
+                ATTR_WBGT_SOURCE: advisory.wbgt_source,
+            },
+        ):
+            payload = advisory.to_dict()
+            payload["water_available"] = bool(water_available)
+            return self._add(advisory.timestamp.isoformat(), "advisory", payload)
 
     def append_event(self, timestamp_iso: str, kind: str, payload: dict) -> LogRecord:
         return self._add(timestamp_iso, kind, dict(payload))
 
     def verify_chain(self) -> bool:
         """Recompute every hash and linkage; False on any tampering."""
-        prev = _GENESIS
-        verified = True
-        for i, rec in enumerate(self.records):
-            if rec.seq != i or rec.prev_hash != prev:
-                verified = False
-                break
-            if _hash(rec._body()) != rec.record_hash:
-                verified = False
-                break
-            prev = rec.record_hash
-        from .observability.metrics import observe_compliance_verify
+        from .observability.tracing import ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
 
-        observe_compliance_verify(site_key=self.site_key, ok=verified)
-        log.info(
-            COMPLIANCE_VERIFY,
-            site_key=self.site_key,
-            verified=verified,
-            record_count=len(self.records),
-        )
-        return verified
+        with span(
+            "compliance.verify_chain",
+            **{ATTR_SITE_KEY: self.site_key},
+        ) as sp:
+            prev = _GENESIS
+            verified = True
+            for i, rec in enumerate(self.records):
+                if rec.seq != i or rec.prev_hash != prev:
+                    verified = False
+                    break
+                if _hash(rec._body()) != rec.record_hash:
+                    verified = False
+                    break
+                prev = rec.record_hash
+            from .observability.metrics import observe_compliance_verify
+
+            observe_compliance_verify(site_key=self.site_key, ok=verified)
+            set_attrs(sp, **{ATTR_ROWS: len(self.records)})
+            log.info(
+                COMPLIANCE_VERIFY,
+                site_key=self.site_key,
+                verified=verified,
+                record_count=len(self.records),
+            )
+            return verified
 
     # ---- export -------------------------------------------------------------
     def export_jsonl(self) -> str:

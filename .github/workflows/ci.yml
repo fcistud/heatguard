@@ -54,6 +54,36 @@ jobs:
       - name: Run tests
         run: uv run pytest -q
 
+  otel-timing-baseline:
+    name: OTEL cold/warm demo timing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Cold + warm /demo span baseline
+        env:
+          HEATGUARD_ENV: test
+          HEATGUARD_TRACE_SAMPLE_RATIO: "1.0"
+          HEATGUARD_TRACE_EXPORTER: none
+          HEATGUARD_TRACE_SIMPLE: "1"
+          HEATGUARD_TIMING_SITE: dubai
+          HEATGUARD_TIMING_OUT: artifacts/o2-latency-baseline.json
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/otel_timing_baseline.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: o2-latency-baseline
+          path: artifacts/o2-latency-baseline.json
+          if-no-files-found: warn
+
   dependency-determinism:
     name: Dependency resolution determinism
     runs-on: ubuntu-latest

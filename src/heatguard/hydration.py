@@ -38,6 +38,13 @@ def _run_phs(c: Conditions, worker: Worker, met: float, duration_min: int):
     # stays solvable in Gulf extremes (tr<=60 desert globe, tdb<=50, v<=3). The
     # clamped values still represent a severe load; p_a (humidity) is left as-is
     # and a NaN result is reported honestly via phs_valid.
+    from .observability.tracing import ATTR_WBGT_SOURCE, span
+
+    with span("engine.phs", **{ATTR_WBGT_SOURCE: c.wbgt_source}):
+        return _run_phs_impl(c, worker, met, duration_min)
+
+
+def _run_phs_impl(c: Conditions, worker: Worker, met: float, duration_min: int):
     tdb = max(15.0, min(50.0, c.weather.tdb_c))
     tr = max(0.0, min(60.0, c.globe_c))
     v = max(0.3, min(3.0, c.weather.wind_ms))
