@@ -17,7 +17,7 @@ structured event names.
 | **Cold first-paint / start** | `heatguard_process_start_duration_seconds` (lifespan warm-up gauge) | \< 5 s per process start | per deploy / scale-from-zero | exclude from warm p95 pages; track separately | platform |
 | **Panel cache 304 ratio** | `sum(rate(heatguard_http_not_modified_total[5m])) / sum(rate(heatguard_http_requests_total[5m]))` | ≥ 90% on cacheable panel routes once caching ships | 7 d | 10% | platform |
 | **Response compression ratio** | `histogram_quantile(0.5, rate(heatguard_response_compression_ratio_bucket[5m]))` | median ≥ 6× when gzip applies | 7 d | 10% of samples | platform |
-| **Weather ingest success** | `sum(rate(heatguard_weather_fetch_total{outcome=~"cache_hit\|network_ok"}[15m])) / sum(rate(heatguard_weather_fetch_total[15m]))` | ≥ 99% successful outcomes | 7 d | 1% | platform |
+| **Weather ingest success** | `sum(rate(heatguard_weather_fetch_total{outcome=~"cache_hit|network_ok"}[15m])) / sum(rate(heatguard_weather_fetch_total[15m]))` | ≥ 99% successful outcomes | 7 d | 1% | platform |
 | **Forecast freshness** (ops) | Forecast cache file mtime age under `HEATGUARD_CACHE_DIR` (complement to ingest success — cache hits stay “healthy” while going stale) | age ≤ 26 h for demo forecast artifacts | continuous | zero for live pitch windows | platform |
 | **Compliance chain verification** | `increase(heatguard_compliance_chain_verify_total{result="failed"}[5m])` | **100%** success (`failed` increments = 0) | any | **zero** — any failure pages | compliance |
 
