@@ -335,7 +335,10 @@ def check_docs_links(repo_root: Path | None = None) -> ValidationResult:
             href = m.group(2).strip()
             if href.startswith(("http://", "https://", "mailto:", "#")):
                 if href.startswith("#"):
-                    anchors = anchors_cache.setdefault(path, collect_markdown_anchors(path))
+                    anchors = anchors_cache.get(path)
+                    if anchors is None:
+                        anchors = collect_markdown_anchors(path)
+                        anchors_cache[path] = anchors
                     frag = href[1:]
                     if frag and frag not in anchors:
                         result.fail(f"{rel}: broken in-page anchor {href}")
@@ -353,7 +356,10 @@ def check_docs_links(repo_root: Path | None = None) -> ValidationResult:
                 result.fail(f"{rel}: broken link to {href}")
                 continue
             if frag and target.suffix in {".md", ".markdown"}:
-                anchors = anchors_cache.setdefault(target, collect_markdown_anchors(target))
+                anchors = anchors_cache.get(target)
+                if anchors is None:
+                    anchors = collect_markdown_anchors(target)
+                    anchors_cache[target] = anchors
                 if frag not in anchors:
                     result.fail(f"{rel}: broken anchor in link {href}")
     return result
