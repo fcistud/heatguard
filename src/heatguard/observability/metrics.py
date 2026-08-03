@@ -358,17 +358,12 @@ def render_prometheus() -> bytes:
 
 
 def registered_metric_label_names() -> dict[str, frozenset[str]]:
-    """Map metric name -> label names for the cardinality guard test."""
-    out: dict[str, frozenset[str]] = {}
-    for metric in get_registry().collect():
-        # Family name without _total/_bucket suffixes for histograms/counters.
-        samples_labels: set[str] = set()
-        for sample in metric.samples:
-            samples_labels.update(k for k in sample.labels if k not in ("le", "quantile"))
-        out[metric.name] = frozenset(samples_labels)
-        # Also expose the collector's declared labelnames via type wrappers.
-    # Prefer declared labelnames from our Counter/Histogram objects.
-    declared = {
+    """Contract map of metric name -> label names for the cardinality guard.
+
+    Declared (not sample-derived) so unobserved series still appear and
+    prometheus histogram ``le`` sample labels never leak into the guard.
+    """
+    return {
         "heatguard_http_requests_total": frozenset({"route", "method", "status_class"}),
         "heatguard_http_request_duration_seconds": frozenset({"route"}),
         "heatguard_http_response_bytes": frozenset({"route"}),
@@ -384,7 +379,6 @@ def registered_metric_label_names() -> dict[str, frozenset[str]]:
         "heatguard_ratelimit_rejected_total": frozenset({"route", "key_class"}),
         "heatguard_process_start_duration_seconds": frozenset(),
     }
-    return declared
 
 
 def warn_if_multiprocess_unconfigured() -> None:

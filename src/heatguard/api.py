@@ -84,7 +84,7 @@ app.add_middleware(
 # Outermost correlation / access log (Starlette runs last-added middleware first).
 app.add_middleware(CorrelationMiddleware)
 
-# Private surface — metrics exposition is mounted only when explicitly enabled.
+# Private surface — /metrics is mounted, but returns 404 unless explicitly enabled.
 _private_router = APIRouter(tags=["private"], include_in_schema=False)
 
 

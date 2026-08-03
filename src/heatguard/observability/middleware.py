@@ -33,18 +33,6 @@ _KNOWN_EXACT = frozenset({
     "/landing",
 })
 
-_SITE_PREFIXES = (
-    "/demo/",
-    "/forecast/",
-    "/compliance/",
-    "/hour/",
-    "/timeline/",
-    "/impact/",
-    "/economics/",
-    "/sensitivity/",
-    "/scale/",
-)
-
 
 def _route_template(path: str) -> str:
     """Collapse path-bound site keys; unknown paths become ``unmatched``."""

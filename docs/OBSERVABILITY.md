@@ -29,7 +29,7 @@ is greater than 1 and multiprocess mode is unset.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `HEATGUARD_METRICS_ENABLED` | off | When truthy (`1`/`true`/`yes`), mount private `GET /metrics` |
+| `HEATGUARD_METRICS_ENABLED` | off | When truthy (`1`/`true`/`yes`), enable private `GET /metrics` (404 when off) |
 | `HEATGUARD_METRICS_EXPORT` | unset | Optional export mode flag (`otlp`, `cloud_monitoring`, …); scrape remains primary |
 
 ### Private exposition

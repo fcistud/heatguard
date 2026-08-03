@@ -131,7 +131,8 @@ def fetch_archive(
     if cache_hit:
         try:
             payload = json.loads(path.read_text())
-        except (json.JSONDecodeError, ValueError, OSError):
+            rows = _parse(payload, site)
+        except (json.JSONDecodeError, ValueError, KeyError, TypeError, OSError):
             _record_weather(
                 site=site, source="archive", outcome="parse_error",
                 started=started, cache_hit=True,
@@ -141,7 +142,7 @@ def fetch_archive(
             site=site, source="archive", outcome="cache_hit",
             started=started, cache_hit=True,
         )
-        return _parse(payload, site)
+        return rows
 
     params = _base_params(site) | {"start_date": str(start), "end_date": str(end)}
     try:
