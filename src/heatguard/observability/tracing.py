@@ -320,7 +320,13 @@ def span(name: str, **attributes: Any) -> Iterator[Span | None]:
 
     try:
         tracer = get_tracer()
-        span_cm = tracer.start_as_current_span(name)
+        # Disable SDK defaults — we record exception/status once below and also
+        # set ``exception.type`` for runbook queries.
+        span_cm = tracer.start_as_current_span(
+            name,
+            record_exception=False,
+            set_status_on_exception=False,
+        )
         sp = span_cm.__enter__()
     except Exception:
         yield None
