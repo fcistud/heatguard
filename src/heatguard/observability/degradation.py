@@ -119,8 +119,10 @@ def report_degraded(
 ) -> None:
     """Record a degraded condition: snapshot + optional one-shot log + metric.
 
-    Never raises. On internal failure emits at most one
-    ``degradation.reporting_failed`` event.
+    Logs/events are de-duplicated by ``once_key`` so season-replay loops cannot
+    flood structured logs. Metric callbacks always run so Prometheus counters
+    reflect repeated occurrences. Never raises; on internal failure emits at
+    most one ``degradation.reporting_failed`` event.
     """
     global _reporting_failed_logged
     try:
@@ -141,7 +143,7 @@ def report_degraded(
                 else:
                     _logged_once.add(once_key)
 
-        if should_log and increment_metric is not None:
+        if increment_metric is not None:
             try:
                 increment_metric()
             except Exception:

@@ -114,12 +114,39 @@ def test_wbgt_invalid_liljegren_latches_degraded(monkeypatch, captured_events):
 
 def test_degradation_ttl_env_override(monkeypatch):
     monkeypatch.setenv("HEATGUARD_DEGRADATION_TTL_SECONDS", "0.05")
+    clock = {"t": 1_000.0}
+    monkeypatch.setattr(deg.time, "monotonic", lambda: clock["t"])
+
     deg.report_degraded(deg.WBGT_FALLBACK_ACTIVE, detail="ttl")
     assert "wbgt_fallback_active" in deg.active_reason_codes()
-    import time
-
-    time.sleep(0.08)
+    clock["t"] += 0.06
     assert "wbgt_fallback_active" not in deg.active_reason_codes()
+
+
+def test_report_degraded_dedupes_logs_but_always_increments_metric(captured_events):
+    calls: list[int] = []
+
+    def bump() -> None:
+        calls.append(1)
+
+    deg.report_degraded(
+        deg.WBGT_FALLBACK_ACTIVE,
+        detail="a",
+        once_key="wbgt:test",
+        log_event=deg.WBGT_PATH_SELECTED,
+        log_fields={"path": "test"},
+        increment_metric=bump,
+    )
+    deg.report_degraded(
+        deg.WBGT_FALLBACK_ACTIVE,
+        detail="b",
+        once_key="wbgt:test",
+        log_event=deg.WBGT_PATH_SELECTED,
+        log_fields={"path": "test"},
+        increment_metric=bump,
+    )
+    assert len(calls) == 2
+    assert len([e for e in captured_events if e.get("event") == "wbgt.path_selected"]) == 1
 
 
 def test_weather_null_fields_substitute_and_count(captured_events):
