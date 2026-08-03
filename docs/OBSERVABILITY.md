@@ -84,3 +84,50 @@ Warm p95: `histogram_quantile(0.95, rate(heatguard_http_request_duration_seconds
 Compression: `histogram_quantile(0.5, rate(heatguard_response_compression_ratio_bucket[5m]))` (target ≥ 6×).
 
 Chain integrity: `increase(heatguard_compliance_chain_verify_total{result="failed"}[7d]) == 0`.
+
+## Tracing (WO-015)
+
+OpenTelemetry SDK in `src/heatguard/observability/tracing.py`. FastAPI and httpx
+are auto-instrumented; manual spans mark science-engine and compliance boundaries.
+
+### Environment
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `HEATGUARD_TRACE_EXPORTER` | `console` | `console` \| `otlp` \| `none` |
+| `HEATGUARD_TRACE_SAMPLE_RATIO` | `0.05` prod / `1.0` when `HEATGUARD_ENV` is `dev`/`test` | Head-based sample ratio |
+| `HEATGUARD_TRACE_SIMPLE` | off | Use `SimpleSpanProcessor` (tests / CI timing) |
+| `HEATGUARD_SERVICE_NAME` | `heatguard` | Resource `service.name` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | SDK default | OTLP HTTP endpoint when exporter is `otlp` |
+
+### Span names
+
+| Span | Where |
+|------|--------|
+| `lifespan.warm_up` / `lifespan.load_risk_model` / `lifespan.build_policy_index` | FastAPI lifespan cold start |
+| `weather.fetch_archive` / `weather.fetch_forecast` | Open-Meteo ingest (+ httpx child) |
+| `engine.estimate_wbgt` / `engine.decide` / `engine.phs` | WBGT, scheduler, ISO 7933 PHS |
+| `service.season_replay` / `service.build_demo` / `service.forecast_timeline` | Demo/impact assembly |
+| `compliance.append` / `compliance.verify_chain` | Hash-chain evidence |
+| `policy.retrieve` | Policy RAG |
+
+Season replay **suppresses** nested `engine.*` spans (per-hour trees are forbidden);
+`service.season_replay` carries `heatguard.rows` instead.
+
+### Attributes
+
+Allowed: `heatguard.site_key`, `heatguard.wbgt_source`, `heatguard.signal`,
+`heatguard.rows`, `heatguard.cache_hit`, `heatguard.horizon_hours`.
+
+Never set: worker age/weight/height/comorbidity, `worker_id`, or coordinates.
+
+### Log join + propagation
+
+Structlog injects `trace_id` / `span_id` from the active span. Propagators accept
+W3C `traceparent` and Google `X-Cloud-Trace-Context`. Health probes and `/metrics`
+are excluded from FastAPI auto-instrumentation.
+
+### CI timing baseline
+
+`scripts/otel_timing_baseline.py` runs one cold and one warm `GET /demo/{site}`
+with sampling forced to 1.0 and writes `artifacts/o2-latency-baseline.json`.

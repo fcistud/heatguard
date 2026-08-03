@@ -52,6 +52,21 @@ def build_conditions(
 
 
 def decide(c: Conditions, worker: Worker) -> Advisory:
+    from .observability.tracing import ATTR_SIGNAL, ATTR_WBGT_SOURCE, set_attrs, span
+
+    with span(
+        "engine.decide",
+        **{ATTR_WBGT_SOURCE: c.wbgt_source},
+    ) as sp:
+        adv = _decide_impl(c, worker)
+        set_attrs(
+            sp,
+            **{ATTR_SIGNAL: adv.signal.value, ATTR_WBGT_SOURCE: adv.wbgt_source},
+        )
+        return adv
+
+
+def _decide_impl(c: Conditions, worker: Worker) -> Advisory:
     cat = c.met_category
     table_acclimatized = not acclimatization.use_unacclimatized_thresholds(worker)
 

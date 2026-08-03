@@ -1,0 +1,51 @@
+{
+  "description": "Required span names and nesting for GET /demo/{site_key} (WO-015). Refactors that drop instrumentation fail CI.",
+  "required_span_names": [
+    "service.build_demo",
+    "service.season_replay",
+    "weather.fetch_archive",
+    "engine.estimate_wbgt",
+    "engine.decide",
+    "engine.phs",
+    "compliance.append"
+  ],
+  "optional_span_names": [
+    "compliance.verify_chain"
+  ],
+  "nesting": {
+    "service.build_demo": [
+      "service.season_replay",
+      "weather.fetch_archive",
+      "engine.decide",
+      "compliance.append"
+    ]
+  },
+  "forbidden_children_of": {
+    "service.season_replay": [
+      "engine.estimate_wbgt",
+      "engine.decide",
+      "engine.phs"
+    ]
+  },
+  "required_attributes": {
+    "service.build_demo": ["heatguard.site_key"],
+    "service.season_replay": ["heatguard.site_key", "heatguard.rows"],
+    "weather.fetch_archive": ["heatguard.site_key", "heatguard.cache_hit", "heatguard.rows"]
+  },
+  "forbidden_attribute_keys": [
+    "age",
+    "weight_kg",
+    "height_m",
+    "has_comorbidity",
+    "worker_id",
+    "lat",
+    "lon",
+    "heatguard.age",
+    "heatguard.weight_kg",
+    "heatguard.height_m",
+    "heatguard.has_comorbidity",
+    "heatguard.worker_id",
+    "heatguard.lat",
+    "heatguard.lon"
+  ]
+}

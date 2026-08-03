@@ -73,6 +73,17 @@ def _merge_request_context(
     ctx = _request_context.get()
     for key, value in ctx.items():
         event_dict.setdefault(key, value)
+    # Join active OTEL span ids when present (WO-015).
+    try:
+        from .tracing import current_trace_ids
+
+        tid, sid = current_trace_ids()
+        if tid:
+            event_dict.setdefault("trace_id", tid)
+        if sid:
+            event_dict.setdefault("span_id", sid)
+    except Exception:
+        pass
     return event_dict
 
 

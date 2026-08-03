@@ -123,11 +123,32 @@ def fetch_archive(
     refresh: bool = False,
 ) -> list[Weather]:
     """Hourly reanalysis for [start, end]. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
+    from ..observability.tracing import ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
+
+    with span("weather.fetch_archive", **{ATTR_SITE_KEY: _slug(site)}) as sp:
+        rows = _fetch_archive_impl(site, start, end, use_cache=use_cache, refresh=refresh)
+        # cache_hit inferred from outcome logging is already done; set rows always.
+        set_attrs(sp, **{ATTR_ROWS: len(rows)})
+        return rows
+
+
+def _fetch_archive_impl(
+    site: Site,
+    start: date,
+    end: date,
+    use_cache: bool = True,
+    refresh: bool = False,
+) -> list[Weather]:
     import httpx
 
     path = cache_file(cache_name_for(site, start, end))
     started = time.perf_counter()
     cache_hit = bool(use_cache and not refresh and path.exists())
+    from ..observability.tracing import ATTR_CACHE_HIT, set_attrs
+    from opentelemetry import trace as otel_trace
+
+    cur = otel_trace.get_current_span()
+    set_attrs(cur if cur.is_recording() else None, **{ATTR_CACHE_HIT: cache_hit})
     if cache_hit:
         try:
             payload = json.loads(path.read_text())
@@ -192,11 +213,33 @@ def fetch_forecast(
     refresh: bool = False,
 ) -> list[Weather]:
     """Near-live hourly forecast. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
+    from ..observability.tracing import ATTR_ROWS, ATTR_SITE_KEY, set_attrs, span
+
+    with span("weather.fetch_forecast", **{ATTR_SITE_KEY: _slug(site)}) as sp:
+        rows = _fetch_forecast_impl(
+            site, forecast_days, past_days, use_cache=use_cache, refresh=refresh
+        )
+        set_attrs(sp, **{ATTR_ROWS: len(rows)})
+        return rows
+
+
+def _fetch_forecast_impl(
+    site: Site,
+    forecast_days: int = 2,
+    past_days: int = 1,
+    use_cache: bool = True,
+    refresh: bool = False,
+) -> list[Weather]:
     import httpx
 
     path = cache_file(forecast_cache_name_for(site, forecast_days, past_days))
     started = time.perf_counter()
     cache_hit = bool(use_cache and not refresh and path.exists())
+    from ..observability.tracing import ATTR_CACHE_HIT, set_attrs
+    from opentelemetry import trace as otel_trace
+
+    cur = otel_trace.get_current_span()
+    set_attrs(cur if cur.is_recording() else None, **{ATTR_CACHE_HIT: cache_hit})
     if cache_hit:
         try:
             payload = json.loads(path.read_text())

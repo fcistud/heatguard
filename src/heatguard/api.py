@@ -28,29 +28,36 @@ log = get_logger(__name__)
 
 def _warm_caches() -> None:
     """Pre-load ML model and policy index; optionally pre-compute demo payloads."""
+    from .observability.tracing import ATTR_SITE_KEY, span
     from .policy_rag import _build_index
     from .risk_model import _load_model
 
-    _load_model()
-    try:
-        _build_index()
-    except FileNotFoundError:
-        log.warning(
-            "policy_corpus_missing",
-            message="Policy corpus missing — skipping RAG warm-up",
-        )
+    with span("lifespan.warm_up"):
+        with span("lifespan.load_risk_model"):
+            _load_model()
+        with span("lifespan.build_policy_index"):
+            try:
+                _build_index()
+            except FileNotFoundError:
+                log.warning(
+                    "policy_corpus_missing",
+                    message="Policy corpus missing — skipping RAG warm-up",
+                )
 
-    if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):
-        for site in service.DEMOS:
-            log.info("warming_demo", site_key=site)
-            service.build_demo(site, 100)
+        if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):
+            for site in service.DEMOS:
+                log.info("warming_demo", site_key=site)
+                with span("lifespan.warm_demo", **{ATTR_SITE_KEY: site}):
+                    service.build_demo(site, 100)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
     from .observability import metrics as obs_metrics
+    from .observability.tracing import configure_tracing
 
+    configure_tracing(app)
     obs_metrics.warn_if_multiprocess_unconfigured()
     obs_metrics.maybe_configure_export()
     v = sys.version_info

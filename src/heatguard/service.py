@@ -190,18 +190,31 @@ def _season_hourly(site_key: str):
     """One representative-worker season replay -> (hourly[(advisory, banned)], season_days).
 
     Cached per site — season replay is expensive (PHS + scheduler on every work hour).
+    Engine per-hour spans are suppressed; this span carries ``heatguard.site_key``
+    and ``heatguard.rows``.
     """
-    cfg, site, season = load_season(site_key)
-    # WORK_END is inclusive for the timeline/compliance views; daytime() is
-    # half-open, so +1 keeps the impact window identical (hours 5..19).
-    work = daytime(season, WORK_START, WORK_END + 1)
-    advs = replay_worker(work, site, _veteran(), cfg["intensity"])
-    from .observability.metrics import observe_engine_decisions_batch
+    from .observability.tracing import (
+        ATTR_ROWS,
+        ATTR_SITE_KEY,
+        set_attrs,
+        span,
+        suppress_engine_spans,
+    )
 
-    observe_engine_decisions_batch((a.signal.value, a.wbgt_source) for a in advs)
-    hourly = impact.pair_with_ban(advs, site.country)
-    season_days = len({w.timestamp.date() for w in work})
-    return hourly, season_days
+    with span("service.season_replay", **{ATTR_SITE_KEY: site_key}) as sp:
+        with suppress_engine_spans():
+            cfg, site, season = load_season(site_key)
+            # WORK_END is inclusive for the timeline/compliance views; daytime() is
+            # half-open, so +1 keeps the impact window identical (hours 5..19).
+            work = daytime(season, WORK_START, WORK_END + 1)
+            advs = replay_worker(work, site, _veteran(), cfg["intensity"])
+            from .observability.metrics import observe_engine_decisions_batch
+
+            observe_engine_decisions_batch((a.signal.value, a.wbgt_source) for a in advs)
+            hourly = impact.pair_with_ban(advs, site.country)
+            season_days = len({w.timestamp.date() for w in work})
+            set_attrs(sp, **{ATTR_ROWS: len(work)})
+            return hourly, season_days
 
 
 def season_impact_report(site_key: str, crew: int = 100):
@@ -255,6 +268,13 @@ def compliance_for_day(site_key: str, day: date) -> ComplianceLog:
 
 
 def build_demo(site_key: str, crew: int = 100) -> dict:
+    from .observability.tracing import ATTR_SITE_KEY, span
+
+    with span("service.build_demo", **{ATTR_SITE_KEY: site_key}):
+        return _build_demo_impl(site_key, crew)
+
+
+def _build_demo_impl(site_key: str, crew: int = 100) -> dict:
     cfg, site, season = load_season(site_key)
     focus = cfg["focus_day"]
     tl = timeline_for_day(site_key, focus)
@@ -364,68 +384,81 @@ def _default_intensity(site_key: str) -> MetabolicCategory:
 def forecast_timeline(site_key: str) -> dict:
     """Hourly forecast with HeatGuard signals and a recommended shift window."""
     from .datasets import load_manifest
-
-    site = get_site(site_key)
-    cfg = load_manifest()["weather"]["forecast"]
-    cat = _default_intensity(site_key)
-    veteran, newcomer = _veteran(), _newcomer()
-    rows = fetch_forecast(
-        site,
-        forecast_days=int(cfg["forecast_days"]),
-        past_days=int(cfg["past_days"]),
+    from .observability.tracing import (
+        ATTR_HORIZON_HOURS,
+        ATTR_ROWS,
+        ATTR_SITE_KEY,
+        set_attrs,
+        span,
     )
-    work_rows = [w for w in rows if WORK_START <= w.timestamp.hour <= WORK_END]
-    timeline_rows: list[dict] = []
-    danger_hours = 0
-    work_hour_labels: list[str] = []
 
-    decision_pairs: list[tuple[str, str]] = []
-    for w in work_rows:
-        av = schedule(w, site, veteran, cat)
-        an = schedule(w, site, newcomer, cat)
-        decision_pairs.append((av.signal.value, av.wbgt_source))
-        decision_pairs.append((an.signal.value, an.wbgt_source))
-        if av.signal in _PROTECTIVE:
-            danger_hours += 1
-        if av.signal is Signal.WORK:
-            work_hour_labels.append(w.timestamp.strftime("%H:%M"))
-        timeline_rows.append({
-            "hour": w.timestamp.hour,
-            "time": w.timestamp.strftime("%H:%M"),
-            "date": str(w.timestamp.date()),
-            "tdb_c": round(w.tdb_c, 1),
-            "rh_pct": round(w.rh_pct, 0),
-            "wbgt_c": round(av.wbgt_c, 1),
-            "wbgt_source": av.wbgt_source,
-            "veteran": av.to_dict(),
-            "newcomer": an.to_dict(),
-            "banned": calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c),
-        })
+    with span("service.forecast_timeline", **{ATTR_SITE_KEY: site_key}) as sp:
+        site = get_site(site_key)
+        cfg = load_manifest()["weather"]["forecast"]
+        cat = _default_intensity(site_key)
+        veteran, newcomer = _veteran(), _newcomer()
+        rows = fetch_forecast(
+            site,
+            forecast_days=int(cfg["forecast_days"]),
+            past_days=int(cfg["past_days"]),
+        )
+        work_rows = [w for w in rows if WORK_START <= w.timestamp.hour <= WORK_END]
+        timeline_rows: list[dict] = []
+        danger_hours = 0
+        work_hour_labels: list[str] = []
 
-    from .observability.metrics import observe_engine_decisions_batch
+        decision_pairs: list[tuple[str, str]] = []
+        for w in work_rows:
+            av = schedule(w, site, veteran, cat)
+            an = schedule(w, site, newcomer, cat)
+            decision_pairs.append((av.signal.value, av.wbgt_source))
+            decision_pairs.append((an.signal.value, an.wbgt_source))
+            if av.signal in _PROTECTIVE:
+                danger_hours += 1
+            if av.signal is Signal.WORK:
+                work_hour_labels.append(w.timestamp.strftime("%H:%M"))
+            timeline_rows.append({
+                "hour": w.timestamp.hour,
+                "time": w.timestamp.strftime("%H:%M"),
+                "date": str(w.timestamp.date()),
+                "tdb_c": round(w.tdb_c, 1),
+                "rh_pct": round(w.rh_pct, 0),
+                "wbgt_c": round(av.wbgt_c, 1),
+                "wbgt_source": av.wbgt_source,
+                "veteran": av.to_dict(),
+                "newcomer": an.to_dict(),
+                "banned": calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c),
+            })
 
-    observe_engine_decisions_batch(decision_pairs)
+        from .observability.metrics import observe_engine_decisions_batch
 
-    shift_start = work_hour_labels[0] if work_hour_labels else None
-    shift_end = work_hour_labels[-1] if work_hour_labels else None
+        observe_engine_decisions_batch(decision_pairs)
 
-    return {
-        "site": {"key": site_key, "name": site.name, "country": site.country},
-        "intensity": cat.value,
-        "source": "open-meteo-forecast",
-        "forecast_days": int(cfg["forecast_days"]),
-        "past_days": int(cfg["past_days"]),
-        "rows": timeline_rows,
-        "summary": {
-            "total_work_hours": len(work_rows),
-            "danger_hours": danger_hours,
-            "work_hours_permitted": len(work_hour_labels),
-            "recommended_shift_start": shift_start,
-            "recommended_shift_end": shift_end,
-            "headline": (
-                f"Start outdoor work at {shift_start}, finish by {shift_end}."
-                if shift_start and shift_end
-                else "No safe full-work hours in the forecast window — plan rest/shade blocks."
-            ),
-        },
-    }
+        shift_start = work_hour_labels[0] if work_hour_labels else None
+        shift_end = work_hour_labels[-1] if work_hour_labels else None
+        horizon = int(cfg["forecast_days"]) * 24 + int(cfg["past_days"]) * 24
+        set_attrs(
+            sp,
+            **{ATTR_ROWS: len(timeline_rows), ATTR_HORIZON_HOURS: horizon},
+        )
+
+        return {
+            "site": {"key": site_key, "name": site.name, "country": site.country},
+            "intensity": cat.value,
+            "source": "open-meteo-forecast",
+            "forecast_days": int(cfg["forecast_days"]),
+            "past_days": int(cfg["past_days"]),
+            "rows": timeline_rows,
+            "summary": {
+                "total_work_hours": len(work_rows),
+                "danger_hours": danger_hours,
+                "work_hours_permitted": len(work_hour_labels),
+                "recommended_shift_start": shift_start,
+                "recommended_shift_end": shift_end,
+                "headline": (
+                    f"Start outdoor work at {shift_start}, finish by {shift_end}."
+                    if shift_start and shift_end
+                    else "No safe full-work hours in the forecast window — plan rest/shade blocks."
+                ),
+            },
+        }

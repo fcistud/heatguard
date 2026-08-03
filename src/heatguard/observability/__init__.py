@@ -28,6 +28,7 @@ from .metrics import (
     observe_weather_fetch,
 )
 from .middleware import CorrelationMiddleware
+from .tracing import configure_tracing, span, suppress_engine_spans
 
 __all__ = [
     "AUTH_DEPRECATED_ANONYMOUS",
@@ -41,6 +42,7 @@ __all__ = [
     "bind_request_context",
     "clear_request_context",
     "configure_logging",
+    "configure_tracing",
     "emit_auth_deprecated_anonymous",
     "get_logger",
     "observe_compression_ratio",
@@ -51,4 +53,6 @@ __all__ = [
     "observe_ratelimit_rejected",
     "observe_weather_fetch",
     "resolve_request_id",
+    "span",
+    "suppress_engine_spans",
 ]

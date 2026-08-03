@@ -86,6 +86,17 @@ def wbgt_liljegren(w: Weather, site: Site, cossza: float) -> float:
 
 def estimate_wbgt(w: Weather, site: Site, when: datetime | None = None) -> WbgtEstimate:
     """Best-effort outdoor WBGT with provenance and a consistent globe temp."""
+    from .observability.tracing import ATTR_WBGT_SOURCE, set_attrs, span
+
+    with span("engine.estimate_wbgt") as sp:
+        est = _estimate_wbgt_impl(w, site, when)
+        set_attrs(sp, **{ATTR_WBGT_SOURCE: est.source})
+        return est
+
+
+def _estimate_wbgt_impl(
+    w: Weather, site: Site, when: datetime | None = None
+) -> WbgtEstimate:
     ts = when or w.timestamp
     cossza = cos_solar_zenith_angle(ts, site.lat, site.lon)
 
