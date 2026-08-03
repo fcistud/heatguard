@@ -225,6 +225,7 @@ export default function App() {
           setSelectedHour(gap?.hour ?? noon?.hour ?? tl.rows[0]?.hour ?? null);
         })
         .catch(() => {
+          if (reqId !== paramReqId.current) return;
           markTimelineStale();
         })
         .finally(() => {
@@ -261,6 +262,7 @@ export default function App() {
           });
         })
         .catch(() => {
+          if (reqId !== paramReqId.current) return;
           markTimelineStale();
         })
         .finally(() => {

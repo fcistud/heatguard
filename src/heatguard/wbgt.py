@@ -106,7 +106,7 @@ def _estimate_wbgt_impl(
             if math.isfinite(val) and (w.tdb_c - 40.0) < val < (w.tdb_c + 8.0):
                 _report_wbgt_path("liljegren")
                 return WbgtEstimate(val, "liljegren", _globe_from_wbgt(val, w.tdb_c, w.rh_pct))
-            _report_wbgt_path("fallback_invalid")
+            _report_wbgt_path("fallback_invalid", latch_degraded=True)
         except Exception as exc:
             _report_wbgt_path(
                 "fallback_exception",

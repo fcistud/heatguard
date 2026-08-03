@@ -124,16 +124,21 @@ def _build_index() -> _Index:
     return _Index(chunks=chunks, vectorizer=vectorizer, matrix=matrix)
 
 
-def retrieve(question: str, top_k: int = 3) -> list[PolicyHit]:
-    """Return the top ``top_k`` policy excerpts for a natural-language question."""
+def retrieve(question: str, top_k: int = 3, *, _index_checked: bool = False) -> list[PolicyHit]:
+    """Return the top ``top_k`` policy excerpts for a natural-language question.
+
+    ``_index_checked=True`` skips ``policy_index_status()`` when the caller has
+    already validated availability (avoids a second ``_build_index`` round-trip).
+    """
     from .observability.tracing import ATTR_ROWS, set_attrs, span
 
     with span("policy.retrieve") as sp:
-        available, reason = policy_index_status()
-        if not available:
-            _report_policy_unavailable(reason or "unavailable")
-            set_attrs(sp, **{ATTR_ROWS: 0})
-            return []
+        if not _index_checked:
+            available, reason = policy_index_status()
+            if not available:
+                _report_policy_unavailable(reason or "unavailable")
+                set_attrs(sp, **{ATTR_ROWS: 0})
+                return []
 
         idx = _build_index()
         k = max(1, min(top_k, len(idx.chunks)))
@@ -235,7 +240,7 @@ def query_policy(question: str, top_k: int = 3) -> PolicyAnswer:
             degraded_reason=reason,
         )
 
-    hits = retrieve(question, top_k=top_k)
+    hits = retrieve(question, top_k=top_k, _index_checked=True)
     get_logger(__name__).info(
         POLICY_QUERY,
         top_k=top_k,

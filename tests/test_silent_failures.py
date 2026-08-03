@@ -86,6 +86,42 @@ def test_wbgt_exception_path_emits_event_and_metric(monkeypatch, captured_events
     assert path_ev[0].get("exception_type") == "RuntimeError"
 
 
+def test_wbgt_invalid_liljegren_latches_degraded(monkeypatch, captured_events):
+    from heatguard import wbgt
+
+    monkeypatch.setattr(wbgt, "wbgt_liljegren", lambda *_a, **_k: 999.0)
+    site = get_site("dubai")
+    w = Weather(
+        datetime(2025, 5, 16, 12, tzinfo=timezone.utc),
+        40.0,
+        40.0,
+        2.0,
+        800.0,
+        700.0,
+        20.0,
+        1013.0,
+    )
+    est = wbgt.estimate_wbgt(w, site)
+    assert est.source == "fallback"
+    assert "wbgt_fallback_active" in deg.active_reason_codes()
+    body = obs_metrics.render_prometheus().decode()
+    assert 'heatguard_wbgt_path_total{path="fallback_invalid"}' in body
+    assert any(
+        e.get("event") == "wbgt.path_selected" and e.get("path") == "fallback_invalid"
+        for e in captured_events
+    )
+
+
+def test_degradation_ttl_env_override(monkeypatch):
+    monkeypatch.setenv("HEATGUARD_DEGRADATION_TTL_SECONDS", "0.05")
+    deg.report_degraded(deg.WBGT_FALLBACK_ACTIVE, detail="ttl")
+    assert "wbgt_fallback_active" in deg.active_reason_codes()
+    import time
+
+    time.sleep(0.08)
+    assert "wbgt_fallback_active" not in deg.active_reason_codes()
+
+
 def test_weather_null_fields_substitute_and_count(captured_events):
     site = get_site("dubai")
     payload = json.loads((FIXTURES / "openmeteo_null_fields.json").read_text())

@@ -126,7 +126,7 @@ def report_degraded(
             # Still allow snapshot for known ops codes; unknown codes are ignored
             # for readiness but may still log if log_event is set.
             pass
-        ttl = _DEFAULT_TTL_SECONDS if ttl_seconds is None else ttl_seconds
+        ttl = _ttl() if ttl_seconds is None else ttl_seconds
         expires = time.monotonic() + ttl if ttl > 0 else time.monotonic() + 1e9
 
         should_log = True
