@@ -83,7 +83,11 @@ def emit_once(
     log_event: str,
     **log_fields: Any,
 ) -> None:
-    """Emit a structured log event at most once per process for ``once_key``."""
+    """Emit a structured log event at most once per process for ``once_key``.
+
+    ``once_key`` must be a small, bounded classifier (e.g. event + category/path).
+    Do not embed free-form message text — the process-global set is never evicted.
+    """
     global _reporting_failed_logged
     try:
         with _lock:

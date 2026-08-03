@@ -263,17 +263,20 @@ def test_phs_warning_captured(monkeypatch, captured_events):
     worker = Worker("t", days_on_job=120, acclimatized=True)
 
     real_phs = hyd.phs
+    msgs = iter(["out of envelope A", "out of envelope B"])
 
     def noisy_phs(*a, **k):
-        warnings.warn("out of envelope", UserWarning)
+        warnings.warn(next(msgs), UserWarning)
         return real_phs(*a, **k)
 
     monkeypatch.setattr(hyd, "phs", noisy_phs)
-    mins, valid = hyd.max_safe_minutes(c, worker)
-    assert isinstance(mins, float)
-    assert isinstance(valid, bool)
+    hyd.max_safe_minutes(c, worker)
+    hyd.max_safe_minutes(c, worker)
     phs_ev = [e for e in captured_events if e.get("event") == "engine.phs_warning"]
-    assert phs_ev and "category" in phs_ev[0] and "message" in phs_ev[0]
+    # One emit per warning category — message stays a field, not part of once_key.
+    assert len(phs_ev) == 1
+    assert phs_ev[0].get("category") == "UserWarning"
+    assert "message" in phs_ev[0]
 
 
 def test_ready_includes_stable_degraded_codes():

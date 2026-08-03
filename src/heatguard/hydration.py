@@ -75,8 +75,10 @@ def _emit_phs_warning(w: warnings.WarningMessage) -> None:
 
     category = getattr(w.category, "__name__", str(w.category))
     message = str(w.message)
+    # Key by category only — message text must not enter the process-global
+    # dedupe set (unbounded growth / permanent suppression of later messages).
     deg.emit_once(
-        f"engine.phs_warning:{category}:{message[:80]}",
+        f"engine.phs_warning:{category}",
         deg.ENGINE_PHS_WARNING,
         category=category,
         message=message[:200],
