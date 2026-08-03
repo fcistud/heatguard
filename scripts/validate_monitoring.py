@@ -156,8 +156,10 @@ def validate_policies(
 ) -> ValidationResult:
     """Validate one policies YAML document.
 
-    ``require_channels`` is True for the committed production file so channel
-    refs must resolve; fixture policies may omit the channels file.
+    When ``require_channels`` is True (committed production policies), every
+    ``notification_channel_ref`` must resolve via ``notification_channels.yaml``.
+    When False (fixtures / ``--fixtures-only``), channel refs are not resolved
+    even if that file is present in the repo.
     """
     root = repo_root or _repo_root()
     result = ValidationResult()
@@ -187,16 +189,17 @@ def validate_policies(
 
     channel_ids: set[str] = set()
     ch_path = channels_path or (root / "infra" / "monitoring" / "notification_channels.yaml")
-    if ch_path.is_file():
-        try:
-            ch_data = load_yaml(ch_path)
-            for ch in (ch_data or {}).get("channels") or []:
-                if isinstance(ch, dict) and ch.get("id"):
-                    channel_ids.add(str(ch["id"]))
-        except Exception as exc:  # noqa: BLE001
-            result.fail(f"{ch_path}: YAML parse error: {exc}")
-    elif require_channels:
-        result.fail(f"{ch_path}: notification channels file missing")
+    if require_channels:
+        if not ch_path.is_file():
+            result.fail(f"{ch_path}: notification channels file missing")
+        else:
+            try:
+                ch_data = load_yaml(ch_path)
+                for ch in (ch_data or {}).get("channels") or []:
+                    if isinstance(ch, dict) and ch.get("id"):
+                        channel_ids.add(str(ch["id"]))
+            except Exception as exc:  # noqa: BLE001
+                result.fail(f"{ch_path}: YAML parse error: {exc}")
 
     runbooks = root / "docs" / "RUNBOOKS.md"
     if not runbooks.is_file():
@@ -224,13 +227,13 @@ def validate_policies(
             )
 
         ref = policy.get("notification_channel_ref")
-        if ref and channel_ids and ref not in channel_ids:
-            result.fail(
-                f"{loc}: notification_channel_ref '{ref}' not in {ch_path.name}"
-            )
-        elif ref and require_channels and not channel_ids:
-            result.fail(f"{loc}: cannot resolve notification_channel_ref '{ref}'")
-
+        if require_channels and ref:
+            if not channel_ids:
+                result.fail(f"{loc}: cannot resolve notification_channel_ref '{ref}'")
+            elif ref not in channel_ids:
+                result.fail(
+                    f"{loc}: notification_channel_ref '{ref}' not in {ch_path.name}"
+                )
         metric_list = policy.get("metrics")
         if metric_list is None:
             metric_list = []

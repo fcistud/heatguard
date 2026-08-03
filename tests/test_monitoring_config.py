@@ -115,6 +115,30 @@ def test_cli_fixtures_only_still_validates_policies() -> None:
     assert vm.main([str(FIXTURES / "bad_metric.yaml"), "--fixtures-only"]) == 1
 
 
+def test_require_channels_false_ignores_unknown_channel_ref(tmp_path: Path) -> None:
+    path = tmp_path / "unknown_channel.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: unknown-channel
+    display_name: Unknown channel ok when not required
+    severity: warning
+    notification_channel_ref: not-a-real-channel
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    relaxed = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert relaxed.ok, relaxed.errors
+    strict = vm.validate_policies(path, repo_root=REPO, require_channels=True)
+    assert not strict.ok
+    assert any("notification_channel_ref" in e for e in strict.errors)
+
+
 def test_auth_gate_policy_uses_known_event() -> None:
     data = vm.load_yaml(POLICIES)
     auth = next(p for p in data["policies"] if p["id"] == "auth-deprecated-anonymous-quiet")
