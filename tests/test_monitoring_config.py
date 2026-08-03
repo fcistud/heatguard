@@ -139,6 +139,57 @@ policies:
     assert any("notification_channel_ref" in e for e in strict.errors)
 
 
+def test_collect_markdown_anchors_skips_fenced_code(tmp_path: Path) -> None:
+    md = tmp_path / "sample.md"
+    md.write_text(
+        """
+# Real Heading
+
+```bash
+# Not A Heading
+# also-not-an-anchor
+```
+
+## Another Real
+""",
+        encoding="utf-8",
+    )
+    anchors = vm.collect_markdown_anchors(md)
+    assert "real-heading" in anchors
+    assert "another-real" in anchors
+    assert "not-a-heading" not in anchors
+    assert "also-not-an-anchor" not in anchors
+
+
+def test_file_scheme_runbook_url_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "file_scheme.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: file-scheme
+    display_name: File scheme rejected
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: file://docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("unsupported runbook_url scheme" in e for e in result.errors)
+
+
+def test_runbooks_do_not_anchor_shell_comment_lines() -> None:
+    anchors = vm.collect_markdown_anchors(REPO / "docs" / "RUNBOOKS.md")
+    assert "log-filter" not in anchors
+    assert "metric-query" not in anchors
+    assert "list-revisions" not in anchors
+
+
 def test_auth_gate_policy_uses_known_event() -> None:
     data = vm.load_yaml(POLICIES)
     auth = next(p for p in data["policies"] if p["id"] == "auth-deprecated-anonymous-quiet")

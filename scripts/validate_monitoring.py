@@ -115,9 +115,17 @@ def github_slug(heading: str) -> str:
 
 
 def collect_markdown_anchors(path: Path) -> set[str]:
+    """Collect GitHub-style heading anchors, ignoring fenced code blocks."""
     anchors: set[str] = set()
     seen: dict[str, int] = {}
+    in_fence = False
     for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
         m = HEADING_RE.match(line)
         if not m:
             continue
@@ -295,10 +303,16 @@ def _validate_runbook_url(
     anchors: set[str],
     result: ValidationResult,
 ) -> None:
-    if "://" in runbook_url and not runbook_url.startswith("file:"):
+    if runbook_url.startswith(("http://", "https://")):
         # External URLs are allowed but still need a fragment when pointing at RUNBOOKS.
         if "RUNBOOKS" in runbook_url and "#" not in runbook_url:
             result.fail(f"{loc}: runbook_url missing #anchor: {runbook_url}")
+        return
+    if "://" in runbook_url or runbook_url.startswith("file:"):
+        result.fail(
+            f"{loc}: unsupported runbook_url scheme "
+            f"(use a repo-relative path like docs/RUNBOOKS.md#anchor): {runbook_url}"
+        )
         return
 
     if "#" not in runbook_url:
