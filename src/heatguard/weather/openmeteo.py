@@ -87,6 +87,34 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
     return out
 
 
+def _record_weather(
+    *,
+    site: Site,
+    source: str,
+    outcome: str,
+    started: float,
+    cache_hit: bool,
+) -> None:
+    from ..observability.metrics import observe_weather_fetch
+
+    duration_s = time.perf_counter() - started
+    site_key = _slug(site)
+    log.info(
+        WEATHER_FETCH,
+        cache_hit=cache_hit,
+        site_key=site_key,
+        source=source,
+        duration_ms=round(duration_s * 1000.0, 3),
+        outcome=outcome,
+    )
+    observe_weather_fetch(
+        site_key=site_key,
+        source=source,
+        outcome=outcome,
+        duration_seconds=duration_s,
+    )
+
+
 def fetch_archive(
     site: Site,
     start: date,
@@ -95,29 +123,65 @@ def fetch_archive(
     refresh: bool = False,
 ) -> list[Weather]:
     """Hourly reanalysis for [start, end]. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
+    import httpx
+
     path = cache_file(cache_name_for(site, start, end))
     started = time.perf_counter()
     cache_hit = bool(use_cache and not refresh and path.exists())
     if cache_hit:
-        payload = json.loads(path.read_text())
-    else:
-        import httpx
+        try:
+            payload = json.loads(path.read_text())
+            rows = _parse(payload, site)
+        except (json.JSONDecodeError, ValueError, KeyError, TypeError, OSError):
+            _record_weather(
+                site=site, source="archive", outcome="parse_error",
+                started=started, cache_hit=True,
+            )
+            raise
+        _record_weather(
+            site=site, source="archive", outcome="cache_hit",
+            started=started, cache_hit=True,
+        )
+        return rows
 
-        params = _base_params(site) | {"start_date": str(start), "end_date": str(end)}
+    params = _base_params(site) | {"start_date": str(start), "end_date": str(end)}
+    try:
         resp = httpx.get(ARCHIVE_URL, params=params, timeout=90)
         resp.raise_for_status()
         payload = resp.json()
-        ensure_cache_writable(CACHE_DIR)
-        path.write_text(json.dumps(payload))
-    duration_ms = round((time.perf_counter() - started) * 1000.0, 3)
-    log.info(
-        WEATHER_FETCH,
-        cache_hit=cache_hit,
-        site_key=site.name.lower().replace(" ", "_"),
-        source="archive",
-        duration_ms=duration_ms,
+    except httpx.TimeoutException:
+        _record_weather(
+            site=site, source="archive", outcome="timeout",
+            started=started, cache_hit=False,
+        )
+        raise
+    except httpx.HTTPStatusError:
+        _record_weather(
+            site=site, source="archive", outcome="http_error",
+            started=started, cache_hit=False,
+        )
+        raise
+    except (json.JSONDecodeError, ValueError):
+        _record_weather(
+            site=site, source="archive", outcome="parse_error",
+            started=started, cache_hit=False,
+        )
+        raise
+    ensure_cache_writable(CACHE_DIR)
+    path.write_text(json.dumps(payload))
+    try:
+        rows = _parse(payload, site)
+    except (KeyError, TypeError, ValueError):
+        _record_weather(
+            site=site, source="archive", outcome="parse_error",
+            started=started, cache_hit=False,
+        )
+        raise
+    _record_weather(
+        site=site, source="archive", outcome="network_ok",
+        started=started, cache_hit=False,
     )
-    return _parse(payload, site)
+    return rows
 
 
 def fetch_forecast(
@@ -128,29 +192,65 @@ def fetch_forecast(
     refresh: bool = False,
 ) -> list[Weather]:
     """Near-live hourly forecast. Cached under ``HEATGUARD_CACHE_DIR`` (default ``data/cache/``)."""
+    import httpx
+
     path = cache_file(forecast_cache_name_for(site, forecast_days, past_days))
     started = time.perf_counter()
     cache_hit = bool(use_cache and not refresh and path.exists())
     if cache_hit:
-        payload = json.loads(path.read_text())
-    else:
-        import httpx
+        try:
+            payload = json.loads(path.read_text())
+            rows = _parse(payload, site)
+        except (json.JSONDecodeError, ValueError, KeyError, TypeError, OSError):
+            _record_weather(
+                site=site, source="forecast", outcome="parse_error",
+                started=started, cache_hit=True,
+            )
+            raise
+        _record_weather(
+            site=site, source="forecast", outcome="cache_hit",
+            started=started, cache_hit=True,
+        )
+        return rows
 
-        params = _base_params(site) | {"forecast_days": forecast_days, "past_days": past_days}
+    params = _base_params(site) | {"forecast_days": forecast_days, "past_days": past_days}
+    try:
         resp = httpx.get(FORECAST_URL, params=params, timeout=60)
         resp.raise_for_status()
         payload = resp.json()
-        ensure_cache_writable(CACHE_DIR)
-        path.write_text(json.dumps(payload))
-    duration_ms = round((time.perf_counter() - started) * 1000.0, 3)
-    log.info(
-        WEATHER_FETCH,
-        cache_hit=cache_hit,
-        site_key=site.name.lower().replace(" ", "_"),
-        source="forecast",
-        duration_ms=duration_ms,
+    except httpx.TimeoutException:
+        _record_weather(
+            site=site, source="forecast", outcome="timeout",
+            started=started, cache_hit=False,
+        )
+        raise
+    except httpx.HTTPStatusError:
+        _record_weather(
+            site=site, source="forecast", outcome="http_error",
+            started=started, cache_hit=False,
+        )
+        raise
+    except (json.JSONDecodeError, ValueError):
+        _record_weather(
+            site=site, source="forecast", outcome="parse_error",
+            started=started, cache_hit=False,
+        )
+        raise
+    ensure_cache_writable(CACHE_DIR)
+    path.write_text(json.dumps(payload))
+    try:
+        rows = _parse(payload, site)
+    except (KeyError, TypeError, ValueError):
+        _record_weather(
+            site=site, source="forecast", outcome="parse_error",
+            started=started, cache_hit=False,
+        )
+        raise
+    _record_weather(
+        site=site, source="forecast", outcome="network_ok",
+        started=started, cache_hit=False,
     )
-    return _parse(payload, site)
+    return rows
 
 
 def load_cached_payload(path: Path, site: Site) -> list[Weather]:

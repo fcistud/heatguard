@@ -1,4 +1,4 @@
-"""Observability helpers — structured logging, events, correlation middleware."""
+"""Observability helpers — structured logging, metrics, correlation middleware."""
 from __future__ import annotations
 
 from .events import (
@@ -18,6 +18,15 @@ from .logging import (
     get_logger,
     resolve_request_id,
 )
+from .metrics import (
+    observe_compression_ratio,
+    observe_engine_decision,
+    observe_engine_decisions_batch,
+    observe_not_modified,
+    observe_panel_cache,
+    observe_ratelimit_rejected,
+    observe_weather_fetch,
+)
 from .middleware import CorrelationMiddleware
 
 __all__ = [
@@ -34,5 +43,12 @@ __all__ = [
     "configure_logging",
     "emit_auth_deprecated_anonymous",
     "get_logger",
+    "observe_compression_ratio",
+    "observe_engine_decision",
+    "observe_engine_decisions_batch",
+    "observe_not_modified",
+    "observe_panel_cache",
+    "observe_ratelimit_rejected",
+    "observe_weather_fetch",
     "resolve_request_id",
 ]

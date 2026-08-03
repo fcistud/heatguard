@@ -1,0 +1,15 @@
+# Required metric names and label keys (WO-014). Format: name|label1,label2,...
+heatguard_http_requests_total|route,method,status_class
+heatguard_http_request_duration_seconds|route
+heatguard_http_response_bytes|route
+heatguard_panel_cache_events_total|panel,result
+heatguard_http_not_modified_total|route
+heatguard_response_compression_ratio|
+heatguard_weather_fetch_total|site_key,source,outcome
+heatguard_weather_fetch_duration_seconds|source
+heatguard_compliance_chain_verify_total|site_key,result
+heatguard_compliance_records_appended_total|site_key,kind
+heatguard_engine_decisions_total|signal
+heatguard_wbgt_source_total|source
+heatguard_ratelimit_rejected_total|route,key_class
+heatguard_process_start_duration_seconds|

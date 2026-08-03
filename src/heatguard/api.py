@@ -8,10 +8,11 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 from datetime import date
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
@@ -48,13 +49,19 @@ def _warm_caches() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    from .observability import metrics as obs_metrics
+
+    obs_metrics.warn_if_multiprocess_unconfigured()
+    obs_metrics.maybe_configure_export()
     v = sys.version_info
     log.info(
         "heatguard.runtime",
         python=f"{v.major}.{v.minor}.{v.micro}",
     )
     loop = asyncio.get_running_loop()
+    started = time.perf_counter()
     await loop.run_in_executor(None, _warm_caches)
+    obs_metrics.record_process_start_duration(time.perf_counter() - started)
     yield
 
 
@@ -76,6 +83,41 @@ app.add_middleware(
 )
 # Outermost correlation / access log (Starlette runs last-added middleware first).
 app.add_middleware(CorrelationMiddleware)
+
+# Private surface — /metrics is mounted, but returns 404 unless explicitly enabled.
+_private_router = APIRouter(tags=["private"], include_in_schema=False)
+
+
+@_private_router.get("/metrics")
+def private_metrics():
+    """Prometheus exposition (internal only; 404 when metrics disabled)."""
+    from .observability import metrics as obs_metrics
+
+    if not obs_metrics.metrics_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    try:
+        body = obs_metrics.render_prometheus()
+    except Exception:
+        log.exception("metrics.exposition_failed")
+        return Response(
+            content="metrics exposition failed\n",
+            status_code=500,
+            media_type="text/plain",
+        )
+    return Response(content=body, media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+def mount_private_routes(application: FastAPI | None = None) -> bool:
+    """Attach private routes once. Exposition itself stays gated by ``HEATGUARD_METRICS_ENABLED``."""
+    target = application or app
+    paths = {getattr(r, "path", None) for r in target.routes}
+    if "/metrics" not in paths:
+        target.include_router(_private_router)
+    return True
+
+
+# Mount before optional static ``/`` so ``/metrics`` is not swallowed by StaticFiles.
+mount_private_routes(app)
 
 
 def _legacy_health_body() -> dict:

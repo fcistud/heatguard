@@ -82,6 +82,9 @@ class ComplianceLog:
         body = {"seq": seq, "timestamp": timestamp_iso, "kind": kind, "payload": payload, "prev_hash": self.head_hash}
         rec = LogRecord(seq, timestamp_iso, kind, payload, self.head_hash, _hash(body))
         self.records.append(rec)
+        from .observability.metrics import observe_compliance_append
+
+        observe_compliance_append(site_key=self.site_key, kind=rec.kind)
         if not obs_logging.in_compliance_bulk():
             log.info(
                 COMPLIANCE_APPEND,
@@ -112,6 +115,9 @@ class ComplianceLog:
                 verified = False
                 break
             prev = rec.record_hash
+        from .observability.metrics import observe_compliance_verify
+
+        observe_compliance_verify(site_key=self.site_key, ok=verified)
         log.info(
             COMPLIANCE_VERIFY,
             site_key=self.site_key,
