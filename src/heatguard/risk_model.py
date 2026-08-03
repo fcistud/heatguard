@@ -142,7 +142,6 @@ def _load_model():
         get_logger(__name__).warning(
             "risk_model.load_failed",
             exception_type=type(exc).__name__,
-            error=str(exc)[:200],
         )
         # Stable, bounded reason for logs/API — no paths or exception text.
         _HEURISTIC_REASON = f"load failed:{type(exc).__name__}"

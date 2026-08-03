@@ -184,7 +184,6 @@ def policy_index_status() -> tuple[bool, str | None]:
         get_logger(__name__).warning(
             "policy.index_build_failed",
             exception_type=type(exc).__name__,
-            error=str(exc)[:200],
         )
         return False, "index build failed"
     if not idx.chunks:
