@@ -91,11 +91,6 @@ app.add_middleware(
 # Outermost correlation / access log (Starlette runs last-added middleware first).
 app.add_middleware(CorrelationMiddleware)
 
-# Instrument FastAPI routes for OTEL (also called from lifespan; idempotent).
-from .observability.tracing import configure_tracing  # noqa: E402
-
-configure_tracing(app)
-
 # Private surface — /metrics is mounted, but returns 404 unless explicitly enabled.
 _private_router = APIRouter(tags=["private"], include_in_schema=False)
 

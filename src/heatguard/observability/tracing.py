@@ -253,9 +253,9 @@ def _instrument_app(app: Any, *, force: bool = False, tracer_provider: Any = Non
         try:
             from .logging import get_logger
 
-            get_logger("heatguard.tracing").error(
-                "tracing.export_failed",
-                message="FastAPI instrumentation failed",
+            get_logger("heatguard.tracing").exception(
+                "tracing.fastapi_instrumentation_failed",
+                message="FastAPI OpenTelemetry instrumentation failed",
             )
         except Exception:
             pass
