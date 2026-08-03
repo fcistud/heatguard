@@ -215,13 +215,29 @@ def scale_projection(site_key: str, workforce: int = 5000, crew: int = 100) -> d
 
 
 def compliance_for_day(site_key: str, day: date) -> ComplianceLog:
+    from .observability import COMPLIANCE_APPEND, get_logger
+    from .observability import logging as obs_logging
+
     cfg, site, season = load_season(site_key)
     cat = cfg["intensity"]
-    log = ComplianceLog(f"{site.name} demo site")
-    for w in season:
-        if w.timestamp.date() == day and WORK_START <= w.timestamp.hour <= WORK_END:
-            log.append(schedule(w, site, _veteran(), cat), water_available=True)
-    return log
+    clog = ComplianceLog(f"{site.name} demo site", site_key=site_key)
+    token = obs_logging.compliance_bulk_mode(True)
+    try:
+        for w in season:
+            if w.timestamp.date() == day and WORK_START <= w.timestamp.hour <= WORK_END:
+                clog.append(schedule(w, site, _veteran(), cat), water_available=True)
+    finally:
+        obs_logging.compliance_bulk_reset(token)
+    # One summary event for the season-day replay (volume ceiling).
+    if clog.records:
+        get_logger(__name__).info(
+            COMPLIANCE_APPEND,
+            site_key=site_key,
+            seq=clog.records[-1].seq,
+            kind="season_day_summary",
+            record_count=len(clog.records),
+        )
+    return clog
 
 
 def build_demo(site_key: str, crew: int = 100) -> dict:
@@ -271,6 +287,8 @@ def decide_one(
     age: int = 30,
     has_comorbidity: bool = False,
 ) -> dict:
+    from .observability import ENGINE_DECIDE, get_logger
+
     site = get_site(site_key)
     ts = datetime.now().astimezone().replace(hour=hour, minute=0, second=0, microsecond=0)
     w = Weather(ts, tdb, rh, wind, solar, solar * 0.85, tdb - 15, 1013.0)
@@ -285,6 +303,13 @@ def decide_one(
         has_comorbidity=has_comorbidity,
     )
     av = schedule(w, site, worker, MetabolicCategory(intensity), measured_wbgt_c=measured_wbgt)
+    get_logger(__name__).info(
+        ENGINE_DECIDE,
+        site_key=site_key,
+        wbgt_c=round(av.wbgt_c, 2),
+        wbgt_source=av.wbgt_source,
+        signal=av.signal.value,
+    )
     return {
         "advisory": av.to_dict(),
         "banned": calendar_ban.is_banned(site.country, ts, av.wbgt_c),

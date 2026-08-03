@@ -23,8 +23,11 @@ import io
 import json
 from dataclasses import asdict, dataclass
 
+from .observability import COMPLIANCE_APPEND, COMPLIANCE_VERIFY, get_logger
+from .observability import logging as obs_logging
 from .types import Advisory
 
+log = get_logger(__name__)
 _GENESIS = "0" * 64
 
 
@@ -64,8 +67,10 @@ class LogRecord:
 
 
 class ComplianceLog:
-    def __init__(self, site_name: str) -> None:
+    def __init__(self, site_name: str, *, site_key: str | None = None) -> None:
         self.site_name = site_name
+        # Canonical registry key for structured logs (falls back to display name).
+        self.site_key = site_key or site_name
         self.records: list[LogRecord] = []
 
     @property
@@ -77,6 +82,13 @@ class ComplianceLog:
         body = {"seq": seq, "timestamp": timestamp_iso, "kind": kind, "payload": payload, "prev_hash": self.head_hash}
         rec = LogRecord(seq, timestamp_iso, kind, payload, self.head_hash, _hash(body))
         self.records.append(rec)
+        if not obs_logging.in_compliance_bulk():
+            log.info(
+                COMPLIANCE_APPEND,
+                site_key=self.site_key,
+                seq=rec.seq,
+                kind=rec.kind,
+            )
         return rec
 
     def append(self, advisory: Advisory, water_available: bool = True) -> LogRecord:
@@ -91,13 +103,22 @@ class ComplianceLog:
     def verify_chain(self) -> bool:
         """Recompute every hash and linkage; False on any tampering."""
         prev = _GENESIS
+        verified = True
         for i, rec in enumerate(self.records):
             if rec.seq != i or rec.prev_hash != prev:
-                return False
+                verified = False
+                break
             if _hash(rec._body()) != rec.record_hash:
-                return False
+                verified = False
+                break
             prev = rec.record_hash
-        return True
+        log.info(
+            COMPLIANCE_VERIFY,
+            site_key=self.site_key,
+            verified=verified,
+            record_count=len(self.records),
+        )
+        return verified
 
     # ---- export -------------------------------------------------------------
     def export_jsonl(self) -> str:
