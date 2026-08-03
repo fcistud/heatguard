@@ -17,6 +17,7 @@ dependencies = [
     "numpy==1.26.4",
     "httpx>=0.24,<0.29",
     "structlog>=24.1,<26",
+    "prometheus-client>=0.20,<0.23",
 ]
 
 [project.optional-dependencies]

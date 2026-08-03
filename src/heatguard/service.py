@@ -130,6 +130,14 @@ def timeline_for_day(
         for w in season
         if w.timestamp.date() == day and WORK_START <= w.timestamp.hour <= WORK_END
     ]
+    from .observability.metrics import observe_engine_decisions_batch
+
+    observe_engine_decisions_batch(
+        (r["veteran"]["signal"], r["wbgt_source"]) for r in rows
+    )
+    observe_engine_decisions_batch(
+        (r["newcomer"]["signal"], r["wbgt_source"]) for r in rows
+    )
     return {
         "site": site.name,
         "country": site.country,
@@ -164,6 +172,9 @@ def hour_advisory(
     worker = _worker_for(worker_kind, newcomer_days)
     est = estimate_wbgt(w, site)  # always compute the estimate, for comparison
     adv = schedule(w, site, worker, cat, measured_wbgt_c=measured_wbgt)
+    from .observability.metrics import observe_engine_decision
+
+    observe_engine_decision(signal=adv.signal.value, wbgt_source=adv.wbgt_source)
     return {
         "advisory": adv.to_dict(),
         "estimated_wbgt_c": round(est.wbgt_c, 1),
@@ -185,6 +196,9 @@ def _season_hourly(site_key: str):
     # half-open, so +1 keeps the impact window identical (hours 5..19).
     work = daytime(season, WORK_START, WORK_END + 1)
     advs = replay_worker(work, site, _veteran(), cfg["intensity"])
+    from .observability.metrics import observe_engine_decisions_batch
+
+    observe_engine_decisions_batch((a.signal.value, a.wbgt_source) for a in advs)
     hourly = impact.pair_with_ban(advs, site.country)
     season_days = len({w.timestamp.date() for w in work})
     return hourly, season_days
@@ -303,6 +317,9 @@ def decide_one(
         has_comorbidity=has_comorbidity,
     )
     av = schedule(w, site, worker, MetabolicCategory(intensity), measured_wbgt_c=measured_wbgt)
+    from .observability.metrics import observe_engine_decision
+
+    observe_engine_decision(signal=av.signal.value, wbgt_source=av.wbgt_source)
     get_logger(__name__).info(
         ENGINE_DECIDE,
         site_key=site_key,
@@ -362,9 +379,12 @@ def forecast_timeline(site_key: str) -> dict:
     danger_hours = 0
     work_hour_labels: list[str] = []
 
+    decision_pairs: list[tuple[str, str]] = []
     for w in work_rows:
         av = schedule(w, site, veteran, cat)
         an = schedule(w, site, newcomer, cat)
+        decision_pairs.append((av.signal.value, av.wbgt_source))
+        decision_pairs.append((an.signal.value, an.wbgt_source))
         if av.signal in _PROTECTIVE:
             danger_hours += 1
         if av.signal is Signal.WORK:
@@ -381,6 +401,10 @@ def forecast_timeline(site_key: str) -> dict:
             "newcomer": an.to_dict(),
             "banned": calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c),
         })
+
+    from .observability.metrics import observe_engine_decisions_batch
+
+    observe_engine_decisions_batch(decision_pairs)
 
     shift_start = work_hour_labels[0] if work_hour_labels else None
     shift_end = work_hour_labels[-1] if work_hour_labels else None
