@@ -204,6 +204,7 @@ def test_policy_index_unavailable_when_sklearn_missing(monkeypatch, captured_eve
     assert ans.degraded is True
     assert ans.degraded_reason == "sklearn missing"
     assert ans.sources == []
+    assert "sklearn missing" in ans.answer
     assert "unavailable" in ans.answer.lower() or "Policy index unavailable" in ans.answer
     assert "policy_index_unavailable" in deg.active_reason_codes()
     assert any(e.get("event") == "policy.index_unavailable" for e in captured_events)
@@ -219,6 +220,8 @@ def test_policy_index_build_failure_sanitizes_api_reason(monkeypatch, captured_e
     ans = pr.query_policy("midday ban?")
     assert ans.degraded is True
     assert ans.degraded_reason == "index build failed"
+    assert "index build failed" in ans.answer
+    assert "scikit-learn" not in ans.answer
     dumped = json.dumps(ans.to_dict())
     assert "/secret/path" not in dumped
     assert "corrupt header" not in dumped

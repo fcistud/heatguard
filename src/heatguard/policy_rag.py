@@ -207,11 +207,18 @@ def _report_policy_unavailable(reason: str) -> None:
     )
 
 
-def _synthesize(question: str, hits: list[PolicyHit], *, degraded: bool = False) -> str:
+def _synthesize(
+    question: str,
+    hits: list[PolicyHit],
+    *,
+    degraded: bool = False,
+    degraded_reason: str | None = None,
+) -> str:
     if degraded:
+        cause = degraded_reason or "unavailable"
         return (
-            "Policy index unavailable — HeatGuard cannot retrieve regulatory excerpts "
-            "in this process (missing scikit-learn or empty corpus). "
+            f"Policy index unavailable ({cause}) — HeatGuard cannot retrieve "
+            "regulatory excerpts in this process. "
             "Deterministic WBGT scheduling remains available."
         )
     if not hits:
@@ -241,15 +248,18 @@ def query_policy(question: str, top_k: int = 3) -> PolicyAnswer:
 
     available, reason = policy_index_status()
     if not available:
-        _report_policy_unavailable(reason or "unavailable")
+        public_reason = reason or "unavailable"
+        _report_policy_unavailable(public_reason)
         get_logger(__name__).info(POLICY_QUERY, top_k=top_k, hit_count=0, degraded=True)
         return PolicyAnswer(
             question=question,
-            answer=_synthesize(question, [], degraded=True),
+            answer=_synthesize(
+                question, [], degraded=True, degraded_reason=public_reason
+            ),
             sources=[],
             method="unavailable",
             degraded=True,
-            degraded_reason=reason,
+            degraded_reason=public_reason,
         )
 
     hits = retrieve(question, top_k=top_k, _index_checked=True)
