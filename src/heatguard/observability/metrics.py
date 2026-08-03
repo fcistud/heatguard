@@ -57,6 +57,10 @@ compliance_chain_verify_total: Counter
 compliance_records_appended_total: Counter
 engine_decisions_total: Counter
 wbgt_source_total: Counter
+wbgt_path_total: Counter
+weather_field_substituted_total: Counter
+risk_model_fallback_total: Counter
+degraded_conditions_total: Counter
 ratelimit_rejected_total: Counter
 process_start_duration_seconds: Gauge
 
@@ -90,6 +94,8 @@ def _register(registry: CollectorRegistry) -> None:
     global weather_fetch_total, weather_fetch_duration_seconds
     global compliance_chain_verify_total, compliance_records_appended_total
     global engine_decisions_total, wbgt_source_total, ratelimit_rejected_total
+    global wbgt_path_total, weather_field_substituted_total
+    global risk_model_fallback_total, degraded_conditions_total
     global process_start_duration_seconds
 
     http_requests_total = Counter(
@@ -165,6 +171,29 @@ def _register(registry: CollectorRegistry) -> None:
         "heatguard_wbgt_source_total",
         "WBGT provenance mix",
         ["source"],
+        registry=registry,
+    )
+    wbgt_path_total = Counter(
+        "heatguard_wbgt_path_total",
+        "WBGT computation path selected (liljegren / fallback branches)",
+        ["path"],
+        registry=registry,
+    )
+    weather_field_substituted_total = Counter(
+        "heatguard_weather_field_substituted_total",
+        "Null Open-Meteo fields replaced with conservative defaults",
+        ["field"],
+        registry=registry,
+    )
+    risk_model_fallback_total = Counter(
+        "heatguard_risk_model_fallback_total",
+        "Personal-risk assessments served by the heuristic fallback",
+        registry=registry,
+    )
+    degraded_conditions_total = Counter(
+        "heatguard_degraded_conditions_total",
+        "Degraded-mode reports by stable reason code",
+        ["reason_code"],
         registry=registry,
     )
     ratelimit_rejected_total = Counter(
@@ -335,6 +364,38 @@ def observe_engine_decisions_batch(
     _safe("heatguard_engine_decisions_total", _do)
 
 
+def observe_wbgt_path(*, path: str) -> None:
+    def _do() -> None:
+        get_registry()
+        wbgt_path_total.labels(path=path).inc()
+
+    _safe("heatguard_wbgt_path_total", _do)
+
+
+def observe_weather_field_substituted(*, field: str, count: float = 1.0) -> None:
+    def _do() -> None:
+        get_registry()
+        weather_field_substituted_total.labels(field=field).inc(count)
+
+    _safe("heatguard_weather_field_substituted_total", _do)
+
+
+def observe_risk_model_fallback() -> None:
+    def _do() -> None:
+        get_registry()
+        risk_model_fallback_total.inc()
+
+    _safe("heatguard_risk_model_fallback_total", _do)
+
+
+def observe_degraded_condition(*, reason_code: str) -> None:
+    def _do() -> None:
+        get_registry()
+        degraded_conditions_total.labels(reason_code=reason_code).inc()
+
+    _safe("heatguard_degraded_conditions_total", _do)
+
+
 def observe_ratelimit_rejected(*, route: str, key_class: str) -> None:
     """Public helper for the trust-boundary epic (contract declared here)."""
 
@@ -376,6 +437,10 @@ def registered_metric_label_names() -> dict[str, frozenset[str]]:
         "heatguard_compliance_records_appended_total": frozenset({"site_key", "kind"}),
         "heatguard_engine_decisions_total": frozenset({"signal"}),
         "heatguard_wbgt_source_total": frozenset({"source"}),
+        "heatguard_wbgt_path_total": frozenset({"path"}),
+        "heatguard_weather_field_substituted_total": frozenset({"field"}),
+        "heatguard_risk_model_fallback_total": frozenset(),
+        "heatguard_degraded_conditions_total": frozenset({"reason_code"}),
         "heatguard_ratelimit_rejected_total": frozenset({"route", "key_class"}),
         "heatguard_process_start_duration_seconds": frozenset(),
     }

@@ -130,21 +130,16 @@ def _check_risk_model() -> str | None:
     from .risk_model import _load_model
 
     if _load_model() is None:
-        return "risk model unavailable; using heuristic fallback"
+        return "risk_model_heuristic"
     return None
 
 
 def _check_policy_rag() -> str | None:
     from . import policy_rag
 
-    if not policy_rag._HAS_SKLEARN:
-        return "scikit-learn unavailable; policy RAG index empty"
-    try:
-        idx = policy_rag._build_index()
-    except Exception as exc:  # noqa: BLE001 — optional dep must never raise
-        return f"policy RAG index unavailable: {exc}"
-    if not idx.chunks:
-        return "policy RAG index empty"
+    available, _reason = policy_rag.policy_index_status()
+    if not available:
+        return "policy_index_unavailable"
     return None
 
 
@@ -178,6 +173,8 @@ def default_checkers() -> list[DependencyCheck]:
 
 def run_readiness(checkers: list[DependencyCheck] | None = None) -> ReadinessResult:
     """Evaluate readiness. Never raises — every checker failure becomes a reason."""
+    from .observability.degradation import REASON_CODES, active_reason_codes
+
     outcomes: list[CheckOutcome] = []
     failed: list[str] = []
     degraded: list[str] = []
@@ -191,11 +188,19 @@ def run_readiness(checkers: list[DependencyCheck] | None = None) -> ReadinessRes
         outcomes.append(CheckOutcome(dep.name, dep.kind, ok, reason))
         if ok:
             continue
-        label = f"{dep.name}: {reason}"
+        label = reason if reason in REASON_CODES else f"{dep.name}: {reason}"
         if dep.kind == "hard":
             failed.append(label)
         else:
             degraded.append(label)
+
+    # Merge process-level degradation snapshot (WO-016) without escalating to 503.
+    try:
+        for code in active_reason_codes():
+            if code not in degraded:
+                degraded.append(code)
+    except Exception:  # noqa: BLE001
+        pass
 
     if failed:
         status: ReadyStatus = "not_ready"

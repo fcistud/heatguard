@@ -29,9 +29,13 @@ BROKEN_DATA = FIXTURES / "broken"
 
 @pytest.fixture(autouse=True)
 def _clear_ready_cache() -> None:
+    from heatguard.observability import degradation as deg
+
     clear_readiness_cache()
+    deg.clear_degradation_state()
     yield
     clear_readiness_cache()
+    deg.clear_degradation_state()
 
 
 def test_liveness_has_version_and_uptime_no_io(monkeypatch: pytest.MonkeyPatch) -> None:

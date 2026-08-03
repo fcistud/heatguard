@@ -8,6 +8,7 @@ requested in m/s and pressure comes in hPa, matching the engine's ``Weather`` un
 from __future__ import annotations
 
 import json
+import threading
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +21,10 @@ log = get_logger(__name__)
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+
+# Last ``_parse`` substitution counts (field → n). Empty when none substituted.
+_LAST_SUBSTITUTIONS: dict[str, int] = {}
+_LAST_SUBSTITUTIONS_LOCK = threading.Lock()
 
 HOURLY_VARS = [
     "temperature_2m",
@@ -55,6 +60,17 @@ def _base_params(site: Site) -> dict:
 
 
 def _parse(payload: dict, site: Site) -> list[Weather]:
+    """Parse Open-Meteo hourly payload into Weather rows.
+
+    Null cells use the same conservative defaults as before (RH 30, pressure
+    1013 hPa, other fields 0). Substitutions are counted and reported without
+    changing numeric values.
+    """
+    global _LAST_SUBSTITUTIONS
+    # Clear first so a mid-parse failure never leaves a prior call's summary.
+    with _LAST_SUBSTITUTIONS_LOCK:
+        _LAST_SUBSTITUTIONS = {}
+
     h = payload["hourly"]
     offset = int(payload.get("utc_offset_seconds", 0))
     tz = timezone(timedelta(seconds=offset))
@@ -64,13 +80,17 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
         return h.get(key) or [None] * len(times)
 
     cols = {k: col(k) for k in HOURLY_VARS}
+    substitutions: dict[str, int] = {k: 0 for k in HOURLY_VARS}
     out: list[Weather] = []
     for i, t in enumerate(times):
         ts = datetime.fromisoformat(t).replace(tzinfo=tz)
 
         def g(key: str, default: float = 0.0) -> float:
             v = cols[key][i]
-            return float(v) if v is not None else default
+            if v is None:
+                substitutions[key] = substitutions.get(key, 0) + 1
+                return default
+            return float(v)
 
         out.append(
             Weather(
@@ -84,7 +104,46 @@ def _parse(payload: dict, site: Site) -> list[Weather]:
                 pressure_hpa=g("surface_pressure", 1013.0),
             )
         )
+    summary = {k: n for k, n in substitutions.items() if n}
+    with _LAST_SUBSTITUTIONS_LOCK:
+        _LAST_SUBSTITUTIONS = summary
+    _report_substitutions(site, summary)
     return out
+
+
+def last_parse_substitutions() -> dict[str, int]:
+    """Return substitution counts from the most recent ``_parse`` call."""
+    with _LAST_SUBSTITUTIONS_LOCK:
+        return dict(_LAST_SUBSTITUTIONS)
+
+
+def _report_substitutions(site: Site, summary: dict[str, int]) -> None:
+    if not summary:
+        return
+    from ..observability import degradation as deg
+    from ..observability.metrics import (
+        observe_degraded_condition,
+        observe_weather_field_substituted,
+    )
+
+    site_key = _slug(site)
+    total = sum(summary.values())
+    for field, count in summary.items():
+        observe_weather_field_substituted(field=field, count=float(count))
+        deg.emit_once(
+            f"weather.sub:{site_key}:{field}",
+            deg.WEATHER_FIELD_SUBSTITUTED,
+            site_key=site_key,
+            field=field,
+            count=count,
+        )
+    deg.report_degraded(
+        deg.WEATHER_FIELDS_SUBSTITUTED,
+        detail=f"{total} substitutions across {len(summary)} fields",
+        increment_metric=lambda: observe_degraded_condition(
+            reason_code=deg.WEATHER_FIELDS_SUBSTITUTED
+        ),
+    )
 
 
 def _record_weather(

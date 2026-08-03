@@ -48,9 +48,9 @@ def _run_phs_impl(c: Conditions, worker: Worker, met: float, duration_min: int):
     tdb = max(15.0, min(50.0, c.weather.tdb_c))
     tr = max(0.0, min(60.0, c.globe_c))
     v = max(0.3, min(3.0, c.weather.wind_ms))
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # PHS warns on out-of-envelope inputs; we report via phs_valid
-        return phs(
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = phs(
             tdb=tdb,
             tr=tr,                        # radiant load from the globe temperature (never just tdb under sun)
             v=v,
@@ -65,6 +65,24 @@ def _run_phs_impl(c: Conditions, worker: Worker, met: float, duration_min: int):
             drink=1,                      # free drinking — the whole point of the intervention
             round_output=False,
         )
+    for w in caught:
+        _emit_phs_warning(w)
+    return result
+
+
+def _emit_phs_warning(w: warnings.WarningMessage) -> None:
+    from .observability import degradation as deg
+
+    category = getattr(w.category, "__name__", str(w.category))
+    message = str(w.message)
+    # Key by category only — message text must not enter the process-global
+    # dedupe set (unbounded growth / permanent suppression of later messages).
+    deg.emit_once(
+        f"engine.phs_warning:{category}",
+        deg.ENGINE_PHS_WARNING,
+        category=category,
+        message=message[:200],
+    )
 
 
 def max_safe_minutes(c: Conditions, worker: Worker) -> tuple[float, bool]:

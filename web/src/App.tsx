@@ -98,6 +98,24 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [loadingDay, setLoadingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timelineStale, setTimelineStale] = useState(false);
+  /** Age in seconds frozen at failure time (avoids impure Date.now in render). */
+  const [timelineStaleAgeSec, setTimelineStaleAgeSec] = useState<number | null>(null);
+  const lastTimelineOkAtRef = useRef<number | null>(null);
+
+  const markTimelineOk = () => {
+    lastTimelineOkAtRef.current = Date.now();
+    setTimelineStale(false);
+    setTimelineStaleAgeSec(null);
+  };
+
+  const markTimelineStale = () => {
+    const okAt = lastTimelineOkAtRef.current;
+    setTimelineStale(true);
+    setTimelineStaleAgeSec(
+      okAt == null ? null : Math.max(1, Math.round((Date.now() - okAt) / 1000)),
+    );
+  };
 
   // 1) Discover demos on mount.
   useEffect(() => {
@@ -134,6 +152,7 @@ export default function App() {
         setTimeline(d.timeline);
         setImpact(d.impact);
         setActiveDay(d.focus_day);
+        markTimelineOk();
         // Adopt the demo's job intensity as the default control value.
         setIntensity((d.timeline.intensity as Intensity | undefined) ?? d.intensity);
         setNewcomerDays((d.timeline.newcomer_days as number | undefined) ?? 0);
@@ -200,12 +219,14 @@ export default function App() {
         .then((tl) => {
           if (reqId !== paramReqId.current) return;
           setTimeline(tl);
+          markTimelineOk();
           const gap = tl.rows.find((r) => r.gap);
           const noon = tl.rows.find((r) => r.hour === 12);
           setSelectedHour(gap?.hour ?? noon?.hour ?? tl.rows[0]?.hour ?? null);
         })
         .catch(() => {
-          /* keep last good timeline */
+          if (reqId !== paramReqId.current) return;
+          markTimelineStale();
         })
         .finally(() => {
           if (reqId === paramReqId.current) setLoadingDay(false);
@@ -231,6 +252,7 @@ export default function App() {
         .then((tl) => {
           if (reqId !== paramReqId.current) return; // stale response — drop it
           setTimeline(tl);
+          markTimelineOk();
           // Keep the selected hour if it still exists, else fall back.
           setSelectedHour((cur) => {
             if (cur != null && tl.rows.some((r) => r.hour === cur)) return cur;
@@ -240,7 +262,8 @@ export default function App() {
           });
         })
         .catch(() => {
-          /* keep last good timeline */
+          if (reqId !== paramReqId.current) return;
+          markTimelineStale();
         })
         .finally(() => {
           if (reqId === paramReqId.current) setLoadingDay(false);
@@ -410,6 +433,16 @@ export default function App() {
           <>
             {/* 1. Headline banner */}
             <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-card dark:border-heat-orange/30 dark:from-slate-900 dark:to-orange-950/40">
+              {timelineStale && (
+                <p
+                  className="mb-3 rounded-md border border-amber-300 bg-amber-100/80 px-3 py-2 text-xs font-medium text-amber-900 dark:border-heat-orange/40 dark:bg-orange-950/50 dark:text-amber-100"
+                  role="status"
+                >
+                  {timelineStaleAgeSec == null
+                    ? "Timeline unavailable — no successful fetch yet."
+                    : `Showing stale timeline data (about ${timelineStaleAgeSec}s old when the latest refresh failed).`}
+                </p>
+              )}
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h1 className="font-display text-xl font-bold text-slate-900 dark:text-slate-50">
