@@ -35,10 +35,14 @@ _KNOWN_EXACT = frozenset({
 
 
 def _route_template(path: str) -> str:
-    """Collapse path-bound site keys; unknown paths become ``unmatched``."""
-    normalized = path.rstrip("/") or "/"
-    if normalized in _KNOWN_EXACT or path in _KNOWN_EXACT:
-        return normalized if normalized != "/health" else "/health"
+    """Collapse path-bound site keys; unknown paths become ``unmatched``.
+
+    Pattern checks use the trailing-slash-normalized path so
+    ``/compliance/dubai/export/`` labels the same as ``.../export``.
+    """
+    path = path.rstrip("/") or "/"
+    if path in _KNOWN_EXACT:
+        return path
 
     # /timeline/{site}/{day}, /hour/{site}/{day}/{hour}, /compliance/{site}/export
     if path.startswith("/timeline/"):
@@ -76,7 +80,7 @@ def _route_template(path: str) -> str:
 
 
 def _site_key_from_path(path: str) -> str | None:
-    m = _SITE_PATH_RE.match(path)
+    m = _SITE_PATH_RE.match(path.rstrip("/") or "/")
     return m.group("site") if m else None
 
 

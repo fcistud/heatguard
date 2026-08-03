@@ -40,6 +40,17 @@ def _fresh_registry():
     obs_metrics.reset_registry()
 
 
+def test_route_template_trailing_slash_matches_canonical() -> None:
+    from heatguard.observability.middleware import _route_template
+
+    assert _route_template("/compliance/dubai/export/") == "/compliance/{site_key}/export"
+    assert _route_template("/demo/dubai/") == "/demo/{site_key}"
+    assert _route_template("/forecast/riyadh/") == "/forecast/{site_key}"
+    assert _route_template("/timeline/dubai/2025-05-16/") == "/timeline/{site_key}/{day}"
+    assert _route_template("/health/live/") == "/health/live"
+    assert _route_template("/no-such-path/") == "unmatched"
+
+
 def test_expected_series_fixture_matches_registry() -> None:
     expected = _parse_expected()
     declared = obs_metrics.registered_metric_label_names()
