@@ -21,11 +21,20 @@ SIGNALS = {s.value for s in Signal}
 
 
 def test_health():
-    body = client.get("/health").json()
+    """Deprecated /health alias keeps unconditional 200 (WO-012 characterization)."""
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    body = resp.json()
     assert body["status"] == "ok"
     assert "python" in body
     assert body["python"]["major"] == 3
     assert body["python"]["minor"] >= 12
+
+
+def test_health_trailing_slash_still_ok():
+    resp = client.get("/health/", follow_redirects=False)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
 
 
 def test_sites_and_demos():

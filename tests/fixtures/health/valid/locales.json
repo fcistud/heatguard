@@ -1,0 +1,9 @@
+{
+  "riyadh":     {"name": "Riyadh",     "lat": 24.7136, "lon": 46.6753, "elevation_m": 612, "tz": "Asia/Riyadh", "country": "SA"},
+  "dubai":      {"name": "Dubai",      "lat": 25.2048, "lon": 55.2708, "elevation_m": 5,   "tz": "Asia/Dubai",  "country": "AE"},
+  "abu_dhabi":  {"name": "Abu Dhabi",  "lat": 24.4539, "lon": 54.3773, "elevation_m": 5,   "tz": "Asia/Dubai",  "country": "AE"},
+  "doha":       {"name": "Doha",       "lat": 25.2854, "lon": 51.5310, "elevation_m": 10,  "tz": "Asia/Qatar",  "country": "QA"},
+  "kuwait_city":{"name": "Kuwait City","lat": 29.3759, "lon": 47.9774, "elevation_m": 30,  "tz": "Asia/Kuwait", "country": "KW"},
+  "muscat":     {"name": "Muscat",     "lat": 23.5880, "lon": 58.3829, "elevation_m": 20,  "tz": "Asia/Muscat", "country": "OM"},
+  "manama":     {"name": "Manama",     "lat": 26.2285, "lon": 50.5860, "elevation_m": 5,   "tz": "Asia/Bahrain","country": "BH"}
+}

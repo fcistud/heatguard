@@ -55,7 +55,9 @@ steps:
           --add-volume=name=hg-cache,type=in-memory,size-limit=256Mi \
           --add-volume-mount=volume=hg-cache,mount-path=/var/cache/heatguard \
           --add-volume=name=hg-tmp,type=in-memory,size-limit=128Mi \
-          --add-volume-mount=volume=hg-tmp,mount-path=/tmp
+          --add-volume-mount=volume=hg-tmp,mount-path=/tmp \
+          --startup-probe=initialDelaySeconds=40,timeoutSeconds=5,periodSeconds=10,failureThreshold=6,httpGet.port=8080,httpGet.path=/health/ready \
+          --liveness-probe=timeoutSeconds=5,periodSeconds=30,failureThreshold=3,httpGet.port=8080,httpGet.path=/health/live
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
