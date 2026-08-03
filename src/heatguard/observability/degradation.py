@@ -130,16 +130,13 @@ def report_degraded(
     """
     global _reporting_failed_logged
     try:
-        if code not in REASON_CODES:
-            # Still allow snapshot for known ops codes; unknown codes are ignored
-            # for readiness but may still log if log_event is set.
-            pass
         ttl = _ttl() if ttl_seconds is None else ttl_seconds
         now = time.monotonic()
 
         should_log = True
         with _lock:
-            # ttl <= 0: do not latch into the readiness snapshot (operator opt-out).
+            # Unknown codes are ignored for the readiness snapshot but may still
+            # emit logs/metrics below. ttl <= 0 disables latching (operator opt-out).
             if code in REASON_CODES and ttl > 0:
                 _active[code] = _Entry(
                     code=code, detail=detail or "", expires_at=now + ttl
