@@ -110,6 +110,11 @@ def test_cli_main_fails_on_bad_fixture() -> None:
     assert vm.main([str(FIXTURES / "bad_metric.yaml")]) == 1
 
 
+def test_cli_fixtures_only_still_validates_policies() -> None:
+    assert vm.main([str(FIXTURES / "valid_policy.yaml"), "--fixtures-only"]) == 0
+    assert vm.main([str(FIXTURES / "bad_metric.yaml"), "--fixtures-only"]) == 1
+
+
 def test_auth_gate_policy_uses_known_event() -> None:
     data = vm.load_yaml(POLICIES)
     auth = next(p for p in data["policies"] if p["id"] == "auth-deprecated-anonymous-quiet")

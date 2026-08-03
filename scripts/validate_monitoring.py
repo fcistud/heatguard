@@ -62,13 +62,11 @@ def _is_within_root(path: Path, root: Path) -> bool:
 
 
 def load_metric_names() -> frozenset[str]:
-    """Prefer live registry; fall back to committed fixture for offline use."""
+    """Prefer live registry; fall back to committed fixture on import failure."""
     try:
         _ensure_src_on_path()
         from heatguard.observability.metrics import registered_metric_label_names
-
-        return frozenset(registered_metric_label_names())
-    except Exception:
+    except ImportError:
         fixture = _repo_root() / "tests" / "fixtures" / "metrics" / "expected_series.txt"
         names: set[str] = set()
         for line in fixture.read_text(encoding="utf-8").splitlines():
@@ -77,15 +75,14 @@ def load_metric_names() -> frozenset[str]:
                 continue
             names.add(line.split("|", 1)[0].strip())
         return frozenset(names)
+    return frozenset(registered_metric_label_names())
 
 
 def load_event_names() -> frozenset[str]:
     try:
         _ensure_src_on_path()
         from heatguard.observability.events import ALL_EVENT_NAMES
-
-        return frozenset(ALL_EVENT_NAMES)
-    except Exception:
+    except ImportError:
         return frozenset(
             {
                 "http.request",
@@ -104,6 +101,7 @@ def load_event_names() -> frozenset[str]:
                 "engine.phs_warning",
             }
         )
+    return frozenset(ALL_EVENT_NAMES)
 
 
 def github_slug(heading: str) -> str:
@@ -378,7 +376,12 @@ def check_docs_links(repo_root: Path | None = None) -> ValidationResult:
 
 
 def validate_schema_shape(policies_path: Path) -> ValidationResult:
-    """Lightweight declarative-format check (YAML structure + required keys)."""
+    """Validate policies without requiring notification-channel resolution.
+
+    Runs the full ``validate_policies`` checks (structure, metrics, events,
+    ops_checks, runbook anchors) with ``require_channels=False`` so fixture
+    policies used in unit tests need not resolve ``notification_channels.yaml``.
+    """
     return validate_policies(policies_path, require_channels=False)
 
 
@@ -398,15 +401,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fixtures-only",
         action="store_true",
-        help="Skip committed policies (used by unit tests via library API)",
+        help=(
+            "Validate the given policies file without requiring notification "
+            "channel refs to resolve (for fixture / offline policy files)"
+        ),
     )
     args = parser.parse_args(argv)
 
     errors: list[str] = []
-    if not args.fixtures_only:
-        path = Path(args.policies)
-        res = validate_policies(path, require_channels=True)
-        errors.extend(res.errors)
+    path = Path(args.policies)
+    res = validate_policies(path, require_channels=not args.fixtures_only)
+    errors.extend(res.errors)
 
     if args.check_docs_links:
         errors.extend(check_docs_links().errors)
