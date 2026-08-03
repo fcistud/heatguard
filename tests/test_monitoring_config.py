@@ -155,3 +155,58 @@ def test_ensure_src_on_path_is_idempotent() -> None:
     vm.load_metric_names()
     vm.load_event_names()
     assert sys.path.count(src) == max(before, 1)
+
+
+def test_missing_policies_file_reports_not_found(tmp_path: Path) -> None:
+    missing = tmp_path / "does-not-exist.yaml"
+    result = vm.validate_policies(missing, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("file not found" in e for e in result.errors)
+    assert not any("YAML parse error" in e for e in result.errors)
+
+
+def test_non_string_log_event_reports_clear_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad_event.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: bad-event
+    display_name: Bad event type
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics: []
+    log_events:
+      - key: auth.deprecated_anonymous
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("log_events entry must be a non-empty string" in e for e in result.errors)
+
+
+def test_non_string_ops_check_reports_clear_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad_ops.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: bad-ops
+    display_name: Bad ops type
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_weather_fetch_total
+    ops_checks:
+      - [forecast_cache_age_hours]
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("ops_checks entry must be a non-empty string" in e for e in result.errors)

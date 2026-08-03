@@ -168,6 +168,12 @@ def validate_policies(
 
     try:
         data = load_yaml(policies_path)
+    except FileNotFoundError:
+        result.fail(f"{policies_path}: file not found")
+        return result
+    except OSError as exc:
+        result.fail(f"{policies_path}: cannot read file: {exc}")
+        return result
     except Exception as exc:  # noqa: BLE001 — surface parse errors clearly
         result.fail(f"{policies_path}: YAML parse error: {exc}")
         return result
@@ -249,6 +255,9 @@ def validate_policies(
             result.fail(f"{loc}: 'log_events' must be a list")
             log_events = []
         for ev in log_events:
+            if not isinstance(ev, str) or not ev:
+                result.fail(f"{loc}: log_events entry must be a non-empty string")
+                continue
             if ev not in events:
                 result.fail(f"{loc}: undefined log event '{ev}'")
 
@@ -257,6 +266,9 @@ def validate_policies(
             result.fail(f"{loc}: 'ops_checks' must be a list")
             ops_checks = []
         for op in ops_checks:
+            if not isinstance(op, str) or not op:
+                result.fail(f"{loc}: ops_checks entry must be a non-empty string")
+                continue
             if op not in ALLOWED_OPS_CHECKS:
                 result.fail(
                     f"{loc}: unknown ops_check '{op}' "
