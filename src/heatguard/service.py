@@ -220,7 +220,7 @@ def compliance_for_day(site_key: str, day: date) -> ComplianceLog:
 
     cfg, site, season = load_season(site_key)
     cat = cfg["intensity"]
-    clog = ComplianceLog(f"{site.name} demo site")
+    clog = ComplianceLog(f"{site.name} demo site", site_key=site_key)
     token = obs_logging.compliance_bulk_mode(True)
     try:
         for w in season:

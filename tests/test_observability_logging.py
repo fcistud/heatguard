@@ -1,6 +1,7 @@
 """Structured logging, redaction, and correlation tests (WO-013)."""
 from __future__ import annotations
 
+import io
 import json
 from typing import Any
 
@@ -41,6 +42,7 @@ def captured_logs():
         entries.append(dict(event_dict))
         return event_dict
 
+    sink = io.StringIO()
     structlog.reset_defaults()
     structlog.configure(
         processors=[
@@ -54,10 +56,11 @@ def captured_logs():
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.BoundLogger,
-        logger_factory=structlog.PrintLoggerFactory(file=open("/dev/null", "w")),
+        logger_factory=structlog.PrintLoggerFactory(file=sink),
         cache_logger_on_first_use=False,
     )
     yield entries
+    sink.close()
     configure_logging(level="INFO")
 
 

@@ -67,7 +67,11 @@ class CorrelationMiddleware:
             nonlocal status_code, response_bytes, cache_status
             if message["type"] == "http.response.start":
                 status_code = int(message.get("status", 500))
-                raw_headers = list(message.get("headers") or [])
+                raw_headers = [
+                    (hk, hv)
+                    for hk, hv in (message.get("headers") or [])
+                    if hk.lower() != b"x-request-id"
+                ]
                 raw_headers.append((b"x-request-id", request_id.encode("latin1")))
                 # Capture cache hint if the app sets one.
                 for hk, hv in raw_headers:

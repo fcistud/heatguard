@@ -67,8 +67,10 @@ class LogRecord:
 
 
 class ComplianceLog:
-    def __init__(self, site_name: str) -> None:
+    def __init__(self, site_name: str, *, site_key: str | None = None) -> None:
         self.site_name = site_name
+        # Canonical registry key for structured logs (falls back to display name).
+        self.site_key = site_key or site_name
         self.records: list[LogRecord] = []
 
     @property
@@ -83,7 +85,7 @@ class ComplianceLog:
         if not obs_logging.in_compliance_bulk():
             log.info(
                 COMPLIANCE_APPEND,
-                site_key=self.site_name,
+                site_key=self.site_key,
                 seq=rec.seq,
                 kind=rec.kind,
             )
@@ -112,7 +114,7 @@ class ComplianceLog:
             prev = rec.record_hash
         log.info(
             COMPLIANCE_VERIFY,
-            site_key=self.site_name,
+            site_key=self.site_key,
             verified=verified,
             record_count=len(self.records),
         )

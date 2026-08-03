@@ -133,7 +133,7 @@ def cmd_demo(args) -> int:
 
     print(f"{'time':>5} {'air':>5} {'WBGT':>5} | {'HeatGuard (veteran)':>20} {'wk':>3} | "
           f"{'HeatGuard (new)':>16} | {'calendar ban':>12} | gap")
-    log = ComplianceLog(f"{site.name} demo site")
+    log = ComplianceLog(f"{site.name} demo site", site_key=args.site)
     gap_hours = 0
     protective = (Signal.STOP, Signal.REST_IN_SHADE)
     for w in focus:

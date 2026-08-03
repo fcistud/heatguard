@@ -188,8 +188,11 @@ def resolve_request_id(headers: Any) -> str:
     return str(uuid4())
 
 
-def compliance_bulk_mode(enabled: bool = True):
-    """Context manager / token helper to suppress per-append compliance events."""
+def compliance_bulk_mode(enabled: bool = True) -> Any:
+    """Return a ContextVar token that suppresses per-append compliance events.
+
+    Pair with ``compliance_bulk_reset(token)`` in a ``finally`` block.
+    """
     return _compliance_bulk.set(enabled)
 
 
