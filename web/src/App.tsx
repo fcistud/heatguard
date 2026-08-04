@@ -28,6 +28,11 @@ import { PolicyPanel } from "./components/PolicyPanel";
 import { ForecastPanel } from "./components/ForecastPanel";
 import { DatasetsPanel } from "./components/DatasetsPanel";
 import { SIGNAL_SHORT } from "./lib/signals";
+import {
+  COMPARISON_DISCLAIMER,
+  effectiveLane,
+  scientificLane,
+} from "./lib/advisoryLane";
 
 type WorkerKey = "veteran" | "newcomer";
 
@@ -279,11 +284,12 @@ export default function App() {
     return timeline.rows.find((r) => r.hour === selectedHour) ?? null;
   }, [timeline, selectedHour]);
 
-  // The estimated advisory straight from the timeline row (model WBGT).
+  // Operational advisory from timeline (legal precedence applied).
   const estimatedAdvisory: Advisory | null = currentRow
-    ? worker === "veteran"
-      ? currentRow.veteran
-      : currentRow.newcomer
+    ? effectiveLane(currentRow, worker)
+    : null;
+  const scientificAdvisory: Advisory | null = currentRow
+    ? scientificLane(currentRow, worker)
     : null;
 
   // The newcomer advisory for the acclimatization note.
@@ -417,6 +423,7 @@ export default function App() {
               timeline={timeline}
               currentRow={currentRow}
               advisory={effectiveAdvisory}
+              scientificAdvisory={scientificAdvisory ?? undefined}
               wbgt={effectiveWbgt}
               source={effectiveSource ?? currentRow.wbgt_source}
               banned={currentRow.banned}
@@ -499,9 +506,10 @@ export default function App() {
                 <div>
                   <div className="font-semibold text-slate-800 dark:text-slate-200">3 · Calendar ban vs HeatGuard</div>
                   <p className="mt-1 text-slate-500 dark:text-slate-400">
-                    The timeline compares the Gulf's fixed midday ban (a clock window) with HeatGuard's
-                    condition-based call, hour by hour. A red <span className="font-semibold text-heat-red">⚠</span>{" "}
-                    marks dangerous hours the calendar ban misses.
+                    Comparison view only: the timeline contrasts the fixed midday ban with HeatGuard's
+                    scientific assessment hour by hour. Operational permission always follows legal
+                    rules — a red <span className="font-semibold text-heat-red">⚠</span> marks
+                    danger the calendar ban misses.
                   </p>
                 </div>
                 <div>
@@ -647,7 +655,7 @@ export default function App() {
             {/* 4. The centerpiece timeline */}
             <Card
               title="Calendar ban vs HeatGuard"
-              subtitle="each hour: what the fixed ban allows vs HeatGuard's call · ⚠ = danger the ban misses · click an hour"
+              subtitle={`${COMPARISON_DISCLAIMER} · ⚠ = danger the ban misses · click an hour`}
               right={
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">

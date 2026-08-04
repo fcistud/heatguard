@@ -50,16 +50,30 @@ export interface Advisory {
   personal_risk_note?: string;
 }
 
-export interface TimelineRow {
+export interface LegalStatus {
+  banned: boolean;
+  description: string;
+  precedence_applied: boolean;
+  scientific_vs_legal_conflict: boolean;
+}
+
+/** Row shape shared by timeline and forecast payloads. */
+export interface AdvisoryLaneRow {
+  veteran: Advisory;
+  newcomer: Advisory;
+  veteran_effective?: Advisory;
+  newcomer_effective?: Advisory;
+  legal?: LegalStatus;
+  banned: boolean;
+}
+
+export interface TimelineRow extends AdvisoryLaneRow {
   hour: number;
   time: string; // "09:00"
   tdb_c: number;
   rh_pct: number;
   wbgt_c: number;
   wbgt_source: WbgtSource;
-  veteran: Advisory;
-  newcomer: Advisory;
-  banned: boolean;
   gap: boolean;
 }
 
@@ -75,14 +89,20 @@ export interface Timeline {
 
 /** Response of GET /hour/{site}/{day}/{hour} — a single recomputed hour. */
 export interface HourAdvisory {
+  /** Operational advisory (after legal precedence). */
   advisory: Advisory;
+  scientific_advisory?: Advisory;
+  effective_advisory?: Advisory;
+  legal?: LegalStatus;
   /** Personal-risk overlay provenance: trained model vs heuristic fallback. */
   model_source: ModelSource;
   estimated_wbgt_c: number;
   estimated_source: string;
   measured: boolean;
   banned: boolean;
-  live: Signal[]; // 60 minute-by-minute signals
+  ban_description?: string;
+  live: Signal[]; // 60 operational minute-by-minute signals
+  scientific_live?: Signal[];
 }
 
 export interface ComplianceRecord {
@@ -271,11 +291,15 @@ export interface DecideRequest {
 
 export interface DecideResponse {
   advisory: Advisory;
+  scientific_advisory?: Advisory;
+  effective_advisory?: Advisory;
+  legal?: LegalStatus;
   /** Personal-risk overlay provenance: trained model vs heuristic fallback. */
   model_source: ModelSource;
   banned: boolean;
   ban_description: string;
-  live: Signal[]; // 60 signals
+  live: Signal[]; // 60 operational signals
+  scientific_live?: Signal[];
 }
 
 export interface PolicySource {
@@ -299,7 +323,7 @@ export interface PolicyAnswer {
 }
 
 /** GET /forecast/{site} — near-live Open-Meteo forecast with engine signals. */
-export interface ForecastRow {
+export interface ForecastRow extends AdvisoryLaneRow {
   hour: number;
   time: string;
   date: string;
@@ -307,9 +331,6 @@ export interface ForecastRow {
   rh_pct: number;
   wbgt_c: number;
   wbgt_source: WbgtSource;
-  veteran: Advisory;
-  newcomer: Advisory;
-  banned: boolean;
 }
 
 export interface ForecastSummary {

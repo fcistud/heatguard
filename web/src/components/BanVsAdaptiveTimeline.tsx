@@ -9,6 +9,11 @@ import {
 import type { Timeline, TimelineRow } from "../types";
 import { PersonalRiskBadge } from "./PersonalRiskBadge";
 import { SIGNAL_COLOR, SIGNAL_SHORT } from "../lib/signals";
+import {
+  COMPARISON_DISCLAIMER,
+  effectiveLane,
+  scientificLane,
+} from "../lib/advisoryLane";
 
 type WorkerKey = "veteran" | "newcomer";
 
@@ -73,10 +78,14 @@ export function BanVsAdaptiveTimeline({
     hour: r.hour,
   }));
 
-  const adv = (r: TimelineRow) => (worker === "veteran" ? r.veteran : r.newcomer);
+  const adv = (r: TimelineRow) => effectiveLane(r, worker);
+  const scientific = (r: TimelineRow) => scientificLane(r, worker);
 
   return (
     <div>
+      <p className="mb-3 text-xs leading-relaxed text-slate-500">
+        {COMPARISON_DISCLAIMER}
+      </p>
       {/* Day scrubber */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -186,11 +195,15 @@ export function BanVsAdaptiveTimeline({
 
         <div className="flex items-center gap-3">
           <div className="w-32 shrink-0 text-right text-xs font-semibold text-slate-500">
-            HeatGuard (adaptive)
+            HeatGuard (operational)
           </div>
           <div className="flex flex-1 gap-1">
             {rows.map((r) => {
               const a = adv(r);
+              const s = scientific(r);
+              const conflict =
+                r.banned &&
+                (s.signal === "WORK" || s.cycle.work_min_per_hour > 0);
               return (
                 <Cell
                   key={r.hour}
@@ -198,7 +211,11 @@ export function BanVsAdaptiveTimeline({
                   selected={selectedHour === r.hour}
                   outline={r.gap}
                   onClick={() => onSelectHour(r.hour)}
-                  title={`${r.time} — ${a.signal}${r.gap ? " (MISSED by ban)" : ""}${a.elevated_risk ? " · elevated personal risk" : ""}`}
+                  title={
+                    conflict
+                      ? `${r.time} — operational ${a.signal}; scientific ${s.signal} (legal ban governs)`
+                      : `${r.time} — ${a.signal}${r.gap ? " (MISSED by ban)" : ""}${a.elevated_risk ? " · elevated personal risk" : ""}`
+                  }
                 >
                   <span className="flex flex-col items-center leading-none">
                     <span>{r.gap ? "!" : SIGNAL_SHORT[a.signal][0]}</span>

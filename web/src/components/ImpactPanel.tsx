@@ -9,8 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import type { Backtest, ImpactReport } from "../types";
-import { Stat } from "./ui/Stat";
-import { api } from "../api";
+import { ANALYTIC_METRIC_HINT } from "../lib/advisoryLane";
 
 interface Props {
   impact: ImpactReport;
@@ -61,7 +60,7 @@ export function ImpactPanel({ impact }: Props) {
           label="Hours ban needlessly stopped"
           value={impact.ban_only_safe_hours}
           accent="rest"
-          hint="Safe work the blunt ban blocked"
+          hint={`${ANALYTIC_METRIC_HINT} Safe work the blunt ban blocked (scientific).`}
         />
         <Stat
           label="AKI cases averted vs ban"
@@ -118,8 +117,9 @@ export function ImpactPanel({ impact }: Props) {
             </ResponsiveContainer>
           </div>
           <p className="text-xs text-slate-400">
-            HeatGuard keeps crews working through safe windows the calendar ban
-            shuts down — and stops them when it's actually dangerous.
+            {ANALYTIC_METRIC_HINT} Compares scientific scheduling to the calendar
+            baseline — operational permission always follows legal rules (see{" "}
+            <code className="text-[10px]">docs/SCOPE_GUARDRAIL.md</code>).
           </p>
         </div>
 
