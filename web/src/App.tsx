@@ -368,6 +368,9 @@ export default function App() {
   const effectiveSource: WbgtSource | null = measuredActive
     ? hourResult!.advisory.wbgt_source
     : (currentRow?.wbgt_source ?? null);
+  const effectiveScientificAdvisory: Advisory | null = measuredActive
+    ? (hourResult!.scientific_advisory ?? scientificAdvisory)
+    : scientificAdvisory;
   // Did flipping to the meter change the recommended signal?
   const signalChanged =
     measuredActive &&
@@ -423,7 +426,7 @@ export default function App() {
               timeline={timeline}
               currentRow={currentRow}
               advisory={effectiveAdvisory}
-              scientificAdvisory={scientificAdvisory ?? undefined}
+              scientificAdvisory={effectiveScientificAdvisory ?? undefined}
               wbgt={effectiveWbgt}
               source={effectiveSource ?? currentRow.wbgt_source}
               banned={currentRow.banned}
