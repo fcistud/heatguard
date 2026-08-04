@@ -151,7 +151,7 @@ Timeline rows include `veteran` / `newcomer` (scientific) plus `veteran_effectiv
 ### Approved phrasebook
 
 - “Do not work — legal prohibition in effect.”
-- “Scientific assessment indicates potentially safe conditions; legal ban governs operational permission.”
+- “Scientific assessment indicates some work may be possible; legal ban governs operational permission.”
 - “Comparison view for analysis. Legal prohibition always governs operational permission.”
 - “This tool supports compliance; it does not provide legal advice.”
 

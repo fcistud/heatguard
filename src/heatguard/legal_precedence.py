@@ -70,7 +70,7 @@ def effective_advisory(scientific: Advisory, banned: bool, ban_description: str)
             rest_min_per_hour=60,
             threshold_wbgt_c=scientific.cycle.threshold_wbgt_c,
             table=scientific.cycle.table,
-            capped_by_acclimatization=False,
+            capped_by_acclimatization=scientific.cycle.capped_by_acclimatization,
         ),
         rationale=rationale,
     )

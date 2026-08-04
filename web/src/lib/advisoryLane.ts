@@ -22,4 +22,4 @@ export const ANALYTIC_METRIC_HINT =
   "Scenario metric — not an operational schedule.";
 
 export const LEGAL_GOVERNS_LINE =
-  "Scientific assessment indicates potentially safe conditions; legal ban governs operational permission.";
+  "Scientific assessment indicates some work may be possible; legal ban governs operational permission.";
