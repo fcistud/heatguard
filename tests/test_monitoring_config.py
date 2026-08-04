@@ -338,3 +338,41 @@ policies:
     assert any(
         "notification_channel_ref must be a non-empty string" in e for e in result.errors
     )
+
+
+def test_missing_channels_file_is_not_noisy_per_policy(tmp_path: Path) -> None:
+    policies = tmp_path / "policies.yaml"
+    policies.write_text(
+        """
+version: 1
+policies:
+  - id: one
+    display_name: One
+    severity: warning
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+  - id: two
+    display_name: Two
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    missing_channels = tmp_path / "no-channels.yaml"
+    result = vm.validate_policies(
+        policies,
+        repo_root=REPO,
+        channels_path=missing_channels,
+        require_channels=True,
+    )
+    assert not result.ok
+    assert sum("notification channels file missing" in e for e in result.errors) == 1
+    assert not any("cannot resolve notification_channel_ref" in e for e in result.errors)
+    assert not any("not in no-channels.yaml" in e for e in result.errors)

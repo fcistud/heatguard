@@ -197,6 +197,7 @@ def validate_policies(
         return result
 
     channel_ids: set[str] = set()
+    channels_ready = False
     ch_path = channels_path or (root / "infra" / "monitoring" / "notification_channels.yaml")
     if require_channels:
         if not ch_path.is_file():
@@ -207,6 +208,7 @@ def validate_policies(
                 for ch in (ch_data or {}).get("channels") or []:
                     if isinstance(ch, dict) and ch.get("id"):
                         channel_ids.add(str(ch["id"]))
+                channels_ready = True
             except Exception as exc:  # noqa: BLE001
                 result.fail(f"{ch_path}: YAML parse error: {exc}")
 
@@ -243,10 +245,8 @@ def validate_policies(
             result.fail(
                 f"{loc}: notification_channel_ref must be a non-empty string"
             )
-        elif require_channels and isinstance(ref, str) and ref:
-            if not channel_ids:
-                result.fail(f"{loc}: cannot resolve notification_channel_ref '{ref}'")
-            elif ref not in channel_ids:
+        elif channels_ready and isinstance(ref, str) and ref:
+            if ref not in channel_ids:
                 result.fail(
                     f"{loc}: notification_channel_ref '{ref}' not in {ch_path.name}"
                 )
