@@ -423,3 +423,39 @@ policies:
     assert not result.ok
     assert any("policy[#0]" in e for e in result.errors)
     assert any("'id' must be a non-empty string" in e for e in result.errors)
+
+
+def test_missing_runbooks_is_not_noisy_per_policy(tmp_path: Path) -> None:
+    policies = tmp_path / "policies.yaml"
+    policies.write_text(
+        """
+version: 1
+policies:
+  - id: one
+    display_name: One
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+  - id: two
+    display_name: Two
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#cold-start-or-latency-regression
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(
+        policies,
+        repo_root=tmp_path,
+        require_channels=False,
+    )
+    assert not result.ok
+    assert sum("RUNBOOKS.md missing" in e for e in result.errors) == 1
+    assert not any("runbook file not found" in e for e in result.errors)
+    assert not any("runbook anchor" in e for e in result.errors)

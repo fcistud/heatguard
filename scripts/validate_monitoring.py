@@ -213,11 +213,13 @@ def validate_policies(
                 result.fail(f"{ch_path}: YAML parse error: {exc}")
 
     runbooks = root / "docs" / "RUNBOOKS.md"
+    runbooks_ready = False
+    anchors: set[str] = set()
     if not runbooks.is_file():
         result.fail(f"{runbooks}: RUNBOOKS.md missing")
-        anchors: set[str] = set()
     else:
         anchors = collect_markdown_anchors(runbooks)
+        runbooks_ready = True
 
     for idx, policy in enumerate(policies):
         loc = f"{policies_path}:policies[{idx}]"
@@ -304,7 +306,11 @@ def validate_policies(
 
         runbook_url = policy.get("runbook_url")
         if isinstance(runbook_url, str) and runbook_url:
-            _validate_runbook_url(loc, runbook_url, root, anchors, result)
+            # Relative runbook paths need RUNBOOKS.md; skip per-policy noise when
+            # the missing-file error was already recorded. External http(s) URLs
+            # still validate (fragment checks) without reading the local file.
+            if runbooks_ready or runbook_url.startswith(("http://", "https://")):
+                _validate_runbook_url(loc, runbook_url, root, anchors, result)
         # Non-string / empty runbook_url already reported via REQUIRED_POLICY_FIELDS.
 
     return result
