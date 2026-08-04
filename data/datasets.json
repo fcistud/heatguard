@@ -58,7 +58,7 @@
   },
   "policy": {
     "directory": "policy",
-    "source_note": "Summaries of published GCC occupational heat regulations and ILO guidance for policy-gap analysis (Stage 3 RAG corpus)."
+    "source_note": "Summaries of published GCC occupational heat regulations and ILO guidance for policy-gap analysis (committed policy retrieval corpus)."
   },
   "epidemiology": {
     "path": "epidemiology/gulf_heat.json",

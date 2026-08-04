@@ -7,6 +7,20 @@ Stable heading anchors are referenced by each policy’s `runbook_url`.
 (`severity>=ERROR`, events from WO-013) and `GET /health/ready` /
 `GET /health/live` as the primary signals. Do not wait for paging to recover.
 
+### Implementation status (technical scope)
+
+These runbooks describe **operational contracts** (metrics, alerts, manual procedures).
+Not everything is automated in the running API or `cloudbuild.yaml` yet:
+
+| Area | Shipped today | Runbook / alert contract |
+|------|---------------|---------------------------|
+| Rate limiting | Metric `heatguard_ratelimit_rejected_total` + helper only | 429 responses, demo-key exemption — **middleware pending** |
+| Canary deploy | Direct Cloud Run deploy | 10% → 50% → 100% progression — **comments in `cloudbuild.yaml` only** |
+| Auth dual-mode | Log event `auth.deprecated_anonymous` + monitoring gate | `HEATGUARD_AUTH_MODE=dual` → `enforce` — **API auth middleware pending** |
+
+When a procedure assumes behaviour that is not in code yet, treat it as the target
+state after the trust-boundary epic lands.
+
 ---
 
 ## Weather ingest failure

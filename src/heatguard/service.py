@@ -366,13 +366,13 @@ def list_datasets() -> dict:
 
 
 def policy_query(question: str, top_k: int = 3) -> dict:
-    from .policy_rag import query_policy
+    from .policy_retrieval import query_policy
 
     return query_policy(question, top_k=top_k).to_dict()
 
 
 def policy_demo_questions() -> list[str]:
-    from .policy_rag import list_demo_questions
+    from .policy_retrieval import list_demo_questions
 
     return list_demo_questions()
 

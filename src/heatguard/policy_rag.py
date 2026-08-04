@@ -1,8 +1,8 @@
-"""Policy-gap RAG — retrieve GCC heat-work regulations and ILO guidance.
+"""Legacy module name for policy retrieval/extraction.
 
-Uses TF-IDF retrieval over the committed ``data/policy/`` corpus (no external
-LLM API). Answers are **extractive** summaries of the top matching excerpts
-with explicit source citations — suitable for demo and audit.
+HeatGuard uses TF-IDF retrieval over committed ``data/policy/`` text and
+returns cited, extractive summaries. No external LLM generation is used.
+Prefer importing from ``heatguard.policy_retrieval``.
 """
 from __future__ import annotations
 

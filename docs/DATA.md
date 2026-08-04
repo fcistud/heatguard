@@ -1,6 +1,6 @@
 # HeatGuard datasets
 
-Real and curated data used by the engine, demos, policy RAG, and personal-risk training.  
+Real and curated data used by the engine, demos, policy retrieval, and personal-risk training.  
 **Manifest:** `data/datasets.json`  
 **Cache digests:** `data/cache/CHECKSUMS.json` (SHA-256 + row counts; v2 schema)
 
@@ -62,7 +62,7 @@ python -c "from heatguard.cache_integrity import write_checksums_manifest; write
 | Hourly weather (archive) | Real (Open-Meteo / ERA5-class) | `data/cache/{site}_{start}_{end}.json` | `fetch_archive()` → engine |
 | Hourly weather (forecast) | Real (Open-Meteo forecast) | `data/cache/{site}_forecast_2d_past1d.json` | `fetch_forecast()` → `/forecast/{site}` |
 | WRS intervention effects | Real (published) | `data/nicaragua_baseline.json` | `impact.py`, `/backtest` |
-| GCC ban summaries | Real (curated from regulations) | `data/policy/*.md` | `/policy/query` RAG + `/policy/corpus` |
+| GCC ban summaries | Real (curated from regulations) | `data/policy/*.md` | `/policy/query` retrieval + `/policy/corpus` |
 | Gulf epidemiology constants | Published aggregates | `data/epidemiology/gulf_heat.json` | future risk model |
 | ML personal risk model | PHS-labelled, real weather inputs | `data/models/risk_model.joblib` | `risk_model.assess()` on each `Advisory` |
 
@@ -92,7 +92,7 @@ Returns hourly signals and a **recommended shift window** for the veteran worker
 
 ## Policy corpus
 
-Markdown summaries in `data/policy/` — queried via TF-IDF RAG:
+Markdown summaries in `data/policy/` — queried via local TF-IDF retrieval (extractive cited excerpts, no LLM):
 
 ```bash
 heatguard policy-query "When does the UAE ban start?"

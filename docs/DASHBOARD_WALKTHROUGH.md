@@ -249,7 +249,7 @@ the dashboard is a thin client over the Python engine. Personal risk is computed
 
 ---
 
-## 13. Policy gap auditor (RAG)
+## 13. Policy gap auditor (TF-IDF retrieval)
 
 **On screen:** Preset chips (e.g. *"When does the UAE ban start?"*), a free-text question
 box, and cited excerpts from the committed corpus in `data/policy/` — GCC midday-ban
@@ -261,8 +261,9 @@ This panel retrieves cited policy text in seconds: when bans start, Qatar's WBGT
 the ILO says about WRS. No external LLM — TF-IDF over our committed corpus, same offline
 demo story."
 
-**Under the hood:** `policy_rag.py` chunks and indexes `data/policy/*.md`; `POST /policy/query`
-returns an extractive answer stitched from top chunks. CLI equivalent:
+**Under the hood:** `policy_retrieval.py` (legacy import path: `policy_rag.py`) chunks and
+indexes `data/policy/*.md`; `POST /policy/query` returns an extractive answer stitched from
+top chunks. CLI equivalent:
 `heatguard policy-query "When does the UAE ban start?"` → cites **15 June** from the UAE
 summary (locked by tests).
 

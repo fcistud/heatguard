@@ -80,6 +80,7 @@ Every push / PR runs (see `.github/workflows/ci.yml`):
 | **Golden parity (3.12)** | `golden.check_against_committed()` offline — **required** |
 | **React dashboard build + lint** | Node **24**, lint + test + build |
 | **Container image smoke** | Build image; assert tooling extras absent; health reports 3.12; demo/forecast/dashboard |
+| **Monitoring config** | `scripts/validate_monitoring.py` — alert policies, runbook anchors, SLO doc links |
 
 Actions are SHA-pinned (checkout v7, setup-python v6, setup-node v6, upload-artifact v7).
 
@@ -93,6 +94,7 @@ Mark these as required status checks on `main`:
 - Golden parity (Python 3.12)
 - React dashboard build + lint
 - Container image smoke
+- Monitoring config
 
 ### When the golden-parity gate fails
 
@@ -116,9 +118,9 @@ These are intentional failure drills — do not merge:
 
 ## Measured suite size
 
-As of the golden-masters gate (WO-001–003), ``pytest --collect-only`` on
-Python 3.11 reported **152** collected tests (measured 2026-07-31). After Gate 1
-toolchain work the suite is larger (~170); CI output remains authoritative.
+As of WO-017 (monitoring validation + policy retrieval rename), ``pytest --collect-only -q``
+on Python **3.12** reports **265** collected tests. CI job output remains authoritative when
+in doubt.
 
 ### Characterization baseline replaced by WO-003
 

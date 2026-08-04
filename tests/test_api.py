@@ -212,7 +212,7 @@ def test_compliance_summary_has_privacy_block():
     assert "privacy" in s and "does_not_record" in s["privacy"]
 
 
-# ---- datasets, forecast, policy RAG -----------------------------------------
+# ---- datasets, forecast, policy retrieval -----------------------------------------
 def test_policy_query():
     r = client.post(
         "/policy/query",

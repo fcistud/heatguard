@@ -1,6 +1,6 @@
 """Dataset manifest — lists real data files, cache paths, and policy corpus entries.
 
-Used by the CLI (``fetch-datasets``), API (``/datasets``), and future policy RAG.
+Used by the CLI (``fetch-datasets``), API (``/datasets``), and policy retrieval.
 """
 from __future__ import annotations
 
