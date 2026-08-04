@@ -31,7 +31,7 @@ HeatGuard is built as one pure, deterministic **Python engine** deployed via a s
 1. **Datasets (ERA5 & Gulf Met):** Ingests live Gulf meteorology and ERA5 reanalysis data to compute historical and live conditions.
 2. **Deterministic Core:** Uses the open-source `pythermalcomfort` library to implement the Liljegren algorithm for outdoor Wet-Bulb Globe Temperature (WBGT). It then runs the ACGIH TLV metabolic tables and ISO 7933 Predicted Heat Strain (PHS) model to calculate safe limits and hydration targets.
 3. **AI Personalisation:** We trained a Gradient Boosting model (using `scikit-learn` in our offline pipeline) on synthetic physiological profiles. It sits *on top* of the deterministic engine to protect vulnerable individuals.
-4. **GenAI Auditor:** A fully local TF-IDF Retrieval-Augmented Generation (RAG) system ingests GCC laws (like UAE Ministerial Resolution No. 44) to provide unassailable, zero-hallucination compliance audits.
+4. **Deterministic policy auditor:** A fully local TF-IDF retrieval system ingests GCC laws (like UAE Ministerial Resolution No. 44) and returns the matching clause directly, no generative model in the loop, so every compliance answer is traceable to the exact source text rather than a model's summary of it.
 
 ---
 
