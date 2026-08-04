@@ -93,6 +93,49 @@ def test_operational_payload_exposes_both_advisories():
     assert "WORK" not in payload["live"]
 
 
+def test_rest_in_shade_preserved_during_ban_but_work_zeroed():
+    """Protective REST_IN_SHADE stays; residual work minutes are removed."""
+    from dataclasses import replace as dc_replace
+
+    adv = _scientific_work_advisory()
+    partial = dc_replace(
+        adv,
+        signal=Signal.REST_IN_SHADE,
+        cycle=dc_replace(
+            adv.cycle,
+            work_fraction=0.25,
+            work_min_per_hour=15,
+            rest_min_per_hour=45,
+        ),
+    )
+    assert precedence_applies(True, partial) is True
+    eff = effective_advisory(partial, True, calendar_ban.describe("AE"))
+    assert eff.signal is Signal.REST_IN_SHADE
+    assert eff.cycle.work_min_per_hour == 0
+    assert "WORK" not in effective_live(partial, True, calendar_ban.describe("AE"))
+
+
+def test_effective_signal_preserves_protective_signals():
+    assert effective_signal(Signal.REST_IN_SHADE, True, work_min_per_hour=15) is Signal.REST_IN_SHADE
+    assert effective_signal(Signal.DRINK_NOW, True, work_min_per_hour=0) is Signal.DRINK_NOW
+    assert effective_signal(Signal.WORK, True, work_min_per_hour=60) is Signal.STOP
+
+
+def test_compliance_log_uses_effective_advisories_during_ban():
+    from datetime import date
+
+    from heatguard.service import compliance_for_day
+
+    clog = compliance_for_day("riyadh", date(2024, 7, 15))
+    noon = next(
+        r for r in clog.records
+        if r.payload.get("timestamp", "").startswith("2024-07-15T12:")
+    )
+    assert noon.payload["signal"] == "STOP"
+    assert noon.payload["cycle"]["work_min_per_hour"] == 0
+    assert "Legal prohibition" in noon.payload["rationale"]
+
+
 def test_legal_status_conflict_flag():
     adv = _scientific_work_advisory()
     status = legal_status("AE", adv.timestamp, adv.wbgt_c, adv)

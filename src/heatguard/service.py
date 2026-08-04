@@ -260,10 +260,17 @@ def compliance_for_day(site_key: str, day: date) -> ComplianceLog:
     cat = cfg["intensity"]
     clog = ComplianceLog(f"{site.name} demo site", site_key=site_key)
     token = obs_logging.compliance_bulk_mode(True)
+    ban_desc = calendar_ban.describe(site.country)
     try:
         for w in season:
             if w.timestamp.date() == day and WORK_START <= w.timestamp.hour <= WORK_END:
-                clog.append(schedule(w, site, _veteran(), cat), water_available=True)
+                scientific = schedule(w, site, _veteran(), cat)
+                banned = calendar_ban.is_banned(site.country, w.timestamp, scientific.wbgt_c)
+                # Compliance exports are operational records — never log unauthorized WORK.
+                clog.append(
+                    legal_precedence.effective_advisory(scientific, banned, ban_desc),
+                    water_available=True,
+                )
     finally:
         obs_logging.compliance_bulk_reset(token)
     # One summary event for the season-day replay (volume ceiling).

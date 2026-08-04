@@ -3,6 +3,9 @@
 Calendar and condition-based GCC rules govern **permission to work**. The scheduler
 output remains the scientific assessment; this module derives the operational
 ``effective`` advisory that must never authorize outdoor work during active bans.
+
+Protective signals (``REST_IN_SHADE``, ``DRINK_NOW``, ``STOP``) remain valid during
+bans; only ``WORK`` (and any residual work minutes) are gated.
 """
 from __future__ import annotations
 
@@ -37,23 +40,48 @@ def legal_status(
 
 
 def precedence_applies(banned: bool, scientific: Advisory) -> bool:
-    """True when legal rules override a work-authorizing scientific outcome."""
+    """True when legal rules must alter a scientific outcome for operational use.
+
+    Triggers when the scientific lane would authorize outdoor work minutes
+    (``WORK``, or any cycle with ``work_min_per_hour > 0``).
+    """
     if not banned:
         return False
     return scientific.signal is Signal.WORK or scientific.cycle.work_min_per_hour > 0
 
 
 def effective_signal(scientific: Signal, banned: bool, *, work_min_per_hour: int = 0) -> Signal:
-    """Operational broadcast signal after legal gating."""
+    """Operational broadcast signal after legal gating.
+
+    Only ``WORK`` becomes ``STOP``. Protective signals are preserved; callers that
+    need zero work minutes should use :func:`effective_advisory`.
+    """
     if not banned:
         return scientific
-    if scientific is Signal.WORK or work_min_per_hour > 0:
+    if scientific is Signal.WORK:
         return Signal.STOP
     return scientific
 
 
+def _zero_work_cycle(scientific: Advisory) -> WorkRestCycle:
+    return WorkRestCycle(
+        work_fraction=0.0,
+        work_min_per_hour=0,
+        rest_min_per_hour=60,
+        threshold_wbgt_c=scientific.cycle.threshold_wbgt_c,
+        table=scientific.cycle.table,
+        capped_by_acclimatization=scientific.cycle.capped_by_acclimatization,
+    )
+
+
 def effective_advisory(scientific: Advisory, banned: bool, ban_description: str) -> Advisory:
-    """Operational advisory — never work-authorizing during active legal bans."""
+    """Operational advisory — never work-authorizing during active legal bans.
+
+    - ``WORK`` → ``STOP`` with a zeroed cycle and legal rationale.
+    - Protective signals with residual work minutes keep their signal but lose
+      work authorization (cycle zeroed).
+    - Pure protective / stop outcomes with no work minutes pass through unchanged.
+    """
     if not precedence_applies(banned, scientific):
         return scientific
 
@@ -61,17 +89,12 @@ def effective_advisory(scientific: Advisory, banned: bool, ban_description: str)
     if ban_description:
         rationale = f"{rationale} ({ban_description})"
 
+    signal = Signal.STOP if scientific.signal is Signal.WORK else scientific.signal
+
     return replace(
         scientific,
-        signal=Signal.STOP,
-        cycle=WorkRestCycle(
-            work_fraction=0.0,
-            work_min_per_hour=0,
-            rest_min_per_hour=60,
-            threshold_wbgt_c=scientific.cycle.threshold_wbgt_c,
-            table=scientific.cycle.table,
-            capped_by_acclimatization=scientific.cycle.capped_by_acclimatization,
-        ),
+        signal=signal,
+        cycle=_zero_work_cycle(scientific),
         rationale=rationale,
     )
 
