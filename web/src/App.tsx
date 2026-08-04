@@ -510,9 +510,10 @@ export default function App() {
                   <div className="font-semibold text-slate-800 dark:text-slate-200">3 · Calendar ban vs HeatGuard</div>
                   <p className="mt-1 text-slate-500 dark:text-slate-400">
                     Comparison view only: the timeline contrasts the fixed midday ban with HeatGuard's
-                    scientific assessment hour by hour. Operational permission always follows legal
-                    rules — a red <span className="font-semibold text-heat-red">⚠</span> marks
-                    danger the calendar ban misses.
+                    <span className="font-medium text-slate-600 dark:text-slate-300"> operational instruction</span>{" "}
+                    hour by hour. Legal prohibition always governs permission — a red{" "}
+                    <span className="font-semibold text-heat-red">⚠</span> marks danger the calendar ban
+                    misses. Scientific assessment, when shown, is analysis only — not an instruction.
                   </p>
                 </div>
                 <div>

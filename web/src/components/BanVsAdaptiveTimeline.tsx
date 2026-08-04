@@ -11,7 +11,10 @@ import { PersonalRiskBadge } from "./PersonalRiskBadge";
 import { SIGNAL_COLOR, SIGNAL_SHORT } from "../lib/signals";
 import {
   COMPARISON_DISCLAIMER,
+  SCIENCE_NOT_INSTRUCTION,
+  conflictAnalysisLabel,
   effectiveLane,
+  hasLegalScientificConflict,
   scientificLane,
 } from "../lib/advisoryLane";
 
@@ -34,20 +37,24 @@ function Cell({
   selected,
   outline,
   onClick,
-  title,
+  label,
+  conflict,
 }: {
   children: React.ReactNode;
   color: string;
   selected: boolean;
   outline?: boolean;
   onClick: () => void;
-  title: string;
+  /** Accessible name — preferred over native title for conflict demotion. */
+  label: string;
+  conflict?: boolean;
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      title={title}
-      className={`relative flex h-12 flex-1 items-center justify-center rounded-md text-[11px] font-semibold text-white transition ${
+      aria-label={label}
+      className={`group relative flex h-12 flex-1 items-center justify-center rounded-md text-[11px] font-semibold text-white transition ${
         selected ? "ring-2 ring-offset-2 ring-slate-900" : ""
       }`}
       style={{
@@ -57,6 +64,24 @@ function Cell({
       }}
     >
       {children}
+      {conflict && (
+        <>
+          <span
+            className="pointer-events-none absolute bottom-0.5 right-0.5 rounded bg-slate-900/70 px-0.5 text-[8px] font-bold uppercase tracking-wide text-slate-200"
+            aria-hidden
+          >
+            ≠instr
+          </span>
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 hidden w-56 -translate-x-1/2 rounded-lg border border-slate-600 bg-slate-900 px-2.5 py-2 text-left text-[10px] font-normal leading-snug text-slate-200 shadow-lg group-hover:block group-focus-visible:block"
+          >
+            <span className="font-semibold text-white">Operational instruction above.</span>{" "}
+            <span className="text-slate-400">{SCIENCE_NOT_INSTRUCTION}</span> Scientific
+            assessment is comparison only — not license to work during a ban.
+          </span>
+        </>
+      )}
     </button>
   );
 }
@@ -185,7 +210,7 @@ export function BanVsAdaptiveTimeline({
                 color={r.banned ? "#334155" : "#cbd5e1"}
                 selected={selectedHour === r.hour}
                 onClick={() => onSelectHour(r.hour)}
-                title={`${r.time} — ${r.banned ? "work banned" : "work permitted"}`}
+                label={`${r.time} — ${r.banned ? "work banned by calendar rule" : "work permitted by calendar rule"}`}
               >
                 {r.banned ? "BAN" : ""}
               </Cell>
@@ -201,9 +226,10 @@ export function BanVsAdaptiveTimeline({
             {rows.map((r) => {
               const a = adv(r);
               const s = scientific(r);
-              const conflict =
-                r.banned &&
-                (s.signal === "WORK" || s.cycle.work_min_per_hour > 0);
+              const conflict = hasLegalScientificConflict(r.banned, s);
+              const label = conflict
+                ? conflictAnalysisLabel(r.time, a.signal, s.signal)
+                : `${r.time} — operational ${a.signal}${r.gap ? " (MISSED by ban)" : ""}${a.elevated_risk ? " · elevated personal risk" : ""}`;
               return (
                 <Cell
                   key={r.hour}
@@ -211,11 +237,8 @@ export function BanVsAdaptiveTimeline({
                   selected={selectedHour === r.hour}
                   outline={r.gap}
                   onClick={() => onSelectHour(r.hour)}
-                  title={
-                    conflict
-                      ? `${r.time} — operational ${a.signal}; scientific ${s.signal} (legal ban governs)`
-                      : `${r.time} — ${a.signal}${r.gap ? " (MISSED by ban)" : ""}${a.elevated_risk ? " · elevated personal risk" : ""}`
-                  }
+                  label={label}
+                  conflict={conflict}
                 >
                   <span className="flex flex-col items-center leading-none">
                     <span>{r.gap ? "!" : SIGNAL_SHORT[a.signal][0]}</span>
@@ -253,12 +276,18 @@ export function BanVsAdaptiveTimeline({
               className="h-3 w-3 rounded-sm"
               style={{ backgroundColor: SIGNAL_COLOR[s] }}
             />
-            {SIGNAL_SHORT[s]}
+            {SIGNAL_SHORT[s]} (operational)
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm border-2 border-red-600 bg-transparent" />
           MISSED by ban (gap)
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="rounded bg-slate-800 px-1 py-0.5 text-[9px] font-bold uppercase text-slate-200">
+            ≠instr
+          </span>
+          Legal conflict — science shown as analysis only, not an instruction
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800">
