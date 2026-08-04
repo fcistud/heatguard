@@ -184,9 +184,6 @@ def validate_policies(
         result.fail(f"{policies_path}: YAML parse error: {exc}")
         return result
 
-    metrics = load_metric_names()
-    events = load_event_names()
-
     if not isinstance(data, dict) or "policies" not in data:
         result.fail(f"{policies_path}: missing top-level 'policies' list")
         return result
@@ -195,6 +192,9 @@ def validate_policies(
     if not isinstance(policies, list) or not policies:
         result.fail(f"{policies_path}: 'policies' must be a non-empty list")
         return result
+
+    metrics = load_metric_names()
+    events = load_event_names()
 
     channel_ids: set[str] = set()
     channels_ready = False
