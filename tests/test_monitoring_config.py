@@ -312,7 +312,7 @@ policies:
     )
     result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
     assert not result.ok
-    assert any("severity must be a non-empty string" in e for e in result.errors)
+    assert any("'severity' must be a non-empty string" in e for e in result.errors)
 
 
 def test_unhashable_channel_ref_reports_clear_error(tmp_path: Path) -> None:
@@ -336,7 +336,7 @@ policies:
     result = vm.validate_policies(path, repo_root=REPO, require_channels=True)
     assert not result.ok
     assert any(
-        "notification_channel_ref must be a non-empty string" in e for e in result.errors
+        "'notification_channel_ref' must be a non-empty string" in e for e in result.errors
     )
 
 
@@ -376,3 +376,50 @@ policies:
     assert sum("notification channels file missing" in e for e in result.errors) == 1
     assert not any("cannot resolve notification_channel_ref" in e for e in result.errors)
     assert not any("not in no-channels.yaml" in e for e in result.errors)
+
+
+def test_non_string_runbook_url_reports_clear_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad_runbook.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: bad-runbook
+    display_name: Bad runbook type
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url:
+      - docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("'runbook_url' must be a non-empty string" in e for e in result.errors)
+    assert not any("unsupported runbook_url scheme" in e for e in result.errors)
+
+
+def test_empty_id_uses_index_in_error_location(tmp_path: Path) -> None:
+    path = tmp_path / "empty_id.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: ""
+    display_name: Empty id
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("policy[#0]" in e for e in result.errors)
+    assert any("'id' must be a non-empty string" in e for e in result.errors)

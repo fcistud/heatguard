@@ -224,32 +224,37 @@ def validate_policies(
         if not isinstance(policy, dict):
             result.fail(f"{loc}: policy must be a mapping")
             continue
-        pid = policy.get("id", f"#{idx}")
+        raw_id = policy.get("id")
+        if isinstance(raw_id, str) and raw_id:
+            pid = raw_id
+        else:
+            pid = f"#{idx}"
         loc = f"{policies_path}:policy[{pid}]"
 
         for key in REQUIRED_POLICY_FIELDS:
-            if not policy.get(key):
-                result.fail(f"{loc}: missing required field '{key}'")
+            value = policy.get(key)
+            if not isinstance(value, str) or not value:
+                result.fail(
+                    f"{loc}: '{key}' must be a non-empty string"
+                    if value is not None
+                    else f"{loc}: missing required field '{key}'"
+                )
 
         severity = policy.get("severity")
-        if severity is not None:
-            if not isinstance(severity, str) or not severity:
-                result.fail(f"{loc}: severity must be a non-empty string")
-            elif severity not in ALLOWED_SEVERITIES:
+        if isinstance(severity, str) and severity:
+            if severity not in ALLOWED_SEVERITIES:
                 result.fail(
                     f"{loc}: severity '{severity}' not in {sorted(ALLOWED_SEVERITIES)}"
                 )
+        # Non-string / empty severity already reported via REQUIRED_POLICY_FIELDS.
 
         ref = policy.get("notification_channel_ref")
-        if ref is not None and not isinstance(ref, str):
-            result.fail(
-                f"{loc}: notification_channel_ref must be a non-empty string"
-            )
-        elif channels_ready and isinstance(ref, str) and ref:
+        if isinstance(ref, str) and ref and channels_ready:
             if ref not in channel_ids:
                 result.fail(
                     f"{loc}: notification_channel_ref '{ref}' not in {ch_path.name}"
                 )
+        # Non-string / empty ref already reported via REQUIRED_POLICY_FIELDS.
         metric_list = policy.get("metrics")
         if metric_list is None:
             metric_list = []
@@ -298,8 +303,9 @@ def validate_policies(
             )
 
         runbook_url = policy.get("runbook_url")
-        if runbook_url:
-            _validate_runbook_url(loc, str(runbook_url), root, anchors, result)
+        if isinstance(runbook_url, str) and runbook_url:
+            _validate_runbook_url(loc, runbook_url, root, anchors, result)
+        # Non-string / empty runbook_url already reported via REQUIRED_POLICY_FIELDS.
 
     return result
 

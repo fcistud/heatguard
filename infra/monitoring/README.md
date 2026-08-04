@@ -10,9 +10,10 @@ from version control.
 | `notification_channels.yaml` | Channel references (data sources / placeholders) |
 | `alerts.tf.example` | Optional Terraform shape for `google_monitoring_alert_policy` |
 
-Validate locally:
+Validate locally (PyYAML is in the `dev` extra):
 
 ```bash
-uv run python scripts/validate_monitoring.py
+uv sync --frozen --extra api --extra ml --extra dev
+uv run python scripts/validate_monitoring.py --check-docs-links
 uv run pytest tests/test_monitoring_config.py -q
 ```
