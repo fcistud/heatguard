@@ -64,7 +64,7 @@ Unknown scanner paths use route label `unmatched`.
 | `heatguard_compliance_records_appended_total` | counter | `site_key`, `kind` | Per append |
 | `heatguard_engine_decisions_total` | counter | `signal` | Season replays batched |
 | `heatguard_wbgt_source_total` | counter | `source` | `liljegren`\|`measured`\|`fallback` |
-| `heatguard_ratelimit_rejected_total` | counter | `route`, `key_class` | Declared for trust-boundary epic; helper `observe_ratelimit_rejected` |
+| `heatguard_ratelimit_rejected_total` | counter | `route`, `key_class` | Metric contract + helper `observe_ratelimit_rejected`; **429 enforcement middleware not shipped yet** |
 | `heatguard_process_start_duration_seconds` | gauge | — | Lifespan warm-up once per process |
 
 ### Helpers for later epics
@@ -139,7 +139,7 @@ are auto-instrumented; manual spans mark science-engine and compliance boundarie
 | `engine.estimate_wbgt` / `engine.decide` / `engine.phs` | WBGT, scheduler, ISO 7933 PHS |
 | `service.season_replay` / `service.build_demo` / `service.forecast_timeline` | Demo/impact assembly |
 | `compliance.append` / `compliance.verify_chain` | Hash-chain evidence |
-| `policy.retrieve` | Policy RAG |
+| `policy.retrieve` | Policy TF-IDF retrieval |
 
 Season replay **suppresses** nested `engine.*` spans (per-hour trees are forbidden);
 `service.season_replay` carries `heatguard.rows` instead.

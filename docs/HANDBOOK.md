@@ -288,9 +288,10 @@ Full source list and the honest "what's NOT available" gaps are in `datasets.md`
 
 ## 8. Validation and testing
 
-- **81 automated tests** (`pytest`) — table values, WBGT/PHS sanity, the acclimatization ramp,
-  the scheduler logic, tamper detection, the mechanistic impact, the economics, the scale
-  projection, and the full API surface.
+- **265+ automated tests** (`pytest`; run `pytest --collect-only -q` for the current count) —
+  table values, WBGT/PHS sanity, the acclimatization ramp, the scheduler logic, tamper
+  detection, the mechanistic impact, the economics, the scale projection, policy retrieval,
+  observability, monitoring config validation, and the full API surface.
 - **Nicaragua back-test** (`heatguard backtest`) — asserts the impact model reproduces the
   documented La Isla / Adelante outcome (AKI −94%, productivity +10–20%); fails loudly if an
   effect size is ever changed.

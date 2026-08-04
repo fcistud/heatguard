@@ -9,7 +9,7 @@ HeatGuard** timeline (with the dangerous hours the ban misses flagged), an
 acclimatization tracker, a tamper-evident compliance log, a season impact panel
 (validated against Nicaragua), a business-case / ROI panel, a live "what-if"
 decision engine (with personal-risk overlay), and a **Policy gap auditor**
-(RAG over GCC ban rules and ILO WRS evidence).
+(Policy retrieval over GCC ban rules and ILO WRS evidence — TF-IDF, extractive, no LLM).
 
 ## Prerequisites
 
@@ -76,7 +76,7 @@ web/
       EconomicsPanel.tsx           # ROI headline + cost/benefit + sensitivity
       ComplianceFeed.tsx           # hash-chained log table + CSV export
       WhatIfPanel.tsx              # live POST /decide (age, weight, comorbidity)
-      PolicyPanel.tsx              # POST /policy/query RAG panel
+      PolicyPanel.tsx              # POST /policy/query retrieval panel
       ui/Card.tsx, ui/Stat.tsx     # small primitives
 ```
 

@@ -34,7 +34,11 @@ see alert `auth-deprecated-anonymous-quiet` and
 These thresholds are also automated rollback signals (see
 [RUNBOOKS.md](RUNBOOKS.md#automated-rollback-and-canary)):
 
-1. 5xx rate \> 1% over 5 minutes  
+> **Note:** Canary traffic splits and automated rollback are documented contracts;
+> today `cloudbuild.yaml` still deploys directly — see
+> [RUNBOOKS implementation status](RUNBOOKS.md#implementation-status-technical-scope).
+
+1. 5xx rate \> 1% over 5 minutes
 2. Warm p95 \> 800 ms over 5 minutes  
 3. Any compliance chain verification `failed` increment  
 

@@ -28,10 +28,10 @@ HeatGuard takes live or replayed weather, computes the heat-stress index, and ou
 
 HeatGuard is built as one pure, deterministic **Python engine** deployed via a serverless **FastAPI** backend to a **Vite + React** frontend. 
 
-1. **Datasets (ERA5 & Gulf Met):** Ingests live Gulf meteorology and ERA5 reanalysis data to compute historical and live conditions.
-2. **Deterministic Core:** Uses the open-source `pythermalcomfort` library to implement the Liljegren algorithm for outdoor Wet-Bulb Globe Temperature (WBGT). It then runs the ACGIH TLV metabolic tables and ISO 7933 Predicted Heat Strain (PHS) model to calculate safe limits and hydration targets.
-3. **AI Personalisation:** We trained a Gradient Boosting model (using `scikit-learn` in our offline pipeline) on synthetic physiological profiles. It sits *on top* of the deterministic engine to protect vulnerable individuals.
-4. **Deterministic policy auditor:** A fully local TF-IDF retrieval system ingests GCC laws (like UAE Ministerial Resolution No. 44) and returns the matching clause directly, no generative model in the loop, so every compliance answer is traceable to the exact source text rather than a model's summary of it.
+1. **Datasets (Open-Meteo):** Fetches **Open-Meteo** archive and forecast APIs (ERA5-class reanalysis + hourly forecast). Committed caches under `data/cache/` keep demos offline; swappable for direct ERA5/CDS or a national met feed later.
+2. **Deterministic Core:** Outdoor WBGT uses the **Liljegren** model via `thermofeel` (Stull wet-bulb fallback at night). **ISO 7933 PHS** and hydration limits run through `pythermalcomfort`; ACGIH TLV metabolic tables and the NIOSH acclimatization ramp are in code.
+3. **AI Personalisation:** A Gradient Boosting classifier (`scikit-learn`, offline) trains on **real cached Gulf weather** with **PHS-derived labels** over a grid of representative worker profiles. It sits *on top* of the deterministic engine and never overrides the regulatory signal.
+4. **Compliance Auditor:** A fully local TF-IDF retrieval-and-extraction system indexes GCC laws (like UAE Ministerial Resolution No. 44) and returns cited excerpts directly from the committed corpus (no LLM generation).
 
 ---
 

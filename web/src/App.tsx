@@ -795,7 +795,7 @@ export default function App() {
 
             <Card
               title="Policy gap auditor"
-              subtitle="POST /policy/query · RAG over GCC bans + ILO WRS corpus"
+              subtitle="POST /policy/query · TF-IDF retrieval over GCC bans + ILO WRS corpus"
             >
               <PolicyPanel />
             </Card>
