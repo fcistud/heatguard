@@ -33,6 +33,8 @@ HeatGuard is built as one pure, deterministic **Python engine** deployed via a s
 3. **AI Personalisation:** A Gradient Boosting classifier (`scikit-learn`, offline) trains on **real cached Gulf weather** with **PHS-derived labels** over a grid of representative worker profiles. It sits *on top* of the deterministic engine and never overrides the regulatory signal.
 4. **Compliance Auditor:** A fully local TF-IDF retrieval-and-extraction system indexes GCC laws (like UAE Ministerial Resolution No. 44) and returns cited excerpts directly from the committed corpus (no LLM generation).
 
+> **Legal precedence:** HeatGuard never instructs work during active calendar or condition-based bans. See [`docs/SCOPE_GUARDRAIL.md`](docs/SCOPE_GUARDRAIL.md).
+
 ---
 
 ## 🚀 Quick Start (Local Setup)

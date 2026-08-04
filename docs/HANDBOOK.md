@@ -229,6 +229,7 @@ makes the test suite trustworthy.
 | `acclimatization.py` | The NIOSH new-worker ramp. |
 | `scheduler.py` | The orchestrator: `Conditions + Worker → Advisory`. |
 | `calendar_ban.py` | The GCC midday-ban rules (the foil). |
+| `legal_precedence.py` | Applies legal rules over scientific signals for operational advice ([SCOPE_GUARDRAIL.md](SCOPE_GUARDRAIL.md)). |
 | `compliance.py` | The hash-chained, privacy-by-design protection record. |
 | `impact.py` | The mechanistic AKI/productivity model + the Nicaragua back-test + sensitivity. |
 | `economics.py` | The business case / ROI. |
@@ -303,6 +304,9 @@ Full source list and the honest "what's NOT available" gaps are in `datasets.md`
 
 ## 9. Honest limitations
 
+- **Legal precedence (normative):** HeatGuard never instructs outdoor work during active GCC
+  calendar or condition-based bans. Scientific assessments may differ from legal permission;
+  operational advice always follows the law. See [`SCOPE_GUARDRAIL.md`](SCOPE_GUARDRAIL.md).
 - **WBGT estimation is approximate** without an on-site black-globe sensor; the production path
   uses a ~$300 meter, and the dashboard exposes an Estimated⟷Measured toggle.
 - **Effect sizes transfer** from Mesoamerican sugarcane to Gulf construction with uncertainty;

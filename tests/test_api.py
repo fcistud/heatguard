@@ -188,6 +188,26 @@ def test_hour_no_weather_404():
     assert client.get("/hour/dubai/1999-01-01/12").status_code == 404
 
 
+def test_hour_legal_precedence_blocks_work_during_ban():
+    """Operational advisory must not authorize work when calendar ban is active."""
+    r = client.get("/hour/riyadh/2024-07-15/12").json()
+    assert r["legal"]["banned"] is True
+    assert r["scientific_advisory"]["signal"] == "WORK"
+    assert r["effective_advisory"]["signal"] == "STOP"
+    assert r["advisory"]["signal"] == "STOP"
+    assert r["legal"]["precedence_applied"] is True
+    assert "WORK" not in r["live"]
+
+
+def test_timeline_includes_effective_lanes():
+    tl = client.get("/timeline/riyadh/2024-07-15").json()
+    banned_work = next(
+        r for r in tl["rows"] if r["banned"] and r["veteran"]["signal"] == "WORK"
+    )
+    assert banned_work["veteran_effective"]["signal"] == "STOP"
+    assert banned_work["legal"]["precedence_applied"] is True
+
+
 # ---- scale / lives-saved projection -----------------------------------------
 def test_scale_projection():
     r = client.get("/scale/dubai?workforce=100000").json()

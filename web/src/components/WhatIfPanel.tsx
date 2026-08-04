@@ -3,6 +3,7 @@ import type { DecideResponse, Intensity } from "../types";
 import { api, ApiError } from "../api";
 import { PersonalRiskBadge } from "./PersonalRiskBadge";
 import { SIGNAL_COLOR, SIGNAL_LABEL } from "../lib/signals";
+import { LEGAL_GOVERNS_LINE } from "../lib/advisoryLane";
 
 interface Props {
   siteKey: string;
@@ -238,6 +239,11 @@ export function WhatIfPanel({ siteKey }: Props) {
             {adv.personal_risk_note && (
               <p className="mt-2 rounded-lg bg-orange-50 px-3 py-2 text-xs leading-relaxed text-orange-900">
                 {adv.personal_risk_note}
+              </p>
+            )}
+            {result.legal?.precedence_applied && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+                {LEGAL_GOVERNS_LINE}
               </p>
             )}
             <p className="mt-2 text-xs text-slate-400">

@@ -82,7 +82,8 @@ rows = tl["rows"]
 
 table = []
 for r in rows:
-    adv = r[worker_key]
+    # Operational HeatGuard column after legal precedence (falls back to scientific).
+    adv = r.get(f"{worker_key}_effective") or r[worker_key]
     table.append({
         "Time": r["time"],
         "Air °C": r["tdb_c"],
@@ -118,11 +119,13 @@ with right:
     gap = tl["gap_hours"]
     st.info(f"**{gap} hour(s)** on {day}: HeatGuard protected workers the calendar ban did **not** cover "
             f"— including the unacclimatized newcomer in the morning.")
-    # live signal preview for the hottest hour
+    # live signal preview for the hottest hour (operational lane)
     hot = max(rows, key=lambda r: r["wbgt_c"])
-    adv = hot[worker_key]
+    adv = hot.get(f"{worker_key}_effective") or hot[worker_key]
     st.markdown(f"**Peak hour {hot['time']}** ({worker_view}): {signal_badge(adv['signal'])}", unsafe_allow_html=True)
     st.caption(adv["rationale"])
+    if hot.get("banned"):
+        st.caption("Legal prohibition always governs operational permission.")
 
     # on-site meter (measured WBGT) — sensor vs estimate
     with st.expander("🔧 On-site WBGT meter (sensor vs estimate)"):

@@ -5,6 +5,7 @@ import {
   SIGNAL_SHORT,
   wbgtSourceLabel,
 } from "../lib/signals";
+import { LEGAL_GOVERNS_LINE } from "../lib/advisoryLane";
 import { Logo } from "./ui/Brand";
 
 type WorkerKey = "veteran" | "newcomer";
@@ -17,7 +18,10 @@ interface Props {
 
   timeline: Timeline;
   currentRow: TimelineRow;
+  /** Operational advisory (legal precedence applied). */
   advisory: Advisory;
+  /** Scientific scheduler output for comparison when legal rules apply. */
+  scientificAdvisory?: Advisory;
   wbgt: number;
   source: WbgtSource;
   banned: boolean;
@@ -48,7 +52,7 @@ function plainInstruction(adv: Advisory): string {
       return `Take it easy. Work ${work} min, then rest ${rest} min in the shade. Drink ~${cups} cups this hour.`;
     case "WORK":
     default:
-      return `Safe to work. Work ${work} min, rest ${rest} min in shade. Drink ~${cups} cups this hour.`;
+      return `Work permitted within the WRS cycle (legally allowed this hour). Work ${work} min, rest ${rest} min in shade. Drink ~${cups} cups this hour.`;
   }
 }
 
@@ -80,6 +84,7 @@ export function SimpleView({
   timeline,
   currentRow,
   advisory,
+  scientificAdvisory,
   wbgt,
   source,
   banned,
@@ -97,9 +102,11 @@ export function SimpleView({
 
   const banSays = banned ? "BANNED" : "PERMITTED";
   const hgSays = SIGNAL_LABEL[advisory.signal];
-  // Where ban and HeatGuard disagree, call it out plainly.
-  const banMissesDanger = !banned && advisory.signal === "STOP";
-  const banOverCautious = banned && advisory.signal === "WORK";
+  const scientific = scientificAdvisory ?? advisory;
+  const banMissesDanger = !banned && scientific.signal === "STOP";
+  const legalConflict =
+    banned &&
+    (scientific.signal === "WORK" || scientific.cycle.work_min_per_hour > 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-1">
@@ -230,7 +237,7 @@ export function SimpleView({
             style={{ borderColor: color, backgroundColor: `${color}14` }}
           >
             <div className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              HeatGuard says
+              HeatGuard says (operational)
             </div>
             <div
               className="mt-1 font-display text-xl font-bold"
@@ -242,9 +249,9 @@ export function SimpleView({
         </div>
         <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {banMissesDanger
-            ? `The fixed calendar ban would let work continue — but the real conditions are dangerous, so HeatGuard calls a ${SIGNAL_SHORT[advisory.signal]}.`
-            : banOverCautious
-              ? `The fixed calendar ban would halt all work — but conditions are actually safe, so HeatGuard allows normal work.`
+            ? `The fixed calendar ban would let work continue — but the real conditions are dangerous, so HeatGuard calls a ${SIGNAL_SHORT[scientific.signal]}.`
+            : legalConflict
+              ? LEGAL_GOVERNS_LINE
               : `${plainWhy(advisory, wbgt)}`}
         </p>
       </div>

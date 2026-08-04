@@ -15,9 +15,10 @@ Dubai-crew-100 demo values; they update as you change site / crew.
 ## 0. The one-sentence frame (say this first)
 
 > "Every Gulf state bans midday outdoor work on a fixed **calendar**. That calendar is
-> wrong in *both* directions — it misses real danger, and it needlessly stops safe work.
-> HeatGuard replaces it with a schedule that responds to *actual* conditions, and proves
-> it happened. Let me show you."
+> wrong in *both* directions — it misses real danger, and (as a scenario comparison) it
+> can stop work when conditions look scientifically manageable. HeatGuard never overrides
+> legal bans; it strengthens protection where the ban is silent, and proves what happened.
+> Let me show you."
 
 ---
 
@@ -274,6 +275,9 @@ conditions, not just a clock.
 ---
 
 ## 90-second demo script (if you only have a minute and a half)
+
+0. **Guardrail** — "HeatGuard never tells crews to work when local law prohibits it; we compare
+   science to the calendar, but legal rules always govern permission."
 
 1. **Frame** (§0) — "the calendar is wrong in both directions."
 2. **Dubai timeline** (§5) — point at the empty ban lane: "16 May, heat's here, ban starts

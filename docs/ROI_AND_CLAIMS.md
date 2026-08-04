@@ -45,6 +45,10 @@ For a 100-worker crew over the replayed season, the engine produces:
 - `productivity_worker_hours_lo/hi` = `(0.10 … 0.20) × heat-exposed worker-hours`.
 - `ban_only_safe_work_hours` — safe work the ban needlessly stopped (fraction-weighted).
 
+**Legal precedence note:** `ban_only_safe_*` metrics are **analytic/scenario** comparisons
+(scientific assessment vs calendar baseline). They do **not** imply permission to work during
+legal ban windows. Operational behaviour is defined in [`SCOPE_GUARDRAIL.md`](SCOPE_GUARDRAIL.md).
+
 ### 1.3 The benefit terms (`economics.business_case`)
 
 ```

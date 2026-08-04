@@ -9,10 +9,10 @@ from dataclasses import asdict
 from datetime import date, datetime
 from functools import lru_cache
 
-from . import calendar_ban, economics, impact, scale
+from . import calendar_ban, economics, impact, legal_precedence, scale
 from .compliance import ComplianceLog
 from .datasets import inventory as dataset_inventory
-from .scheduler import live_signal, schedule
+from .scheduler import schedule
 from .sites import get_site, load_sites
 from .types import MetabolicCategory, Signal, Weather, Worker
 from .weather import daytime, fetch_archive, fetch_forecast, replay_worker
@@ -104,7 +104,10 @@ def _row(w: Weather, site, cat, veteran, newcomer) -> dict:
     av = schedule(w, site, veteran, cat)
     an = schedule(w, site, newcomer, cat)
     banned = calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c)
+    ban_desc = calendar_ban.describe(site.country)
     gap = (av.signal in _PROTECTIVE or an.signal in _PROTECTIVE) and not banned
+    av_eff = legal_precedence.effective_advisory(av, banned, ban_desc)
+    an_eff = legal_precedence.effective_advisory(an, banned, ban_desc)
     return {
         "hour": w.timestamp.hour,
         "time": w.timestamp.strftime("%H:%M"),
@@ -114,6 +117,9 @@ def _row(w: Weather, site, cat, veteran, newcomer) -> dict:
         "wbgt_source": av.wbgt_source,
         "veteran": av.to_dict(),
         "newcomer": an.to_dict(),
+        "veteran_effective": av_eff.to_dict(),
+        "newcomer_effective": an_eff.to_dict(),
+        "legal": legal_precedence.legal_status(site.country, w.timestamp, av.wbgt_c, av),
         "banned": banned,
         "gap": gap,
     }
@@ -175,15 +181,19 @@ def hour_advisory(
     from .observability.metrics import observe_engine_decision
 
     observe_engine_decision(signal=adv.signal.value, wbgt_source=adv.wbgt_source)
-    return {
-        "advisory": adv.to_dict(),
+    ban_desc = calendar_ban.describe(site.country)
+    payload = legal_precedence.operational_payload(
+        adv, country=site.country, ban_description=ban_desc
+    )
+    payload.update({
         "model_source": adv.personal_risk_model_source,
         "estimated_wbgt_c": round(est.wbgt_c, 1),
         "estimated_source": est.source,
         "measured": measured_wbgt is not None,
-        "banned": calendar_ban.is_banned(site.country, w.timestamp, adv.wbgt_c),
-        "live": [live_signal(adv, m).value for m in range(60)],
-    }
+        "banned": payload["legal"]["banned"],
+        "ban_description": ban_desc,
+    })
+    return payload
 
 
 @lru_cache(maxsize=8)
@@ -250,10 +260,17 @@ def compliance_for_day(site_key: str, day: date) -> ComplianceLog:
     cat = cfg["intensity"]
     clog = ComplianceLog(f"{site.name} demo site", site_key=site_key)
     token = obs_logging.compliance_bulk_mode(True)
+    ban_desc = calendar_ban.describe(site.country)
     try:
         for w in season:
             if w.timestamp.date() == day and WORK_START <= w.timestamp.hour <= WORK_END:
-                clog.append(schedule(w, site, _veteran(), cat), water_available=True)
+                scientific = schedule(w, site, _veteran(), cat)
+                banned = calendar_ban.is_banned(site.country, w.timestamp, scientific.wbgt_c)
+                # Compliance exports are operational records — never log unauthorized WORK.
+                clog.append(
+                    legal_precedence.effective_advisory(scientific, banned, ban_desc),
+                    water_available=True,
+                )
     finally:
         obs_logging.compliance_bulk_reset(token)
     # One summary event for the season-day replay (volume ceiling).
@@ -348,13 +365,14 @@ def decide_one(
         wbgt_source=av.wbgt_source,
         signal=av.signal.value,
     )
-    return {
-        "advisory": av.to_dict(),
-        "model_source": av.personal_risk_model_source,
-        "banned": calendar_ban.is_banned(site.country, ts, av.wbgt_c),
-        "ban_description": calendar_ban.describe(site.country),
-        "live": [live_signal(av, m).value for m in range(60)],
-    }
+    ban_desc = calendar_ban.describe(site.country)
+    payload = legal_precedence.operational_payload(
+        av, country=site.country, ban_description=ban_desc
+    )
+    payload["model_source"] = av.personal_risk_model_source
+    payload["banned"] = payload["legal"]["banned"]
+    payload["ban_description"] = ban_desc
+    return payload
 
 
 def backtest() -> dict:
@@ -415,9 +433,13 @@ def forecast_timeline(site_key: str) -> dict:
             an = schedule(w, site, newcomer, cat)
             decision_pairs.append((av.signal.value, av.wbgt_source))
             decision_pairs.append((an.signal.value, an.wbgt_source))
+            banned = calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c)
+            ban_desc = calendar_ban.describe(site.country)
+            av_eff = legal_precedence.effective_advisory(av, banned, ban_desc)
+            an_eff = legal_precedence.effective_advisory(an, banned, ban_desc)
             if av.signal in _PROTECTIVE:
                 danger_hours += 1
-            if av.signal is Signal.WORK:
+            if av_eff.signal is Signal.WORK:
                 work_hour_labels.append(w.timestamp.strftime("%H:%M"))
             timeline_rows.append({
                 "hour": w.timestamp.hour,
@@ -429,7 +451,10 @@ def forecast_timeline(site_key: str) -> dict:
                 "wbgt_source": av.wbgt_source,
                 "veteran": av.to_dict(),
                 "newcomer": an.to_dict(),
-                "banned": calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c),
+                "veteran_effective": av_eff.to_dict(),
+                "newcomer_effective": an_eff.to_dict(),
+                "legal": legal_precedence.legal_status(site.country, w.timestamp, av.wbgt_c, av),
+                "banned": banned,
             })
 
         from .observability.metrics import observe_engine_decisions_batch

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../api";
 import type { ForecastTimeline, Signal } from "../types";
+import { effectiveLane } from "../lib/advisoryLane";
 import { SIGNAL_COLOR, SIGNAL_SHORT } from "../lib/signals";
 import { Stat } from "./ui/Stat";
 
 type WorkerKey = "veteran" | "newcomer";
 
 function signalFor(row: ForecastTimeline["rows"][0], worker: WorkerKey): Signal {
-  return worker === "veteran" ? row.veteran.signal : row.newcomer.signal;
+  return effectiveLane(row, worker).signal;
 }
 
 function groupByDate(rows: ForecastTimeline["rows"]) {
@@ -180,7 +181,7 @@ export function ForecastPanel({ siteKey }: { siteKey: string }) {
                   r.time >= shiftStart &&
                   r.time <= shiftEnd &&
                   worker === "veteran" &&
-                  r.veteran.signal === "WORK";
+                  sig === "WORK";
                 return (
                   <div
                     key={`${r.date}-${r.time}`}
