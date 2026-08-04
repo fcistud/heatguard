@@ -41,7 +41,7 @@ HeatGuard is built as one pure, deterministic **Python engine** deployed via a s
 # Python 3.12 + uv (authoritative lock).
 uv sync --frozen --extra api --extra ml --extra dev
 # Or: pip install -r requirements.txt && pip install -e ".[api,ml,dev]"
-pytest -q                 # full suite incl. API, policy RAG, and ML overlay
+pytest -q                 # full suite incl. API, policy retrieval, and ML overlay
 heatguard fetch-datasets  # cache weather + forecasts
 heatguard fetch-demo      # cache the two demo archives
 # Dashboard needs Node 24 / npm 11 (see web/package.json engines)
