@@ -29,7 +29,7 @@ log = get_logger(__name__)
 def _warm_caches() -> None:
     """Pre-load ML model and policy index; optionally pre-compute demo payloads."""
     from .observability.tracing import ATTR_SITE_KEY, span
-    from .policy_rag import _build_index
+    from .policy_retrieval import _build_index
     from .risk_model import _load_model
 
     with span("lifespan.warm_up"):
@@ -41,7 +41,7 @@ def _warm_caches() -> None:
             except FileNotFoundError:
                 log.warning(
                     "policy_corpus_missing",
-                    message="Policy corpus missing — skipping RAG warm-up",
+                    message="Policy corpus missing — skipping policy retrieval warm-up",
                 )
 
         if os.environ.get("HEATGUARD_WARM_DEMOS", "").lower() in ("1", "true", "yes"):

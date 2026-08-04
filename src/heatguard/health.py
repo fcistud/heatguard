@@ -134,10 +134,10 @@ def _check_risk_model() -> str | None:
     return None
 
 
-def _check_policy_rag() -> str | None:
-    from . import policy_rag
+def _check_policy_retrieval() -> str | None:
+    from . import policy_retrieval
 
-    available, _reason = policy_rag.policy_index_status()
+    available, _reason = policy_retrieval.policy_index_status()
     if not available:
         return "policy_index_unavailable"
     return None
@@ -165,7 +165,7 @@ def default_checkers() -> list[DependencyCheck]:
         hard.append(DependencyCheck(f"data:{rel}", "hard", _check_json_file(rel)))
     optional = [
         DependencyCheck("risk_model", "optional", _check_risk_model),
-        DependencyCheck("policy_rag", "optional", _check_policy_rag),
+        DependencyCheck("policy_retrieval", "optional", _check_policy_retrieval),
         DependencyCheck("archive_caches", "optional", _check_archive_caches),
     ]
     return hard + optional
