@@ -75,7 +75,7 @@ def load_metric_names() -> frozenset[str]:
                 continue
             names.add(line.split("|", 1)[0].strip())
         return frozenset(names)
-    return frozenset(registered_metric_label_names())
+    return frozenset(registered_metric_label_names().keys())
 
 
 def load_event_names() -> frozenset[str]:
@@ -171,8 +171,6 @@ def validate_policies(
     """
     root = repo_root or _repo_root()
     result = ValidationResult()
-    metrics = load_metric_names()
-    events = load_event_names()
 
     try:
         data = load_yaml(policies_path)
@@ -185,6 +183,9 @@ def validate_policies(
     except Exception as exc:  # noqa: BLE001 — surface parse errors clearly
         result.fail(f"{policies_path}: YAML parse error: {exc}")
         return result
+
+    metrics = load_metric_names()
+    events = load_event_names()
 
     if not isinstance(data, dict) or "policies" not in data:
         result.fail(f"{policies_path}: missing top-level 'policies' list")
@@ -229,13 +230,20 @@ def validate_policies(
                 result.fail(f"{loc}: missing required field '{key}'")
 
         severity = policy.get("severity")
-        if severity and severity not in ALLOWED_SEVERITIES:
-            result.fail(
-                f"{loc}: severity '{severity}' not in {sorted(ALLOWED_SEVERITIES)}"
-            )
+        if severity is not None:
+            if not isinstance(severity, str) or not severity:
+                result.fail(f"{loc}: severity must be a non-empty string")
+            elif severity not in ALLOWED_SEVERITIES:
+                result.fail(
+                    f"{loc}: severity '{severity}' not in {sorted(ALLOWED_SEVERITIES)}"
+                )
 
         ref = policy.get("notification_channel_ref")
-        if require_channels and ref:
+        if ref is not None and not isinstance(ref, str):
+            result.fail(
+                f"{loc}: notification_channel_ref must be a non-empty string"
+            )
+        elif require_channels and isinstance(ref, str) and ref:
             if not channel_ids:
                 result.fail(f"{loc}: cannot resolve notification_channel_ref '{ref}'")
             elif ref not in channel_ids:

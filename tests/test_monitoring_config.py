@@ -290,3 +290,51 @@ policies:
     result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
     assert not result.ok
     assert any("ops_checks entry must be a non-empty string" in e for e in result.errors)
+
+
+def test_unhashable_severity_reports_clear_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad_severity.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: bad-severity
+    display_name: Bad severity type
+    severity:
+      - critical
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=False)
+    assert not result.ok
+    assert any("severity must be a non-empty string" in e for e in result.errors)
+
+
+def test_unhashable_channel_ref_reports_clear_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad_channel_ref.yaml"
+    path.write_text(
+        """
+version: 1
+policies:
+  - id: bad-channel-ref
+    display_name: Bad channel ref type
+    severity: warning
+    notification_channel_ref:
+      - oncall-pager
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+""",
+        encoding="utf-8",
+    )
+    result = vm.validate_policies(path, repo_root=REPO, require_channels=True)
+    assert not result.ok
+    assert any(
+        "notification_channel_ref must be a non-empty string" in e for e in result.errors
+    )
