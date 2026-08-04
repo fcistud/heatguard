@@ -9,6 +9,8 @@ import {
   YAxis,
 } from "recharts";
 import type { Backtest, ImpactReport } from "../types";
+import { Stat } from "./ui/Stat";
+import { api } from "../api";
 import { ANALYTIC_METRIC_HINT } from "../lib/advisoryLane";
 
 interface Props {

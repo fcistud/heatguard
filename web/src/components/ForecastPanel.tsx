@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "../api";
 import type { ForecastTimeline, Signal } from "../types";
 import { effectiveLane } from "../lib/advisoryLane";
+import { SIGNAL_COLOR, SIGNAL_SHORT } from "../lib/signals";
 import { Stat } from "./ui/Stat";
 
 type WorkerKey = "veteran" | "newcomer";
