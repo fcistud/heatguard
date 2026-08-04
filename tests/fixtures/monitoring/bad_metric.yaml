@@ -1,0 +1,12 @@
+# Invalid: references a metric that is not in the WO-014 registry contract.
+version: 1
+policies:
+  - id: fixture-bad-metric
+    display_name: Fixture undefined metric
+    severity: critical
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_definitely_not_a_real_metric_total
+    condition_summary: Must fail metric-existence assertion.

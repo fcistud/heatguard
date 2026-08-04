@@ -1,0 +1,32 @@
+# Example Terraform resources mirroring infra/monitoring/policies.yaml.
+# Apply in a project that already has notification channels; do not commit secrets.
+#
+#   terraform init && terraform plan
+#
+# Prefer keeping policies.yaml as the reviewable source of truth and generating
+# or hand-synchronizing these resources from it.
+
+terraform {
+  required_version = ">= 1.5"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 5.0"
+    }
+  }
+}
+
+# data "google_monitoring_notification_channel" "oncall" {
+#   display_name = "HeatGuard on-call"
+# }
+
+# resource "google_monitoring_alert_policy" "http_5xx_rate" {
+#   display_name = "HTTP 5xx rate above 1 percent"
+#   combiner     = "OR"
+#   documentation {
+#     content   = "Runbook: docs/RUNBOOKS.md#cold-start-or-latency-regression"
+#     mime_type = "text/markdown"
+#   }
+#   # conditions { ... PromQL / MQL against heatguard_http_requests_total ... }
+#   # notification_channels = [data.google_monitoring_notification_channel.oncall.name]
+# }

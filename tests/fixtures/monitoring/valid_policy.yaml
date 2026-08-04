@@ -1,0 +1,12 @@
+# Valid fixture policy set for offline validator tests (WO-017).
+version: 1
+policies:
+  - id: fixture-weather-ingest
+    display_name: Fixture weather ingest failure
+    severity: critical
+    notification_channel_ref: oncall-pager
+    runbook_url: docs/RUNBOOKS.md#weather-ingest-failure
+    auto_close: after_ok_30m
+    metrics:
+      - heatguard_weather_fetch_total
+    condition_summary: Fixture-only valid policy.

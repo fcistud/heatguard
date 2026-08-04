@@ -1,0 +1,11 @@
+# Invalid: missing runbook_url entirely.
+version: 1
+policies:
+  - id: fixture-missing-runbook
+    display_name: Fixture missing runbook
+    severity: warning
+    notification_channel_ref: ops-email
+    auto_close: after_ok_15m
+    metrics:
+      - heatguard_http_requests_total
+    condition_summary: Must fail runbook-link assertion.
