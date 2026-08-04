@@ -429,7 +429,7 @@ export default function App() {
               scientificAdvisory={effectiveScientificAdvisory ?? undefined}
               wbgt={effectiveWbgt}
               source={effectiveSource ?? currentRow.wbgt_source}
-              banned={currentRow.banned}
+              banned={measuredActive ? hourResult!.banned : currentRow.banned}
               selectedHour={currentRow.hour}
               onSelectHour={setSelectedHour}
               worker={worker}
