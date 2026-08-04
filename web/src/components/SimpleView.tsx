@@ -52,7 +52,7 @@ function plainInstruction(adv: Advisory): string {
       return `Take it easy. Work ${work} min, then rest ${rest} min in the shade. Drink ~${cups} cups this hour.`;
     case "WORK":
     default:
-      return `Safe to work. Work ${work} min, rest ${rest} min in shade. Drink ~${cups} cups this hour.`;
+      return `Work permitted within the WRS cycle (legally allowed this hour). Work ${work} min, rest ${rest} min in shade. Drink ~${cups} cups this hour.`;
   }
 }
 

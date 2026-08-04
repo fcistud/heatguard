@@ -15,9 +15,10 @@ Dubai-crew-100 demo values; they update as you change site / crew.
 ## 0. The one-sentence frame (say this first)
 
 > "Every Gulf state bans midday outdoor work on a fixed **calendar**. That calendar is
-> wrong in *both* directions — it misses real danger, and it needlessly stops safe work.
-> HeatGuard replaces it with a schedule that responds to *actual* conditions, and proves
-> it happened. Let me show you."
+> wrong in *both* directions — it misses real danger, and (as a scenario comparison) it
+> can stop work when conditions look scientifically manageable. HeatGuard never overrides
+> legal bans; it strengthens protection where the ban is silent, and proves what happened.
+> Let me show you."
 
 ---
 

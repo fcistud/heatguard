@@ -102,11 +102,11 @@ Timeline rows include `veteran` / `newcomer` (scientific) plus `veteran_effectiv
 
 ## 9. Acceptance criteria
 
-- [ ] Operational surfaces never emit work-authorizing advice when `legal.banned=true`
-- [ ] Forecast shift recommendations exclude banned intervals as actionable work
-- [ ] Comparison views include non-authorizing disclaimers
-- [ ] Docs and demo scripts use approved claims only
-- [ ] Tests cover ban precedence across API and UI contract
+- [x] Operational surfaces never emit work-authorizing advice when `legal.banned=true`
+- [x] Forecast shift recommendations exclude banned intervals as actionable work
+- [x] Comparison views include non-authorizing disclaimers
+- [x] Docs and demo scripts use approved claims only
+- [x] Tests cover ban precedence across API and UI contract
 
 ---
 

@@ -181,7 +181,7 @@ export function ForecastPanel({ siteKey }: { siteKey: string }) {
                   r.time >= shiftStart &&
                   r.time <= shiftEnd &&
                   worker === "veteran" &&
-                  r.veteran.signal === "WORK";
+                  sig === "WORK";
                 return (
                   <div
                     key={`${r.date}-${r.time}`}

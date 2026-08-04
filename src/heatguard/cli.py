@@ -17,7 +17,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from . import calendar_ban, economics, impact
+from . import calendar_ban, economics, impact, legal_precedence
 from .compliance import ComplianceLog
 from .scheduler import build_conditions, decide, schedule
 from .service import DEMOS
@@ -56,15 +56,23 @@ def cmd_decide(args) -> int:
                 args.tdb, args.rh, args.wind, args.solar, args.solar * 0.85, args.tdb - 15, 1013.0)
     worker = Worker("cli", days_on_job=args.days_on_job, acclimatized=not args.unacclimatized,
                     experienced_elsewhere=args.experienced)
-    av = schedule(w, site, worker, _intensity(args.intensity),
-                  measured_wbgt_c=args.measured_wbgt)
+    scientific = schedule(w, site, worker, _intensity(args.intensity),
+                          measured_wbgt_c=args.measured_wbgt)
+    ban_desc = calendar_ban.describe(site.country)
+    banned = calendar_ban.is_banned(site.country, w.timestamp, scientific.wbgt_c)
+    av = legal_precedence.effective_advisory(scientific, banned, ban_desc)
     print(f"\n  Site: {site.name}   Intensity: {args.intensity}   Worker: "
           f"{'new day '+str(args.days_on_job) if not worker.acclimatized else 'acclimatized'}")
     print(f"  WBGT: {av.wbgt_c:.1f} degC ({av.wbgt_source})")
-    print(f"  SIGNAL: {_c(av.signal)}    work {av.cycle.work_min_per_hour} min / rest {av.cycle.rest_min_per_hour} min")
+    print(f"  SIGNAL (operational): {_c(av.signal)}    "
+          f"work {av.cycle.work_min_per_hour} min / rest {av.cycle.rest_min_per_hour} min")
+    if legal_precedence.precedence_applies(banned, scientific):
+        print(f"  Scientific (comparison): {_c(scientific.signal)}    "
+              f"work {scientific.cycle.work_min_per_hour} min / rest {scientific.cycle.rest_min_per_hour} min")
     print(f"  Hydration: {av.hydration.cups_250ml_per_h:.1f} cups/h ({av.hydration.water_ml_per_h:.0f} mL/h);"
           f" max safe continuous {av.hydration.max_exposure_min:.0f} min")
-    print(f"  Calendar ban now: {'BANNED' if calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c) else 'permitted'}")
+    print(f"  Calendar ban now: {'BANNED' if banned else 'permitted'}"
+          f"{' — legal rules govern permission' if banned else ''}")
     print(f"  Why: {av.rationale}\n")
     return 0
 
@@ -133,15 +141,19 @@ def cmd_demo(args) -> int:
 
     print(f"{'time':>5} {'air':>5} {'WBGT':>5} | {'HeatGuard (veteran)':>20} {'wk':>3} | "
           f"{'HeatGuard (new)':>16} | {'calendar ban':>12} | gap")
+    print("  (HeatGuard columns are operational after legal precedence; gap uses scientific vs ban.)")
     log = ComplianceLog(f"{site.name} demo site", site_key=args.site)
     gap_hours = 0
     protective = (Signal.STOP, Signal.REST_IN_SHADE)
+    ban_desc = calendar_ban.describe(site.country)
     for w in focus:
-        av = schedule(w, site, veteran, cat)
-        an = schedule(w, site, newcomer, cat)
-        banned = calendar_ban.is_banned(site.country, w.timestamp, av.wbgt_c)
+        av_sci = schedule(w, site, veteran, cat)
+        an_sci = schedule(w, site, newcomer, cat)
+        banned = calendar_ban.is_banned(site.country, w.timestamp, av_sci.wbgt_c)
+        av = legal_precedence.effective_advisory(av_sci, banned, ban_desc)
+        an = legal_precedence.effective_advisory(an_sci, banned, ban_desc)
         # a gap = either worker needed protection but the calendar ban didn't cover it
-        gap = (av.signal in protective or an.signal in protective) and not banned
+        gap = (av_sci.signal in protective or an_sci.signal in protective) and not banned
         gap_hours += int(gap)
         log.append(av, water_available=True)
         print(f"{w.timestamp:%H:%M} {w.tdb_c:5.1f} {av.wbgt_c:5.1f} | {_c(av.signal)} {av.cycle.work_min_per_hour:>3} | "
@@ -149,6 +161,7 @@ def cmd_demo(args) -> int:
 
     print(f"\nGap: HeatGuard protected workers in {gap_hours} hour(s) on {cfg['focus_day']} that the calendar ban did not "
           f"cover — including the unacclimatized newcomer in the morning.")
+    print("  (Scenario metrics below compare scientific scheduling to the calendar; legal rules govern permission.)")
 
     print(f"\nCompliance log: {len(log.records)} records, chain verified = {log.verify_chain()}")
     print(f"  head hash {log.head_hash[:24]}...  (tamper-evident audit trail)")

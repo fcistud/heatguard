@@ -136,6 +136,44 @@ def test_compliance_log_uses_effective_advisories_during_ban():
     assert "Legal prohibition" in noon.payload["rationale"]
 
 
+def test_cli_decide_prints_operational_signal_during_ban(capsys, monkeypatch):
+    """CLI decide must not present scientific WORK as the operational SIGNAL."""
+    from argparse import Namespace
+    from datetime import datetime, timedelta, timezone
+
+    from heatguard import cli as cli_mod
+
+    # Pin "now" inside UAE midday ban season so the test is calendar-stable.
+    fixed = datetime(2024, 7, 15, 13, 0, tzinfo=timezone(timedelta(hours=4)))
+
+    class _FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed if tz is None else fixed.astimezone(tz)
+
+    monkeypatch.setattr(cli_mod, "datetime", _FixedDateTime)
+
+    args = Namespace(
+        site="dubai",
+        tdb=26.0,
+        rh=40.0,
+        wind=2.0,
+        solar=200.0,
+        hour=13,
+        intensity="heavy",
+        days_on_job=120,
+        unacclimatized=False,
+        experienced=False,
+        measured_wbgt=None,
+    )
+    assert cli_mod.cmd_decide(args) == 0
+    out = capsys.readouterr().out
+    assert "SIGNAL (operational):" in out
+    assert "STOP" in out
+    assert "BANNED" in out
+    assert "legal rules govern permission" in out
+
+
 def test_legal_status_conflict_flag():
     adv = _scientific_work_advisory()
     status = legal_status("AE", adv.timestamp, adv.wbgt_c, adv)
