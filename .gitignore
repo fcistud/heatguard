@@ -37,3 +37,8 @@ HeatGuard*.pptx
 
 # Local CI / determinism outputs
 artifacts/
+.forge/project-id
+.forge/hook-version
+.cursor/hooks.json
+.cursor/hooks/
+.cursor/rules/forge-workflow.mdc
