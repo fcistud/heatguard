@@ -23,7 +23,10 @@ pip install -e .
 uvicorn heatguard.api:app
 ```
 
-This serves on `http://localhost:8000` with permissive CORS. If weather caches
+This serves on `http://localhost:8000` with CORS limited to the Vite origins
+`http://localhost:5173` and `http://127.0.0.1:5173` by default. Override with
+`HEATGUARD_CORS_ORIGINS` (comma-separated). Production/staging refuse wildcards
+unless `HEATGUARD_CORS_ALLOW_WILDCARD=true`. If weather caches
 are missing, run `heatguard fetch-datasets` once (archives are committed in the
 repo for offline demo).
 

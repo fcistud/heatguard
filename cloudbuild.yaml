@@ -18,11 +18,14 @@
 #   _REGION       Cloud Run region (default us-central1)
 #   _SERVICE      Cloud Run service name (default heatguard)
 #   _AR_REPO      Artifact Registry repo name (default heatguard)
+#   _CORS_ORIGINS Explicit browser origin allowlist (required in production; no '*')
 
 substitutions:
   _REGION: us-central1
   _SERVICE: heatguard
   _AR_REPO: heatguard
+  # Override at trigger/submit time with the Cloud Run URL and any custom domains.
+  _CORS_ORIGINS: "https://heatguard.example.com"
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -61,7 +64,7 @@ steps:
           --max-instances=3 \
           --timeout=120 \
           --project="$PROJECT_ID" \
-          --set-env-vars="HEATGUARD_DATA_DIR=/app/data,HEATGUARD_CACHE_DIR=/var/cache/heatguard,HEATGUARD_STATIC_DIR=/app/static,HEATGUARD_LANDING_DIR=/app/landing,NUMBA_CACHE_DIR=/tmp/numba_cache" \
+          --set-env-vars="HEATGUARD_DATA_DIR=/app/data,HEATGUARD_CACHE_DIR=/var/cache/heatguard,HEATGUARD_STATIC_DIR=/app/static,HEATGUARD_LANDING_DIR=/app/landing,NUMBA_CACHE_DIR=/tmp/numba_cache,HEATGUARD_ENV=production,HEATGUARD_CORS_ORIGINS=${_CORS_ORIGINS}" \
           --add-volume=name=hg-cache,type=in-memory,size-limit=256Mi \
           --add-volume-mount=volume=hg-cache,mount-path=/var/cache/heatguard \
           --add-volume=name=hg-tmp,type=in-memory,size-limit=128Mi \
