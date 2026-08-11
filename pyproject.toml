@@ -41,6 +41,8 @@ dev = [
     "packaging>=23,<26",
     # Offline monitoring policy validation (scripts/validate_monitoring.py, WO-017).
     "pyyaml>=6.0.1,<7",
+    # Starlette 1.3+ TestClient prefers httpx2; classic httpx remains for runtime/OTEL.
+    "httpx2>=2.0,<3",
 ]
 # Tooling extras — never install into the production image (WO-011).
 deck = ["python-pptx>=0.6.21,<2"]
