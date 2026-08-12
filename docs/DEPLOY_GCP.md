@@ -144,6 +144,11 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_CORS_ORIGINS` | _(required in production)_ | Comma-separated browser origins (no `*`). Set to the Cloud Run URL and any custom domains |
 | `HEATGUARD_CORS_ALLOW_WILDCARD` | unset | Must be the literal `true` to allow `*` in staging/production (temporary exception only) |
 
+> **gcloud comma footgun:** `--set-env-vars` / `--update-env-vars` split on commas by default.
+> When `HEATGUARD_CORS_ORIGINS` lists multiple origins, use the caret delimiter form:
+> `--update-env-vars='^@^HEATGUARD_CORS_ORIGINS=https://a.example,https://b.example'`.
+> `cloudbuild.yaml` and `scripts/deploy-gcp.sh` already use `^@^`.
+
 ---
 
 ## Resource sizing
@@ -166,11 +171,20 @@ gcloud run services update heatguard --region="${REGION}" --min-instances=1
 ## Custom domain (optional)
 
 1. [Map a domain to Cloud Run](https://cloud.google.com/run/docs/mapping-custom-domains)
-2. Set CORS to every browser origin that will call the API (Cloud Run URL and custom domains):
+2. Set CORS to the Cloud Run URL **and** every custom-domain origin. Use `^@^` so commas inside the allowlist are not parsed as extra env keys:
 
 ```bash
+# Replace YOUR_SERVICE_URL with: gcloud run services describe heatguard --format='value(status.url)'
 gcloud run services update heatguard --region="${REGION}" \
-  --update-env-vars="HEATGUARD_ENV=production,HEATGUARD_CORS_ORIGINS=https://heatguard.example.com,https://YOUR_SERVICE_URL"
+  --update-env-vars="^@^HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://YOUR_SERVICE_URL,https://heatguard.example.com"
+```
+
+Cloud Build always stamps the live service URL after deploy. Extra origins:
+
+```bash
+# Cloud Build --substitutions also splits on commas — use ^#^ when listing multiple origins.
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=^#^_CORS_ORIGINS=https://heatguard.example.com,https://app.example.com
 ```
 
 Same-origin hosting (dashboard and API on one Cloud Run URL) still needs

@@ -18,14 +18,18 @@
 #   _REGION       Cloud Run region (default us-central1)
 #   _SERVICE      Cloud Run service name (default heatguard)
 #   _AR_REPO      Artifact Registry repo name (default heatguard)
-#   _CORS_ORIGINS Explicit browser origin allowlist (required in production; no '*')
+#   _CORS_ORIGINS Optional extra browser origins (comma-separated, no '*').
+#                 The live Cloud Run service URL is always applied after deploy;
+#                 use this only for custom domains / additional frontends.
+#
+# Env-var lists use gcloud's ^DELIM^ form so commas inside HEATGUARD_CORS_ORIGINS
+# are not treated as additional KEY=VALUE pairs.
 
 substitutions:
   _REGION: us-central1
   _SERVICE: heatguard
   _AR_REPO: heatguard
-  # Override at trigger/submit time with the Cloud Run URL and any custom domains.
-  _CORS_ORIGINS: "https://heatguard.example.com"
+  _CORS_ORIGINS: ""
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -53,6 +57,9 @@ steps:
         DIGEST="$(gcloud artifacts docker images describe "${IMAGE}:$BUILD_ID" \
           --format='get(image_summary.digest)')"
         echo "Deploying ${IMAGE}@${DIGEST}"
+        # Boot-safe production env. CORS origins are locked to the live service URL
+        # (plus optional _CORS_ORIGINS) immediately after deploy — do not leave a
+        # placeholder origin in the shipped revision.
         gcloud run deploy "${_SERVICE}" \
           --image="${IMAGE}@${DIGEST}" \
           --region="${_REGION}" \
@@ -64,13 +71,26 @@ steps:
           --max-instances=3 \
           --timeout=120 \
           --project="$PROJECT_ID" \
-          --set-env-vars="HEATGUARD_DATA_DIR=/app/data,HEATGUARD_CACHE_DIR=/var/cache/heatguard,HEATGUARD_STATIC_DIR=/app/static,HEATGUARD_LANDING_DIR=/app/landing,NUMBA_CACHE_DIR=/tmp/numba_cache,HEATGUARD_ENV=production,HEATGUARD_CORS_ORIGINS=${_CORS_ORIGINS}" \
+          --set-env-vars="^@^HEATGUARD_DATA_DIR=/app/data@HEATGUARD_CACHE_DIR=/var/cache/heatguard@HEATGUARD_STATIC_DIR=/app/static@HEATGUARD_LANDING_DIR=/app/landing@NUMBA_CACHE_DIR=/tmp/numba_cache@HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://invalid.invalid" \
           --add-volume=name=hg-cache,type=in-memory,size-limit=256Mi \
           --add-volume-mount=volume=hg-cache,mount-path=/var/cache/heatguard \
           --add-volume=name=hg-tmp,type=in-memory,size-limit=128Mi \
           --add-volume-mount=volume=hg-tmp,mount-path=/tmp \
           --startup-probe=initialDelaySeconds=40,timeoutSeconds=5,periodSeconds=10,failureThreshold=6,httpGet.port=8080,httpGet.path=/health/ready \
           --liveness-probe=timeoutSeconds=5,periodSeconds=30,failureThreshold=3,httpGet.port=8080,httpGet.path=/health/live
+        URL="$(gcloud run services describe "${_SERVICE}" \
+          --region="${_REGION}" --project="$PROJECT_ID" \
+          --format='value(status.url)')"
+        EXTRA="$(echo "${_CORS_ORIGINS}" | tr -d '[:space:]')"
+        if [ -n "${EXTRA}" ]; then
+          CORS_ORIGINS="${URL},${EXTRA}"
+        else
+          CORS_ORIGINS="${URL}"
+        fi
+        echo "Locking HEATGUARD_CORS_ORIGINS=${CORS_ORIGINS}"
+        gcloud run services update "${_SERVICE}" \
+          --region="${_REGION}" --project="$PROJECT_ID" \
+          --update-env-vars="^@^HEATGUARD_CORS_ORIGINS=${CORS_ORIGINS}"
 
 images:
   - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$BUILD_ID
