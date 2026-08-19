@@ -1,0 +1,153 @@
+{
+  "description": "Environment matrix for CORS resolver unit tests (WO-001).",
+  "cases": [
+    {
+      "id": "dev_unconfigured",
+      "env": {},
+      "expect": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "raises": null
+      }
+    },
+    {
+      "id": "dev_empty_string",
+      "env": {"HEATGUARD_CORS_ORIGINS": "  ,  , "},
+      "expect": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "raises": null
+      }
+    },
+    {
+      "id": "dev_configured",
+      "env": {
+        "HEATGUARD_ENV": "dev",
+        "HEATGUARD_CORS_ORIGINS": "http://localhost:5173, https://preview.example.com/"
+      },
+      "expect": {
+        "origins": ["http://localhost:5173", "https://preview.example.com"],
+        "raises": null
+      }
+    },
+    {
+      "id": "dev_wildcard_without_opt_in",
+      "env": {"HEATGUARD_CORS_ORIGINS": "*"},
+      "expect": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "raises": null
+      }
+    },
+    {
+      "id": "dev_wildcard_with_opt_in",
+      "env": {
+        "HEATGUARD_CORS_ORIGINS": "*",
+        "HEATGUARD_CORS_ALLOW_WILDCARD": "true"
+      },
+      "expect": {
+        "origins": ["*"],
+        "raises": null
+      }
+    },
+    {
+      "id": "test_unconfigured",
+      "env": {"HEATGUARD_ENV": "test"},
+      "expect": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "raises": null
+      }
+    },
+    {
+      "id": "staging_unconfigured",
+      "env": {"HEATGUARD_ENV": "staging"},
+      "expect": {
+        "origins": null,
+        "raises": "ConfigurationError"
+      }
+    },
+    {
+      "id": "staging_configured",
+      "env": {
+        "HEATGUARD_ENV": "staging",
+        "HEATGUARD_CORS_ORIGINS": "https://staging.example.com"
+      },
+      "expect": {
+        "origins": ["https://staging.example.com"],
+        "raises": null
+      }
+    },
+    {
+      "id": "staging_wildcard",
+      "env": {
+        "HEATGUARD_ENV": "staging",
+        "HEATGUARD_CORS_ORIGINS": "*"
+      },
+      "expect": {
+        "origins": null,
+        "raises": "ConfigurationError"
+      }
+    },
+    {
+      "id": "production_unconfigured",
+      "env": {"HEATGUARD_ENV": "production"},
+      "expect": {
+        "origins": null,
+        "raises": "ConfigurationError"
+      }
+    },
+    {
+      "id": "production_wildcard",
+      "env": {
+        "HEATGUARD_ENV": "production",
+        "HEATGUARD_CORS_ORIGINS": "*"
+      },
+      "expect": {
+        "origins": null,
+        "raises": "ConfigurationError"
+      }
+    },
+    {
+      "id": "production_wildcard_mixed_list",
+      "env": {
+        "HEATGUARD_ENV": "production",
+        "HEATGUARD_CORS_ORIGINS": "https://app.example.com, *"
+      },
+      "expect": {
+        "origins": null,
+        "raises": "ConfigurationError"
+      }
+    },
+    {
+      "id": "production_wildcard_with_opt_in",
+      "env": {
+        "HEATGUARD_ENV": "production",
+        "HEATGUARD_CORS_ORIGINS": "*",
+        "HEATGUARD_CORS_ALLOW_WILDCARD": "true"
+      },
+      "expect": {
+        "origins": ["*"],
+        "raises": null
+      }
+    },
+    {
+      "id": "production_configured",
+      "env": {
+        "HEATGUARD_ENV": "production",
+        "HEATGUARD_CORS_ORIGINS": "https://HeatGuard.Example.COM/,https://heatguard.example.com"
+      },
+      "expect": {
+        "origins": ["https://heatguard.example.com"],
+        "raises": null
+      }
+    },
+    {
+      "id": "prod_alias_wildcard",
+      "env": {
+        "HEATGUARD_ENV": "prod",
+        "HEATGUARD_CORS_ORIGINS": "*"
+      },
+      "expect": {
+        "origins": null,
+        "raises": "ConfigurationError"
+      }
+    }
+  ]
+}

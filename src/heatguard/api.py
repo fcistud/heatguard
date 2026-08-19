@@ -12,6 +12,8 @@ import time
 from contextlib import asynccontextmanager
 from datetime import date
 
+from collections.abc import Mapping
+
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -19,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from . import health as health_probes
 from . import service
+from .boundary.cors_config import CorsSettings, resolve_cors_settings
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
@@ -79,15 +82,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Permissive by default for the local Vite dev server; lock down in production via
-# HEATGUARD_CORS_ORIGINS="https://app.example.com,https://..." (comma-separated).
-_cors_origins = [o.strip() for o in os.environ.get("HEATGUARD_CORS_ORIGINS", "*").split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+def register_cors_middleware(
+    application: FastAPI,
+    env: Mapping[str, str] | None = None,
+) -> CorsSettings:
+    """Attach enumerated CORS middleware from the environment-scoped resolver.
+
+    Raises ``ConfigurationError`` on illegal production wildcards / empty allowlists
+    so Cloud Run revisions fail closed rather than serving ``*``.
+    """
+    settings = resolve_cors_settings(env if env is not None else os.environ)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.origins),
+        allow_methods=list(settings.methods),
+        allow_headers=list(settings.headers),
+        allow_credentials=settings.allow_credentials,
+    )
+    return settings
+
+
+# Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).
+register_cors_middleware(app)
 # Outermost correlation / access log (Starlette runs last-added middleware first).
 app.add_middleware(CorrelationMiddleware)
 

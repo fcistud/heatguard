@@ -264,3 +264,81 @@ def test_datasets_inventory():
     inv = r.json()
     assert inv["weather"]["archive_total"] >= 7
     assert inv["policy"]["file_count"] >= 4
+
+
+# --- CORS allowlist (WO-001) -------------------------------------------------
+
+
+def test_cors_allowed_origin_echoed():
+    origin = "http://localhost:5173"
+    r = client.get("/health", headers={"Origin": origin})
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == origin
+    assert r.headers.get("access-control-allow-origin") != "*"
+
+
+def test_cors_denied_origin_has_no_allow_origin_header():
+    r = client.get("/health", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") is None
+
+
+def test_cors_preflight_allowed_origin():
+    origin = "http://localhost:5173"
+    r = client.options(
+        "/health",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert r.status_code in (200, 204)
+    assert r.headers.get("access-control-allow-origin") == origin
+    allow_methods = r.headers.get("access-control-allow-methods", "")
+    assert "GET" in allow_methods.upper()
+    assert "*" not in allow_methods
+
+
+def test_cors_preflight_unlisted_method_refused():
+    origin = "http://localhost:5173"
+    r = client.options(
+        "/health",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "PUT",
+        },
+    )
+    # Starlette CORSMiddleware refuses disallowed methods with 400.
+    assert r.status_code == 400
+    allow_methods = r.headers.get("access-control-allow-methods", "").upper()
+    assert "PUT" not in allow_methods
+    # Request is not admitted as a successful preflight (no 2xx).
+    assert not (200 <= r.status_code < 300)
+
+
+def test_cors_no_origin_header_unaffected():
+    """Server-to-server / curl callers without Origin must not be CORS-rejected."""
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+
+def test_register_cors_boot_fails_on_production_wildcard():
+    from fastapi import FastAPI
+
+    from heatguard.api import register_cors_middleware
+    from heatguard.boundary.cors_config import ConfigurationError
+
+    tiny = FastAPI()
+    with pytest.raises(ConfigurationError) as excinfo:
+        register_cors_middleware(
+            tiny,
+            {
+                "HEATGUARD_ENV": "production",
+                "HEATGUARD_CORS_ORIGINS": "*",
+            },
+        )
+    msg = str(excinfo.value)
+    assert "HEATGUARD_CORS_ORIGINS" in msg
+    assert "HEATGUARD_CORS_ALLOW_WILDCARD" in msg
