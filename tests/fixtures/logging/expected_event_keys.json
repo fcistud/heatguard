@@ -64,5 +64,10 @@
   "engine.phs_warning": [
     "category",
     "message"
+  ],
+  "enforcement.internal_error": [
+    "request_id",
+    "route_group",
+    "exception_type"
   ]
 }

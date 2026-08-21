@@ -19,6 +19,7 @@ POLICY_INDEX_BUILD_FAILED = "policy.index_build_failed"
 RISK_MODEL_HEURISTIC_FALLBACK = "risk_model.heuristic_fallback"
 RISK_MODEL_LOAD_FAILED = "risk_model.load_failed"
 ENGINE_PHS_WARNING = "engine.phs_warning"
+ENFORCEMENT_INTERNAL_ERROR = "enforcement.internal_error"
 
 ALL_EVENT_NAMES: tuple[str, ...] = (
     HTTP_REQUEST,
@@ -35,4 +36,5 @@ ALL_EVENT_NAMES: tuple[str, ...] = (
     RISK_MODEL_HEURISTIC_FALLBACK,
     RISK_MODEL_LOAD_FAILED,
     ENGINE_PHS_WARNING,
+    ENFORCEMENT_INTERNAL_ERROR,
 )

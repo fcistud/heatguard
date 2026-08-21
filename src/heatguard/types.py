@@ -212,3 +212,34 @@ class Advisory:
             "elevated_risk": self.elevated_risk,
             "personal_risk_note": self.personal_risk_note,
         }
+
+
+# ASGI scope keys for the enforcement chokepoint (WO-002). Documented so
+# handlers never invent a parallel global.
+PRINCIPAL_SCOPE_KEY = "heatguard.principal"
+REQUEST_ID_SCOPE_KEY = "heatguard.request_id"
+ROUTE_CLASSIFICATION_SCOPE_KEY = "heatguard.route_classification"
+
+
+@dataclass(frozen=True, slots=True)
+class PrincipalContext:
+    """Request-scoped identity attached by EnforcementMiddleware.
+
+    This story ships an empty context; credential verification fills the
+    fields in later boundary stories.
+    """
+
+    principal_id: str | None = None
+    key_class: str | None = None
+    roles: tuple[str, ...] = ()
+    sites: tuple[str, ...] = ()
+    review_context: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "principal_id": self.principal_id,
+            "key_class": self.key_class,
+            "roles": list(self.roles),
+            "sites": list(self.sites),
+            "review_context": self.review_context,
+        }
