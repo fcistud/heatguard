@@ -18,12 +18,13 @@ from heatguard.boundary.enforcement import (  # noqa: E402
     REFUSAL_CODE_INTERNAL,
     REFUSAL_MESSAGE,
     EnforcementMiddleware,
+    classification_from_scope,
     classify_request,
     principal_from_scope,
 )
 from heatguard.observability.events import ENFORCEMENT_INTERNAL_ERROR  # noqa: E402
 from heatguard.observability.middleware import CorrelationMiddleware  # noqa: E402
-from heatguard.types import PRINCIPAL_SCOPE_KEY  # noqa: E402
+from heatguard.types import PRINCIPAL_SCOPE_KEY, ROUTE_CLASSIFICATION_SCOPE_KEY  # noqa: E402
 
 client = TestClient(app)
 
@@ -189,12 +190,14 @@ def test_uninitialised_classifier_denies() -> None:
     assert captured == []
 
 
-def test_principal_attached_on_http_request() -> None:
+def test_principal_and_classification_attached_on_http_request() -> None:
     seen: dict[str, Any] = {}
 
     async def inner(scope: dict, receive: object, send: Any) -> None:
         seen["principal"] = principal_from_scope(scope)
-        seen["has_key"] = PRINCIPAL_SCOPE_KEY in scope
+        seen["classification"] = classification_from_scope(scope)
+        seen["has_principal"] = PRINCIPAL_SCOPE_KEY in scope
+        seen["has_class"] = ROUTE_CLASSIFICATION_SCOPE_KEY in scope
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b"ok", "more_body": False})
 
@@ -213,8 +216,74 @@ def test_principal_attached_on_http_request() -> None:
             send=_null_send,
         )
     )
-    assert seen["has_key"] is True
+    assert seen["has_principal"] is True
+    assert seen["has_class"] is True
     assert seen["principal"] == EMPTY_PRINCIPAL
+    assert seen["classification"].exempt is True
+    assert seen["classification"].group == "probes"
+
+    asyncio.run(
+        mw(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/sites",
+                "headers": [],
+            },
+            _receive,
+            send=_null_send,
+        )
+    )
+    assert seen["classification"].exempt is False
+    assert seen["classification"].group == "reference"
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/sites", "/hour/dubai/2025-05-16/12", "/demo/dubai"],
+)
+def test_anonymous_advisory_still_admitted(path: str) -> None:
+    """Classification is stamped; admit-all until WO-003/005."""
+    resp = client.get(path)
+    assert resp.status_code not in (401, 403)
+
+
+def test_access_decision_hook_denies_non_exempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WO-003+ will deny here; prove exempt is consulted, not discarded."""
+
+    def policy(classification: object, _principal: object) -> str:
+        return "admit" if getattr(classification, "exempt", False) else "deny"
+
+    monkeypatch.setattr(
+        "heatguard.boundary.enforcement.access_decision",
+        policy,
+    )
+
+    async def inner(scope: dict, receive: object, send: Any) -> None:
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok", "more_body": False})
+
+    async def send_for(path: str) -> int:
+        captured: dict[str, int] = {}
+
+        async def send(message: dict) -> None:
+            if message["type"] == "http.response.start":
+                captured["code"] = int(message["status"])
+
+        mw = EnforcementMiddleware(inner)
+        await mw(
+            {"type": "http", "method": "GET", "path": path, "headers": []},
+            _receive,
+            send,
+        )
+        return captured["code"]
+
+    import asyncio
+
+    assert asyncio.run(send_for("/health/live")) == 200
+    assert asyncio.run(send_for("/sites")) == 403
 
 
 def test_latency_p99_under_3ms() -> None:

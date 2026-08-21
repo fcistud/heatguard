@@ -1,8 +1,9 @@
 """Single-pass EnforcementMiddleware (WO-002 skeleton).
 
-Classifies every HTTP request, exempts probes/metrics, attaches an empty
-principal context, and never fails open: unexpected errors become a structured
-403. Credential verification and quota attach to this pass in later stories.
+Classifies every HTTP request, stamps group/exempt on the ASGI scope,
+attaches an empty principal, and never fails open: unexpected errors
+become a structured 403. Credential verification and quota attach to
+this pass in later stories; this story still admits classified requests.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from heatguard.observability.logging import current_request_id, get_logger
 from heatguard.types import (
     PRINCIPAL_SCOPE_KEY,
     REQUEST_ID_SCOPE_KEY,
+    ROUTE_CLASSIFICATION_SCOPE_KEY,
     PrincipalContext,
 )
 
@@ -98,12 +100,37 @@ def classify_request(path: str, method: str) -> RouteClassification:
     return RouteClassification(group="unknown", exempt=False, pattern="")
 
 
+UNKNOWN_CLASSIFICATION = RouteClassification(group="unknown", exempt=False, pattern="")
+
+
 def principal_from_scope(scope: Mapping[str, Any]) -> PrincipalContext:
     """Read the request-scoped principal; missing key → empty context."""
     value = scope.get(PRINCIPAL_SCOPE_KEY)
     if isinstance(value, PrincipalContext):
         return value
     return EMPTY_PRINCIPAL
+
+
+def classification_from_scope(scope: Mapping[str, Any]) -> RouteClassification:
+    """Read the request-scoped route group; missing key → unknown / not exempt."""
+    value = scope.get(ROUTE_CLASSIFICATION_SCOPE_KEY)
+    if isinstance(value, RouteClassification):
+        return value
+    return UNKNOWN_CLASSIFICATION
+
+
+def access_decision(
+    classification: RouteClassification,
+    _principal: PrincipalContext,
+) -> str:
+    """Admit or deny after classification.
+
+    Exempt routes skip credential checks. Non-exempt routes will consult
+    ``_principal`` in WO-003+; this story still admits so demo/dashboard stay up.
+    """
+    if classification.exempt:
+        return "admit"
+    return "admit"
 
 
 def refusal_body(request_id: str, *, code: str = REFUSAL_CODE_INTERNAL) -> dict[str, str]:
@@ -171,7 +198,11 @@ class EnforcementMiddleware:
             method = scope.get("method") or "GET"
             classification = classifier(path, method)
             group = classification.group
+            scope[ROUTE_CLASSIFICATION_SCOPE_KEY] = classification
             scope[PRINCIPAL_SCOPE_KEY] = EMPTY_PRINCIPAL
+            if access_decision(classification, EMPTY_PRINCIPAL) != "admit":
+                await _send_refusal(send, request_id=request_id, code="forbidden")
+                return
         except Exception as exc:
             log = get_logger("heatguard.enforcement")
             log.error(

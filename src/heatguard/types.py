@@ -218,6 +218,7 @@ class Advisory:
 # handlers never invent a parallel global.
 PRINCIPAL_SCOPE_KEY = "heatguard.principal"
 REQUEST_ID_SCOPE_KEY = "heatguard.request_id"
+ROUTE_CLASSIFICATION_SCOPE_KEY = "heatguard.route_classification"
 
 
 @dataclass(frozen=True, slots=True)

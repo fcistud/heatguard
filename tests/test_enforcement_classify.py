@@ -12,12 +12,19 @@ from heatguard.boundary.enforcement import (
     REFUSAL_CODE_INTERNAL,
     REFUSAL_MESSAGE,
     EnforcementMiddleware,
+    UNKNOWN_CLASSIFICATION,
+    access_decision,
     canonical_path,
+    classification_from_scope,
     classify_request,
     principal_from_scope,
     refusal_body,
 )
-from heatguard.types import PRINCIPAL_SCOPE_KEY, PrincipalContext
+from heatguard.types import (
+    PRINCIPAL_SCOPE_KEY,
+    ROUTE_CLASSIFICATION_SCOPE_KEY,
+    PrincipalContext,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "enforcement_routes.json"
 SOURCE = (
@@ -81,6 +88,23 @@ def test_principal_from_scope_empty_default() -> None:
     assert attached.principal_id == "u1"
     assert attached.roles == ("inspector",)
     assert attached.to_dict()["roles"] == ["inspector"]
+
+
+def test_classification_from_scope_defaults_unknown() -> None:
+    assert classification_from_scope({}) == UNKNOWN_CLASSIFICATION
+    classified = classify_request("/health/live", "GET")
+    assert classification_from_scope(
+        {ROUTE_CLASSIFICATION_SCOPE_KEY: classified}
+    ) == classified
+
+
+def test_access_decision_exempt_and_non_exempt_both_admit() -> None:
+    live = classify_request("/health/live", "GET")
+    sites = classify_request("/sites", "GET")
+    assert live.exempt is True
+    assert sites.exempt is False
+    assert access_decision(live, EMPTY_PRINCIPAL) == "admit"
+    assert access_decision(sites, EMPTY_PRINCIPAL) == "admit"
 
 
 def test_enforcement_source_has_no_io_calls() -> None:
