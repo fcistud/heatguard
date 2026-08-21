@@ -44,7 +44,10 @@ heatguard golden check
 
 Parity compares strip host/VCS fields from `MANIFEST.json` (`git_commit`,
 `platform`, `python_implementation`) so Linux CI can match goldens captured on
-macOS. Package pins and cache checksums still fail the gate if they drift.
+macOS. `python_version` is compared at major.minor (same policy as the
+interpreter-drift job), so a CPython security patch (`3.12.13` vs `3.12.14`)
+does not fail the gate; `3.11` vs `3.12` still does. Package pins and cache
+checksums still fail the gate if they drift.
 
 ## Canonical JSON
 

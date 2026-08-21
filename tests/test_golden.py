@@ -96,3 +96,28 @@ def test_manifest_compare_ignores_host_fields(tmp_path):
     canonical.dump(other, act / "MANIFEST.json")
     diffs = golden.compare_trees(exp, act)
     assert len(diffs) == 1 and "MANIFEST.json" in diffs[0]
+
+
+def test_manifest_compare_ignores_python_patch_not_minor(tmp_path):
+    """setup-python ``3.12`` may float 3.12.13 → 3.12.14; 3.11 vs 3.12 must fail."""
+    base = {
+        "site_key": "dubai",
+        "python_version": "3.12.13",
+        "packages": {"numpy": "1.26.4"},
+        "compliance_chain_verified": True,
+    }
+    patch = dict(base)
+    patch["python_version"] = "3.12.14"
+    minor = dict(base)
+    minor["python_version"] = "3.11.15"
+    exp = tmp_path / "exp"
+    act = tmp_path / "act"
+    exp.mkdir()
+    act.mkdir()
+    canonical.dump(base, exp / "MANIFEST.json")
+    canonical.dump(patch, act / "MANIFEST.json")
+    assert golden.compare_trees(exp, act) == []
+
+    canonical.dump(minor, act / "MANIFEST.json")
+    diffs = golden.compare_trees(exp, act)
+    assert len(diffs) == 1 and "MANIFEST.json" in diffs[0]
