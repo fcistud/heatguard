@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from . import health as health_probes
 from . import service
 from .boundary.cors_config import CorsSettings, resolve_cors_settings
+from .boundary.enforcement import EnforcementMiddleware
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
@@ -103,6 +104,10 @@ def register_cors_middleware(
     return settings
 
 
+# Innermost enforcement chokepoint (added first → closest to the application).
+# Starlette runs last-added outermost, so runtime order is:
+# Correlation → CORS → Enforcement → app.
+app.add_middleware(EnforcementMiddleware)
 # Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).
 register_cors_middleware(app)
 # Outermost correlation / access log (Starlette runs last-added middleware first).

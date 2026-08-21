@@ -5,6 +5,8 @@ import re
 import time
 from typing import Any
 
+from heatguard.types import REQUEST_ID_SCOPE_KEY
+
 from . import logging as obs_logging
 from . import metrics as obs_metrics
 from .events import HTTP_REQUEST
@@ -97,6 +99,7 @@ class CorrelationMiddleware:
 
         headers = {k.decode("latin1"): v.decode("latin1") for k, v in scope.get("headers", [])}
         request_id = obs_logging.resolve_request_id(headers)
+        scope[REQUEST_ID_SCOPE_KEY] = request_id
         method = scope.get("method", "GET")
         path = scope.get("path", "/")
         route = _route_template(path)
