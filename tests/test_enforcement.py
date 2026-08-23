@@ -1,8 +1,10 @@
 """Characterization and integration tests for EnforcementMiddleware (WO-002)."""
 from __future__ import annotations
 
+import json
 import math
 import time
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -13,9 +15,11 @@ from fastapi.testclient import TestClient  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
 from heatguard.api import app  # noqa: E402
+from heatguard.boundary.api_keys import load_key_store  # noqa: E402
 from heatguard.boundary.enforcement import (  # noqa: E402
     EMPTY_PRINCIPAL,
     REFUSAL_CODE_INTERNAL,
+    REFUSAL_CODE_UNAUTHENTICATED,
     REFUSAL_MESSAGE,
     EnforcementMiddleware,
     classification_from_scope,
@@ -243,9 +247,86 @@ def test_principal_and_classification_attached_on_http_request() -> None:
     ["/sites", "/hour/dubai/2025-05-16/12", "/demo/dubai"],
 )
 def test_anonymous_advisory_still_admitted(path: str) -> None:
-    """Classification is stamped; admit-all until WO-003/005."""
+    """Missing credentials still admit (dual mode until WO-005)."""
     resp = client.get(path)
     assert resp.status_code not in (401, 403)
+
+
+def _api_key_payload() -> dict:
+    path = Path(__file__).parent / "fixtures" / "api_key_digests.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_valid_x_api_key_and_bearer_admitted() -> None:
+    secret = _api_key_payload()["secrets"]["demo-integrator"]
+    via_header = client.get("/sites", headers={"X-API-Key": secret})
+    via_bearer = client.get("/sites", headers={"Authorization": f"Bearer {secret}"})
+    assert via_header.status_code == 200
+    assert via_bearer.status_code == 200
+    assert via_header.json() == via_bearer.json()
+
+
+def test_invalid_and_revoked_keys_are_unauthenticated() -> None:
+    payload = _api_key_payload()
+    unknown = client.get("/sites", headers={"X-API-Key": "not-a-real-key"})
+    revoked = client.get(
+        "/sites",
+        headers={"X-API-Key": payload["secrets"]["revoked-integrator"]},
+    )
+    missing_body = unknown.json()
+    assert unknown.status_code == 401
+    assert revoked.status_code == 401
+    assert missing_body["code"] == REFUSAL_CODE_UNAUTHENTICATED
+    assert missing_body["message"] == REFUSAL_MESSAGE
+    assert "request_id" in missing_body
+
+
+def test_conflicting_headers_are_unauthenticated() -> None:
+    payload = _api_key_payload()
+    resp = client.get(
+        "/sites",
+        headers={
+            "X-API-Key": payload["secrets"]["demo-integrator"],
+            "Authorization": f"Bearer {payload['secrets']['partner-integrator']}",
+        },
+    )
+    assert resp.status_code == 401
+    assert resp.json()["code"] == REFUSAL_CODE_UNAUTHENTICATED
+
+
+def test_valid_key_attaches_principal_on_scope() -> None:
+    payload = _api_key_payload()
+    store = load_key_store(
+        {
+            "HEATGUARD_API_KEY_PEPPER": payload["pepper"],
+            "HEATGUARD_API_KEY_DIGESTS": json.dumps(payload["bundle"]),
+        }
+    )
+    seen: dict[str, Any] = {}
+
+    async def inner(scope: dict, receive: object, send: Any) -> None:
+        seen["principal"] = principal_from_scope(scope)
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok", "more_body": False})
+
+    import asyncio
+
+    asyncio.run(
+        EnforcementMiddleware(inner, key_store=store)(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/sites",
+                "headers": [
+                    (b"x-api-key", payload["secrets"]["demo-integrator"].encode("ascii")),
+                ],
+            },
+            _receive,
+            _null_send,
+        )
+    )
+    assert seen["principal"].principal_id == "demo-integrator"
+    assert seen["principal"].key_class == "demo"
 
 
 def test_access_decision_hook_denies_non_exempt(
@@ -291,23 +372,36 @@ def test_latency_p99_under_3ms() -> None:
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b"ok", "more_body": False})
 
-    mw = EnforcementMiddleware(inner)
+    payload = _api_key_payload()
+    store = load_key_store(
+        {
+            "HEATGUARD_API_KEY_PEPPER": payload["pepper"],
+            "HEATGUARD_API_KEY_DIGESTS": json.dumps(payload["bundle"]),
+        }
+    )
+    mw = EnforcementMiddleware(inner, key_store=store)
+    keyed = [(b"x-api-key", payload["secrets"]["demo-integrator"].encode("ascii"))]
     import asyncio
 
-    async def once(path: str) -> None:
+    async def once(path: str, headers: list | None = None) -> None:
         await mw(
-            {"type": "http", "method": "GET", "path": path, "headers": []},
+            {
+                "type": "http",
+                "method": "GET",
+                "path": path,
+                "headers": headers or [],
+            },
             _receive,
             _null_send,
         )
 
-    async def timed(path: str, n: int) -> list[float]:
+    async def timed(path: str, n: int, headers: list | None = None) -> list[float]:
         samples: list[float] = []
         for _ in range(50):
-            await once(path)
+            await once(path, headers)
         for _ in range(n):
             started = time.perf_counter()
-            await once(path)
+            await once(path, headers)
             samples.append((time.perf_counter() - started) * 1000.0)
         return samples
 
@@ -318,8 +412,10 @@ def test_latency_p99_under_3ms() -> None:
 
     probe = asyncio.run(timed("/health/live", 1000))
     business = asyncio.run(timed("/sites", 1000))
+    keyed_business = asyncio.run(timed("/sites", 1000, keyed))
     assert p99(probe) < 3.0, p99(probe)
     assert p99(business) < 3.0, p99(business)
+    assert p99(keyed_business) < 3.0, p99(keyed_business)
     # Classifier itself is a pure table lookup (also asserted via AST in unit tests).
     assert classify_request("/health/live", "GET").exempt is True
     assert classify_request("/sites", "GET").exempt is False

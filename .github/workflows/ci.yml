@@ -266,16 +266,38 @@ jobs:
       - name: Serve health, sites, demo, forecast (read-only + tmpfs cache)
         run: |
           set -euo pipefail
+          python - <<'PY' > /tmp/hg-api-key.env
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
+          print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
+          print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+          PY
           docker run -d --name hg -p 8080:8080 \
             --read-only \
             --tmpfs /tmp:rw,mode=1777 \
             --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
             -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
+            --env-file /tmp/hg-api-key.env \
             heatguard:ci
+          healthy=0
           for i in $(seq 1 60); do
-            if curl -sf http://127.0.0.1:8080/health >/dev/null; then break; fi
+            if curl -sf http://127.0.0.1:8080/health >/dev/null; then
+              healthy=1
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' hg 2>/dev/null || echo false)" != "true" ]; then
+              echo "container exited before health"
+              docker logs hg
+              exit 1
+            fi
             sleep 2
           done
+          if [ "${healthy}" != "1" ]; then
+            echo "health never became ready"
+            docker logs hg
+            exit 1
+          fi
           proc_uid="$(docker exec hg id -u)"
           test "${proc_uid}" = "10001"
           echo "OK — running process UID ${proc_uid}"

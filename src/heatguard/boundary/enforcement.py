@@ -1,9 +1,9 @@
-"""Single-pass EnforcementMiddleware (WO-002 skeleton).
+"""Single-pass EnforcementMiddleware.
 
-Classifies every HTTP request, stamps group/exempt on the ASGI scope,
-attaches an empty principal, and never fails open: unexpected errors
-become a structured 403. Credential verification and quota attach to
-this pass in later stories; this story still admits classified requests.
+Classifies every HTTP request, stamps group/exempt on the ASGI scope, verifies
+integrator API keys (WO-003) when presented, and never fails open: unexpected
+errors become a structured 403. Missing credentials still admit (dual mode
+until WO-005). Quota attaches later.
 """
 from __future__ import annotations
 
@@ -13,8 +13,13 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from heatguard.observability.events import ENFORCEMENT_INTERNAL_ERROR
-from heatguard.observability.logging import current_request_id, get_logger
+from heatguard.boundary.api_keys import MAX_SECRET_CHARS, KeyStore, KeyStoreRef
+from heatguard.observability.events import AUTH_API_KEY, ENFORCEMENT_INTERNAL_ERROR
+from heatguard.observability.logging import (
+    current_request_id,
+    emit_auth_deprecated_anonymous,
+    get_logger,
+)
 from heatguard.types import (
     PRINCIPAL_SCOPE_KEY,
     REQUEST_ID_SCOPE_KEY,
@@ -25,8 +30,13 @@ from heatguard.types import (
 EMPTY_PRINCIPAL = PrincipalContext()
 
 REFUSAL_CODE_INTERNAL = "enforcement_internal_error"
+REFUSAL_CODE_UNAUTHENTICATED = "unauthenticated"
 REFUSAL_MESSAGE = "Request refused."
 REFUSAL_STATUS = 403
+REFUSAL_STATUS_UNAUTH = 401
+
+HEADER_API_KEY = b"x-api-key"
+HEADER_AUTHORIZATION = b"authorization"
 
 # (pattern, group, exempt) — most specific first; compiled once at import.
 _ROUTE_SPEC: tuple[tuple[str, str, bool], ...] = (
@@ -72,6 +82,14 @@ class RouteClassification:
     group: str
     exempt: bool
     pattern: str
+
+
+@dataclass(frozen=True, slots=True)
+class CredentialExtraction:
+    """Presented integrator secret, or a refuse flag for conflict/malformed."""
+
+    secret: str | None
+    refuse: bool
 
 
 def canonical_path(path: str) -> str:
@@ -125,8 +143,8 @@ def access_decision(
 ) -> str:
     """Admit or deny after classification.
 
-    Exempt routes skip credential checks. Non-exempt routes will consult
-    ``_principal`` in WO-003+; this story still admits so demo/dashboard stay up.
+    Exempt routes skip credential checks. Missing credentials still admit
+    (dual mode) until WO-005; presented-but-invalid keys are refused earlier.
     """
     if classification.exempt:
         return "admit"
@@ -151,11 +169,103 @@ def _request_id_from_scope(scope: Mapping[str, Any]) -> str:
     return "missing"
 
 
+def _header_values(headers: list[tuple[bytes, bytes]], name: bytes) -> list[bytes]:
+    return [value for key, value in headers if key.lower() == name]
+
+
+def _decode_ascii(raw: bytes) -> str | None:
+    try:
+        return raw.decode("ascii")
+    except UnicodeDecodeError:
+        return None
+
+
+def _bearer_token(value: str) -> str | None:
+    prefix = "bearer "
+    if len(value) < len(prefix) or not value[: len(prefix)].lower() == prefix:
+        return None
+    return value[len(prefix) :]
+
+
+def extract_presented_secret(headers: list[tuple[bytes, bytes]]) -> CredentialExtraction:
+    """Read X-API-Key and Authorization Bearer. Conflict / malformed → refuse."""
+    api_raw = _header_values(headers, HEADER_API_KEY)
+    auth_raw = _header_values(headers, HEADER_AUTHORIZATION)
+
+    api_secrets: list[str] = []
+    for raw in api_raw:
+        text = _decode_ascii(raw)
+        if text is None:
+            return CredentialExtraction(secret=None, refuse=True)
+        stripped = text.strip()
+        if not stripped or len(stripped) > MAX_SECRET_CHARS:
+            return CredentialExtraction(secret=None, refuse=True)
+        api_secrets.append(stripped)
+
+    bearer_secrets: list[str] = []
+    for raw in auth_raw:
+        text = _decode_ascii(raw)
+        if text is None:
+            return CredentialExtraction(secret=None, refuse=True)
+        token = _bearer_token(text.strip())
+        if token is None:
+            # Non-Bearer Authorization is ignored (session JWT lands in WO-004).
+            continue
+        stripped = token.strip()
+        if not stripped or len(stripped) > MAX_SECRET_CHARS:
+            return CredentialExtraction(secret=None, refuse=True)
+        bearer_secrets.append(stripped)
+
+    if len(set(api_secrets)) > 1 or len(set(bearer_secrets)) > 1:
+        return CredentialExtraction(secret=None, refuse=True)
+    api_secret = api_secrets[0] if api_secrets else None
+    bearer_secret = bearer_secrets[0] if bearer_secrets else None
+    if api_secret is not None and bearer_secret is not None and api_secret != bearer_secret:
+        return CredentialExtraction(secret=None, refuse=True)
+    return CredentialExtraction(secret=api_secret or bearer_secret, refuse=False)
+
+
+def _resolve_key_store(
+    *,
+    injected: KeyStore | None,
+    ref: KeyStoreRef | None,
+    app: Any,
+    scope: Mapping[str, Any],
+) -> KeyStore | None:
+    if injected is not None:
+        return injected
+    if ref is not None and isinstance(ref.store, KeyStore):
+        return ref.store
+    for candidate in (app, scope.get("app")):
+        state = getattr(candidate, "state", None)
+        store = getattr(state, "key_store", None)
+        if isinstance(store, KeyStore):
+            return store
+    return None
+
+
+def _log_api_key(
+    *,
+    request_id: str,
+    route_group: str,
+    outcome: str,
+    key_class: str | None,
+) -> None:
+    get_logger("heatguard.enforcement").info(
+        AUTH_API_KEY,
+        request_id=request_id,
+        route_group=route_group,
+        outcome=outcome,
+        key_class=key_class,
+    )
+
+
 async def _send_refusal(
     send: SendFn,
     *,
     request_id: str,
     code: str = REFUSAL_CODE_INTERNAL,
+    status: int = REFUSAL_STATUS,
 ) -> None:
     payload = json.dumps(
         refusal_body(request_id, code=code),
@@ -167,7 +277,7 @@ async def _send_refusal(
         (b"x-request-id", request_id.encode("ascii", errors="replace")),
         (b"content-length", str(len(payload)).encode("ascii")),
     ]
-    await send({"type": "http.response.start", "status": REFUSAL_STATUS, "headers": headers})
+    await send({"type": "http.response.start", "status": status, "headers": headers})
     await send({"type": "http.response.body", "body": payload, "more_body": False})
 
 
@@ -179,9 +289,13 @@ class EnforcementMiddleware:
         app: Any,
         *,
         classify: ClassifyFn | None = classify_request,
+        key_store: KeyStore | None = None,
+        key_store_ref: KeyStoreRef | None = None,
     ) -> None:
         self.app = app
         self._classify = classify
+        self._key_store = key_store
+        self._key_store_ref = key_store_ref
 
     async def __call__(self, scope: dict[str, Any], receive: ReceiveFn, send: SendFn) -> None:
         if scope.get("type") != "http":
@@ -199,8 +313,63 @@ class EnforcementMiddleware:
             classification = classifier(path, method)
             group = classification.group
             scope[ROUTE_CLASSIFICATION_SCOPE_KEY] = classification
-            scope[PRINCIPAL_SCOPE_KEY] = EMPTY_PRINCIPAL
-            if access_decision(classification, EMPTY_PRINCIPAL) != "admit":
+            principal = EMPTY_PRINCIPAL
+
+            if not classification.exempt:
+                presented = extract_presented_secret(list(scope.get("headers") or []))
+                if presented.refuse:
+                    _log_api_key(
+                        request_id=request_id,
+                        route_group=group,
+                        outcome="conflict",
+                        key_class=None,
+                    )
+                    await _send_refusal(
+                        send,
+                        request_id=request_id,
+                        code=REFUSAL_CODE_UNAUTHENTICATED,
+                        status=REFUSAL_STATUS_UNAUTH,
+                    )
+                    return
+                if presented.secret is not None:
+                    store = _resolve_key_store(
+                        injected=self._key_store,
+                        ref=self._key_store_ref,
+                        app=self.app,
+                        scope=scope,
+                    )
+                    if store is None:
+                        raise RuntimeError("enforcement_key_store_uninitialised")
+                    resolved = store.verify(presented.secret)
+                    if resolved is None:
+                        _log_api_key(
+                            request_id=request_id,
+                            route_group=group,
+                            outcome="unauthenticated",
+                            key_class=None,
+                        )
+                        await _send_refusal(
+                            send,
+                            request_id=request_id,
+                            code=REFUSAL_CODE_UNAUTHENTICATED,
+                            status=REFUSAL_STATUS_UNAUTH,
+                        )
+                        return
+                    principal = resolved
+                    _log_api_key(
+                        request_id=request_id,
+                        route_group=group,
+                        outcome="authenticated",
+                        key_class=resolved.key_class,
+                    )
+                else:
+                    emit_auth_deprecated_anonymous(
+                        route=canonical_path(path),
+                        request_id=request_id,
+                    )
+
+            scope[PRINCIPAL_SCOPE_KEY] = principal
+            if access_decision(classification, principal) != "admit":
                 await _send_refusal(send, request_id=request_id, code="forbidden")
                 return
         except Exception as exc:

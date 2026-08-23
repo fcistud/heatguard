@@ -83,12 +83,21 @@ gcloud run services describe heatguard --region="${REGION}" --format='value(stat
 
 ```bash
 docker build -t heatguard .
+# Synthetic integrator keys (local/CI only — never production Secret Manager).
+python - <<'PY' > /tmp/hg-api-key.env
+import json
+from pathlib import Path
+payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
+print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
+print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+PY
 # Hardened local run (matches CI): read-only root + writable cache tmpfs
 docker run --rm -p 8080:8080 --read-only \
   --tmpfs /tmp:rw,mode=1777 \
   --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
   -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
   -e PORT=8080 \
+  --env-file /tmp/hg-api-key.env \
   heatguard
 ```
 
@@ -121,7 +130,7 @@ on Mac it is slower still (Linux VM overhead).
 | Approach | Command |
 |----------|---------|
 | **Dev (fastest)** | `scripts/run_demo.sh` — native Python, no VM |
-| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 heatguard` — slow start, then snappy UI |
+| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 --env-file /tmp/hg-api-key.env heatguard` — slow start, then snappy UI |
 | **Docker default** | First page load slow (~30–90s); **reload the same site** and it should be much faster (cached season replay) |
 | **Docker Desktop** | Settings → Resources → give **4+ CPUs** and **4+ GB RAM** |
 
@@ -143,11 +152,15 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_ENV` | `production` (Cloud Run) | Runtime environment; `staging`/`production` refuse empty or wildcard CORS without opt-in |
 | `HEATGUARD_CORS_ORIGINS` | _(required in production)_ | Comma-separated browser origins (no `*`). Set to the Cloud Run URL and any custom domains |
 | `HEATGUARD_CORS_ALLOW_WILDCARD` | unset | Must be the literal `true` to allow `*` in staging/production (temporary exception only) |
+| `HEATGUARD_API_KEY_PEPPER` | _(required)_ | HMAC pepper for integrator API keys. Inject from Secret Manager — never commit the production value. |
+| `HEATGUARD_API_KEY_DIGESTS` | _(required)_ | JSON object of integrator id → `{digest, key_class, active}`. `digest` is hex HMAC-SHA-256 of the presented secret keyed by the pepper. `key_class` is `demo`, `partner`, or `internal`. Empty or malformed JSON fails boot (never allow-all). |
 
 > **gcloud comma footgun:** `--set-env-vars` / `--update-env-vars` split on commas by default.
 > When `HEATGUARD_CORS_ORIGINS` lists multiple origins, use the caret delimiter form:
 > `--update-env-vars='^@^HEATGUARD_CORS_ORIGINS=https://a.example,https://b.example'`.
 > `cloudbuild.yaml` and `scripts/deploy-gcp.sh` already use `^@^`.
+>
+> **Integrator API keys:** mount `HEATGUARD_API_KEY_PEPPER` and `HEATGUARD_API_KEY_DIGESTS` as Cloud Run secret references. The digest bundle is a JSON object, not comma-separated — still use `^@^` if you combine it with other `--update-env-vars` / `--update-secrets` flags. Local/offline tests use `tests/fixtures/api_key_digests.json` (synthetic only); regenerate with `python scripts/generate_api_key_digests.py`.
 
 ---
 

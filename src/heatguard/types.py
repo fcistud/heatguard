@@ -225,8 +225,8 @@ ROUTE_CLASSIFICATION_SCOPE_KEY = "heatguard.route_classification"
 class PrincipalContext:
     """Request-scoped identity attached by EnforcementMiddleware.
 
-    This story ships an empty context; credential verification fills the
-    fields in later boundary stories.
+    Integrator API keys fill ``principal_id`` and ``key_class`` (WO-003);
+    session JWT fills the remaining fields in later stories.
     """
 
     principal_id: str | None = None

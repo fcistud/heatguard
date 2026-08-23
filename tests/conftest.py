@@ -1,11 +1,24 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import socket
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+
+# Boot-time HMAC store: empty/unset digests fail FastAPI lifespan. Tests use
+# the committed synthetic fixture (no production secrets).
+_API_KEY_FIXTURE = Path(__file__).parent / "fixtures" / "api_key_digests.json"
+if _API_KEY_FIXTURE.exists():
+    _api_key_payload = json.loads(_API_KEY_FIXTURE.read_text(encoding="utf-8"))
+    os.environ.setdefault("HEATGUARD_API_KEY_PEPPER", _api_key_payload["pepper"])
+    os.environ.setdefault(
+        "HEATGUARD_API_KEY_DIGESTS",
+        json.dumps(_api_key_payload["bundle"], separators=(",", ":")),
+    )
 
 from heatguard import canonical, golden
 from heatguard._paths import _REPO_ROOT
