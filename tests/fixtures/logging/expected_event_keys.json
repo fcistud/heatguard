@@ -40,6 +40,12 @@
     "user_agent",
     "request_id"
   ],
+  "auth.api_key": [
+    "request_id",
+    "route_group",
+    "outcome",
+    "key_class"
+  ],
   "wbgt.path_selected": [
     "path",
     "exception_type"

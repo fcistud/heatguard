@@ -21,13 +21,23 @@ from pydantic import BaseModel, Field
 
 from . import health as health_probes
 from . import service
-from .boundary.cors_config import CorsSettings, resolve_cors_settings
+from .boundary.api_keys import KeyStoreRef, load_key_store
+from .boundary.cors_config import ConfigurationError, CorsSettings, resolve_cors_settings
 from .boundary.enforcement import EnforcementMiddleware
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
 
 log = get_logger(__name__)
+_KEY_STORE_REF = KeyStoreRef()
+
+
+def bind_key_store(application: FastAPI | None = None, env: Mapping[str, str] | None = None) -> None:
+    """Load HMAC digests once and attach them for EnforcementMiddleware."""
+    store = load_key_store(env if env is not None else os.environ)
+    _KEY_STORE_REF.store = store
+    if application is not None:
+        application.state.key_store = store
 
 
 def _warm_caches() -> None:
@@ -64,6 +74,7 @@ async def lifespan(app: FastAPI):
     configure_tracing(app)
     obs_metrics.warn_if_multiprocess_unconfigured()
     obs_metrics.maybe_configure_export()
+    bind_key_store(app)
     v = sys.version_info
     log.info(
         "heatguard.runtime",
@@ -107,7 +118,12 @@ def register_cors_middleware(
 # Innermost enforcement chokepoint (added first → closest to the application).
 # Starlette runs last-added outermost, so runtime order is:
 # Correlation → CORS → Enforcement → app.
-app.add_middleware(EnforcementMiddleware)
+# Lifespan re-binds the store; import-time bind covers TestClient without lifespan.
+app.add_middleware(EnforcementMiddleware, key_store_ref=_KEY_STORE_REF)
+try:
+    bind_key_store(app)
+except ConfigurationError:
+    pass
 # Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).
 register_cors_middleware(app)
 # Outermost correlation / access log (Starlette runs last-added middleware first).

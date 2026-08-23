@@ -143,11 +143,15 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_ENV` | `production` (Cloud Run) | Runtime environment; `staging`/`production` refuse empty or wildcard CORS without opt-in |
 | `HEATGUARD_CORS_ORIGINS` | _(required in production)_ | Comma-separated browser origins (no `*`). Set to the Cloud Run URL and any custom domains |
 | `HEATGUARD_CORS_ALLOW_WILDCARD` | unset | Must be the literal `true` to allow `*` in staging/production (temporary exception only) |
+| `HEATGUARD_API_KEY_PEPPER` | _(required)_ | HMAC pepper for integrator API keys. Inject from Secret Manager — never commit the production value. |
+| `HEATGUARD_API_KEY_DIGESTS` | _(required)_ | JSON object of integrator id → `{digest, key_class, active}`. `digest` is hex HMAC-SHA-256 of the presented secret keyed by the pepper. `key_class` is `demo`, `partner`, or `internal`. Empty or malformed JSON fails boot (never allow-all). |
 
 > **gcloud comma footgun:** `--set-env-vars` / `--update-env-vars` split on commas by default.
 > When `HEATGUARD_CORS_ORIGINS` lists multiple origins, use the caret delimiter form:
 > `--update-env-vars='^@^HEATGUARD_CORS_ORIGINS=https://a.example,https://b.example'`.
 > `cloudbuild.yaml` and `scripts/deploy-gcp.sh` already use `^@^`.
+>
+> **Integrator API keys:** mount `HEATGUARD_API_KEY_PEPPER` and `HEATGUARD_API_KEY_DIGESTS` as Cloud Run secret references. The digest bundle is a JSON object, not comma-separated — still use `^@^` if you combine it with other `--update-env-vars` / `--update-secrets` flags. Local/offline tests use `tests/fixtures/api_key_digests.json` (synthetic only); regenerate with `python scripts/generate_api_key_digests.py`.
 
 ---
 

@@ -24,6 +24,7 @@ from heatguard.observability import (
     emit_auth_deprecated_anonymous,
 )
 from heatguard.observability.events import (
+    AUTH_API_KEY,
     ENGINE_PHS_WARNING,
     ENFORCEMENT_INTERNAL_ERROR,
     POLICY_INDEX_BUILD_FAILED,
@@ -176,6 +177,26 @@ def test_redaction_drops_pii_from_decide_logs(captured_logs: list[dict]) -> None
         assert '"age": 55' not in dumped and "'age': 55" not in dumped
 
 
+def test_api_key_request_redacts_credential_fields(captured_logs: list[dict]) -> None:
+    fixture = json.loads(
+        (_REPO_ROOT / "tests" / "fixtures" / "api_key_digests.json").read_text(encoding="utf-8")
+    )
+    secret = fixture["secrets"]["demo-integrator"]
+    client = TestClient(app)
+    resp = client.get(
+        "/sites",
+        headers={"X-API-Key": secret, "Authorization": f"Bearer {secret}"},
+    )
+    assert resp.status_code == 200
+    dumped = json.dumps(captured_logs, default=str)
+    assert secret not in dumped
+    for ev in captured_logs:
+        if "api_key" in ev:
+            assert ev["api_key"] == "REDACTED"
+        if "authorization" in ev:
+            assert ev["authorization"] == "REDACTED"
+
+
 def test_redact_processor_masks_secret_like_keys() -> None:
     out = redact_processor(
         None,
@@ -224,6 +245,7 @@ def test_event_schemas_for_instrumented_paths(captured_logs: list[dict]) -> None
     # exercised in dedicated tests — not expected on this happy-path smoke.
     skip_presence = {
         AUTH_DEPRECATED_ANONYMOUS,
+        AUTH_API_KEY,
         WEATHER_FIELD_SUBSTITUTED,
         POLICY_INDEX_UNAVAILABLE,
         POLICY_INDEX_BUILD_FAILED,

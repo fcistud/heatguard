@@ -1,0 +1,31 @@
+{
+  "bundle": {
+    "demo-integrator": {
+      "active": true,
+      "digest": "493e8d84a8f7e95015321cb14fbc943cd4ce428fb537d1261d0fd51346254649",
+      "key_class": "demo"
+    },
+    "internal-integrator": {
+      "active": true,
+      "digest": "a3d7651ee2891a868c8e8994271bfffbd757a3832cf1ec245088c8c37ce22475",
+      "key_class": "internal"
+    },
+    "partner-integrator": {
+      "active": true,
+      "digest": "b11f9028149d46108261d956e5eaf44f2e0b3aa75bf3d90aecd446246561f7a4",
+      "key_class": "partner"
+    },
+    "revoked-integrator": {
+      "active": false,
+      "digest": "af6929455844cd665e1bd01e1d555fe9bd557ba5dafc72a7e056ca4fab151940",
+      "key_class": "demo"
+    }
+  },
+  "pepper": "hg-synth-pepper-wo003-not-for-production",
+  "secrets": {
+    "demo-integrator": "hg_synth_demo_key_aaaaaaaaaaaaaaaa",
+    "internal-integrator": "hg_synth_internal_key_cccccccccccc",
+    "partner-integrator": "hg_synth_partner_key_bbbbbbbbbbbb",
+    "revoked-integrator": "hg_synth_revoked_key_dddddddddddd"
+  }
+}
