@@ -83,12 +83,21 @@ gcloud run services describe heatguard --region="${REGION}" --format='value(stat
 
 ```bash
 docker build -t heatguard .
+# Synthetic integrator keys (local/CI only — never production Secret Manager).
+python - <<'PY' > /tmp/hg-api-key.env
+import json
+from pathlib import Path
+payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
+print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
+print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+PY
 # Hardened local run (matches CI): read-only root + writable cache tmpfs
 docker run --rm -p 8080:8080 --read-only \
   --tmpfs /tmp:rw,mode=1777 \
   --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
   -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
   -e PORT=8080 \
+  --env-file /tmp/hg-api-key.env \
   heatguard
 ```
 
@@ -121,7 +130,7 @@ on Mac it is slower still (Linux VM overhead).
 | Approach | Command |
 |----------|---------|
 | **Dev (fastest)** | `scripts/run_demo.sh` — native Python, no VM |
-| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 heatguard` — slow start, then snappy UI |
+| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 --env-file /tmp/hg-api-key.env heatguard` — slow start, then snappy UI |
 | **Docker default** | First page load slow (~30–90s); **reload the same site** and it should be much faster (cached season replay) |
 | **Docker Desktop** | Settings → Resources → give **4+ CPUs** and **4+ GB RAM** |
 
