@@ -90,6 +90,10 @@ from pathlib import Path
 payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
 print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
 print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+session = json.loads(Path("tests/fixtures/session_tokens.json").read_text())
+print(f"HEATGUARD_SESSION_SIGNING_SECRET={session['signing_secret']}")
+print(f"HEATGUARD_SESSION_KID={session['kid']}")
+print("HEATGUARD_IDENTITY_SNAPSHOT=" + json.dumps(session["principals"], separators=(",", ":")))
 PY
 # Hardened local run (matches CI): read-only root + writable cache tmpfs
 docker run --rm -p 8080:8080 --read-only \
@@ -154,6 +158,10 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_CORS_ALLOW_WILDCARD` | unset | Must be the literal `true` to allow `*` in staging/production (temporary exception only) |
 | `HEATGUARD_API_KEY_PEPPER` | _(required)_ | HMAC pepper for integrator API keys. Inject from Secret Manager — never commit the production value. |
 | `HEATGUARD_API_KEY_DIGESTS` | _(required)_ | JSON object of integrator id → `{digest, key_class, active}`. `digest` is hex HMAC-SHA-256 of the presented secret keyed by the pepper. `key_class` is `demo`, `partner`, or `internal`. Empty or malformed JSON fails boot (never allow-all). |
+| `HEATGUARD_SESSION_SIGNING_SECRET` | _(required)_ | HS256 HMAC key for dashboard session JWTs. Minimum 32 bytes. Inject from Secret Manager — never commit the production value. |
+| `HEATGUARD_SESSION_KID` | unset | If set, the JWT `kid` header must match; missing or mismatched `kid` is refused. |
+| `HEATGUARD_IDENTITY_SNAPSHOT` | _(required)_ | JSON object of principal id → `{roles, sites, token_version, active}`. Empty or malformed JSON fails boot. Wildcard `sites: ["*"]` is inspector-only. |
+| `HEATGUARD_SESSION_CLOCK_SKEW_SECONDS` | `30` | Expiry/iat clock-skew tolerance (0–120). Documented default is 30 seconds. |
 
 > **gcloud comma footgun:** `--set-env-vars` / `--update-env-vars` split on commas by default.
 > When `HEATGUARD_CORS_ORIGINS` lists multiple origins, use the caret delimiter form:
@@ -161,6 +169,8 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 > `cloudbuild.yaml` and `scripts/deploy-gcp.sh` already use `^@^`.
 >
 > **Integrator API keys:** mount `HEATGUARD_API_KEY_PEPPER` and `HEATGUARD_API_KEY_DIGESTS` as Cloud Run secret references. The digest bundle is a JSON object, not comma-separated — still use `^@^` if you combine it with other `--update-env-vars` / `--update-secrets` flags. Local/offline tests use `tests/fixtures/api_key_digests.json` (synthetic only); regenerate with `python scripts/generate_api_key_digests.py`.
+>
+> **Session JWTs:** mount `HEATGUARD_SESSION_SIGNING_SECRET` and `HEATGUARD_IDENTITY_SNAPSHOT` as Cloud Run secret references. Local/offline tests use `tests/fixtures/session_tokens.json` (synthetic only); regenerate with `python scripts/generate_session_token_fixture.py`. Clock-skew default is 30 seconds.
 
 ---
 

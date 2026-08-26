@@ -13,6 +13,7 @@ COMPLIANCE_VERIFY = "compliance.verify"
 POLICY_QUERY = "policy.query"
 AUTH_DEPRECATED_ANONYMOUS = "auth.deprecated_anonymous"
 AUTH_API_KEY = "auth.api_key"
+AUTH_SESSION = "auth.session"
 WBGT_PATH_SELECTED = "wbgt.path_selected"
 WEATHER_FIELD_SUBSTITUTED = "weather.field_substituted"
 POLICY_INDEX_UNAVAILABLE = "policy.index_unavailable"
@@ -31,6 +32,7 @@ ALL_EVENT_NAMES: tuple[str, ...] = (
     POLICY_QUERY,
     AUTH_DEPRECATED_ANONYMOUS,
     AUTH_API_KEY,
+    AUTH_SESSION,
     WBGT_PATH_SELECTED,
     WEATHER_FIELD_SUBSTITUTED,
     POLICY_INDEX_UNAVAILABLE,

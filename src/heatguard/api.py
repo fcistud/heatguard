@@ -24,12 +24,14 @@ from . import service
 from .boundary.api_keys import KeyStoreRef, load_key_store
 from .boundary.cors_config import ConfigurationError, CorsSettings, resolve_cors_settings
 from .boundary.enforcement import EnforcementMiddleware
+from .boundary.session_tokens import SessionAuthRef, load_session_auth
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
 
 log = get_logger(__name__)
 _KEY_STORE_REF = KeyStoreRef()
+_SESSION_AUTH_REF = SessionAuthRef()
 
 
 def bind_key_store(application: FastAPI | None = None, env: Mapping[str, str] | None = None) -> None:
@@ -38,6 +40,16 @@ def bind_key_store(application: FastAPI | None = None, env: Mapping[str, str] | 
     _KEY_STORE_REF.store = store
     if application is not None:
         application.state.key_store = store
+
+
+def bind_session_auth(
+    application: FastAPI | None = None, env: Mapping[str, str] | None = None
+) -> None:
+    """Load HS256 signing material and identity snapshot once for the pass."""
+    auth = load_session_auth(env if env is not None else os.environ)
+    _SESSION_AUTH_REF.auth = auth
+    if application is not None:
+        application.state.session_auth = auth
 
 
 def _warm_caches() -> None:
@@ -75,6 +87,7 @@ async def lifespan(app: FastAPI):
     obs_metrics.warn_if_multiprocess_unconfigured()
     obs_metrics.maybe_configure_export()
     bind_key_store(app)
+    bind_session_auth(app)
     v = sys.version_info
     log.info(
         "heatguard.runtime",
@@ -119,9 +132,14 @@ def register_cors_middleware(
 # Starlette runs last-added outermost, so runtime order is:
 # Correlation → CORS → Enforcement → app.
 # Lifespan re-binds the store; import-time bind covers TestClient without lifespan.
-app.add_middleware(EnforcementMiddleware, key_store_ref=_KEY_STORE_REF)
+app.add_middleware(
+    EnforcementMiddleware,
+    key_store_ref=_KEY_STORE_REF,
+    session_auth_ref=_SESSION_AUTH_REF,
+)
 try:
     bind_key_store(app)
+    bind_session_auth(app)
 except ConfigurationError:
     pass
 # Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).

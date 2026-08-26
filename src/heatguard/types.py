@@ -226,7 +226,7 @@ class PrincipalContext:
     """Request-scoped identity attached by EnforcementMiddleware.
 
     Integrator API keys fill ``principal_id`` and ``key_class`` (WO-003);
-    session JWT fills the remaining fields in later stories.
+    session JWT fills roles, sites, review_context, auth_time and token_version.
     """
 
     principal_id: str | None = None
@@ -234,6 +234,8 @@ class PrincipalContext:
     roles: tuple[str, ...] = ()
     sites: tuple[str, ...] = ()
     review_context: str | None = None
+    auth_time: int | None = None
+    token_version: int | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -242,4 +244,6 @@ class PrincipalContext:
             "roles": list(self.roles),
             "sites": list(self.sites),
             "review_context": self.review_context,
+            "auth_time": self.auth_time,
+            "token_version": self.token_version,
         }

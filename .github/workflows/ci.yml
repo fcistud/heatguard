@@ -272,6 +272,10 @@ jobs:
           payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
           print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
           print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+          session = json.loads(Path("tests/fixtures/session_tokens.json").read_text())
+          print(f"HEATGUARD_SESSION_SIGNING_SECRET={session['signing_secret']}")
+          print(f"HEATGUARD_SESSION_KID={session['kid']}")
+          print("HEATGUARD_IDENTITY_SNAPSHOT=" + json.dumps(session["principals"], separators=(",", ":")))
           PY
           docker run -d --name hg -p 8080:8080 \
             --read-only \

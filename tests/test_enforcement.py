@@ -16,6 +16,11 @@ from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
 from heatguard.api import app  # noqa: E402
 from heatguard.boundary.api_keys import load_key_store  # noqa: E402
+from heatguard.boundary.session_tokens import (  # noqa: E402
+    default_claims,
+    load_session_auth,
+    mint_session_token,
+)
 from heatguard.boundary.enforcement import (  # noqa: E402
     EMPTY_PRINCIPAL,
     REFUSAL_CODE_INTERNAL,
@@ -257,6 +262,34 @@ def _api_key_payload() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _session_payload() -> dict:
+    path = Path(__file__).parent / "fixtures" / "session_tokens.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _live_session_token(*, expired: bool = False, forged: bool = False) -> str:
+    payload = _session_payload()
+    now = int(time.time())
+    iat = now - 3600 if expired else now
+    exp = now - 100 if expired else now + 3600
+    token = mint_session_token(
+        secret=payload["signing_secret"],
+        claims=default_claims(
+            sub="dashboard-supervisor",
+            now=iat,
+            lifetime=exp - iat,
+            token_version=1,
+            roles=["supervisor"],
+            sites=["dubai"],
+        ),
+        kid=payload["kid"],
+    )
+    if forged:
+        header, body, sig = token.split(".")
+        return f"{header}.{body}.{sig[:-2]}aa"
+    return token
+
+
 def test_valid_x_api_key_and_bearer_admitted() -> None:
     secret = _api_key_payload()["secrets"]["demo-integrator"]
     via_header = client.get("/sites", headers={"X-API-Key": secret})
@@ -292,6 +325,73 @@ def test_conflicting_headers_are_unauthenticated() -> None:
     )
     assert resp.status_code == 401
     assert resp.json()["code"] == REFUSAL_CODE_UNAUTHENTICATED
+
+
+def test_valid_session_token_admitted_on_advisory() -> None:
+    token = _live_session_token()
+    resp = client.get("/sites", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+
+
+def test_expired_and_forged_session_tokens_are_unauthenticated() -> None:
+    expired = client.get(
+        "/sites",
+        headers={"Authorization": f"Bearer {_live_session_token(expired=True)}"},
+    )
+    forged = client.get(
+        "/sites",
+        headers={"Authorization": f"Bearer {_live_session_token(forged=True)}"},
+    )
+    assert expired.status_code == 401
+    assert forged.status_code == 401
+    body = expired.json()
+    assert body["code"] == REFUSAL_CODE_UNAUTHENTICATED
+    assert body["message"] == REFUSAL_MESSAGE
+    assert "request_id" in body
+    assert forged.json()["code"] == REFUSAL_CODE_UNAUTHENTICATED
+
+
+def test_jwt_in_x_api_key_is_not_accepted() -> None:
+    token = _live_session_token()
+    resp = client.get("/sites", headers={"X-API-Key": token})
+    assert resp.status_code == 401
+
+
+def test_session_token_attaches_dashboard_principal() -> None:
+    payload = _session_payload()
+    auth = load_session_auth(
+        {
+            "HEATGUARD_SESSION_SIGNING_SECRET": payload["signing_secret"],
+            "HEATGUARD_SESSION_KID": payload["kid"],
+            "HEATGUARD_IDENTITY_SNAPSHOT": json.dumps(payload["principals"]),
+        }
+    )
+    token = _live_session_token()
+    seen: dict[str, Any] = {}
+
+    async def inner(scope: dict, receive: object, send: Any) -> None:
+        seen["principal"] = principal_from_scope(scope)
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok", "more_body": False})
+
+    import asyncio
+
+    asyncio.run(
+        EnforcementMiddleware(inner, session_auth=auth)(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/sites",
+                "headers": [(b"authorization", f"Bearer {token}".encode("ascii"))],
+            },
+            _receive,
+            _null_send,
+        )
+    )
+    assert seen["principal"].principal_id == "dashboard-supervisor"
+    assert seen["principal"].key_class == "dashboard"
+    assert seen["principal"].roles == ("supervisor",)
+    assert seen["principal"].token_version == 1
 
 
 def test_valid_key_attaches_principal_on_scope() -> None:
@@ -373,14 +473,23 @@ def test_latency_p99_under_3ms() -> None:
         await send({"type": "http.response.body", "body": b"ok", "more_body": False})
 
     payload = _api_key_payload()
+    session = _session_payload()
     store = load_key_store(
         {
             "HEATGUARD_API_KEY_PEPPER": payload["pepper"],
             "HEATGUARD_API_KEY_DIGESTS": json.dumps(payload["bundle"]),
         }
     )
-    mw = EnforcementMiddleware(inner, key_store=store)
+    session_auth = load_session_auth(
+        {
+            "HEATGUARD_SESSION_SIGNING_SECRET": session["signing_secret"],
+            "HEATGUARD_SESSION_KID": session["kid"],
+            "HEATGUARD_IDENTITY_SNAPSHOT": json.dumps(session["principals"]),
+        }
+    )
+    mw = EnforcementMiddleware(inner, key_store=store, session_auth=session_auth)
     keyed = [(b"x-api-key", payload["secrets"]["demo-integrator"].encode("ascii"))]
+    jwt_headers = [(b"authorization", f"Bearer {_live_session_token()}".encode("ascii"))]
     import asyncio
 
     async def once(path: str, headers: list | None = None) -> None:
@@ -413,9 +522,11 @@ def test_latency_p99_under_3ms() -> None:
     probe = asyncio.run(timed("/health/live", 1000))
     business = asyncio.run(timed("/sites", 1000))
     keyed_business = asyncio.run(timed("/sites", 1000, keyed))
+    jwt_business = asyncio.run(timed("/sites", 1000, jwt_headers))
     assert p99(probe) < 3.0, p99(probe)
     assert p99(business) < 3.0, p99(business)
     assert p99(keyed_business) < 3.0, p99(keyed_business)
+    assert p99(jwt_business) < 3.0, p99(jwt_business)
     # Classifier itself is a pure table lookup (also asserted via AST in unit tests).
     assert classify_request("/health/live", "GET").exempt is True
     assert classify_request("/sites", "GET").exempt is False

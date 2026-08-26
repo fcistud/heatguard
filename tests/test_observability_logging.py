@@ -25,6 +25,7 @@ from heatguard.observability import (
 )
 from heatguard.observability.events import (
     AUTH_API_KEY,
+    AUTH_SESSION,
     ENGINE_PHS_WARNING,
     ENFORCEMENT_INTERNAL_ERROR,
     POLICY_INDEX_BUILD_FAILED,
@@ -197,6 +198,51 @@ def test_api_key_request_redacts_credential_fields(captured_logs: list[dict]) ->
             assert ev["authorization"] == "REDACTED"
 
 
+def test_session_token_outcome_log_redacts_and_records_reason(
+    captured_logs: list[dict],
+) -> None:
+    import time
+
+    from heatguard.boundary.session_tokens import default_claims, mint_session_token
+
+    fixture = json.loads(
+        (_REPO_ROOT / "tests" / "fixtures" / "session_tokens.json").read_text(encoding="utf-8")
+    )
+    now = int(time.time())
+    token = mint_session_token(
+        secret=fixture["signing_secret"],
+        claims=default_claims(
+            sub="dashboard-supervisor",
+            now=now,
+            token_version=1,
+            roles=["supervisor"],
+            sites=["dubai"],
+        ),
+        kid=fixture["kid"],
+    )
+    header, body, sig = token.split(".")
+    forged = f"{header}.{body}.{sig[:-2]}aa"
+    client = TestClient(app)
+    ok = client.get("/sites", headers={"Authorization": f"Bearer {token}"})
+    bad = client.get("/sites", headers={"Authorization": f"Bearer {forged}"})
+    assert ok.status_code == 200
+    assert bad.status_code == 401
+    dumped = json.dumps(captured_logs, default=str)
+    assert token not in dumped
+    assert forged not in dumped
+    assert fixture["signing_secret"] not in dumped
+    events = [e for e in captured_logs if e.get("event") == AUTH_SESSION]
+    assert len(events) >= 2
+    reasons = {e.get("reason") for e in events}
+    outcomes = {e.get("outcome") for e in events}
+    assert "authenticated" in outcomes
+    assert "unauthenticated" in outcomes
+    assert None in reasons or "invalid" in reasons
+    for ev in events:
+        for key in EXPECTED[AUTH_SESSION]:
+            assert key in ev
+
+
 def test_redact_processor_masks_secret_like_keys() -> None:
     out = redact_processor(
         None,
@@ -246,6 +292,7 @@ def test_event_schemas_for_instrumented_paths(captured_logs: list[dict]) -> None
     skip_presence = {
         AUTH_DEPRECATED_ANONYMOUS,
         AUTH_API_KEY,
+        AUTH_SESSION,
         WEATHER_FIELD_SUBSTITUTED,
         POLICY_INDEX_UNAVAILABLE,
         POLICY_INDEX_BUILD_FAILED,
