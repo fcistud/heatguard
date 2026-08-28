@@ -298,7 +298,9 @@ def _validate_claims(
         return invalid
     if record.sites != ("*",) and not set(sites) <= set(record.sites):
         return invalid
-    if "*" in sites and ROLE_INSPECTOR not in record.roles:
+    # Wildcard is inspector-only on the presented token, not merely on the
+    # snapshot row — otherwise a multi-role identity could mint supervisor + *.
+    if "*" in sites and ROLE_INSPECTOR not in token_role_set:
         return invalid
 
     return SessionVerifyResult(

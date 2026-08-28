@@ -237,6 +237,55 @@ def test_non_inspector_wildcard_sites_refused() -> None:
     assert result.reason is SessionFailure.INVALID
 
 
+def test_wildcard_requires_inspector_on_token_not_only_snapshot() -> None:
+    """Snapshot inspector must not authorize * on a supervisor-only token."""
+    payload = _payload()
+    principals = dict(payload["principals"])
+    principals["dashboard-hybrid"] = {
+        "roles": ["inspector", "supervisor"],
+        "sites": ["*"],
+        "token_version": 1,
+        "active": True,
+    }
+    auth = load_session_auth(
+        {
+            ENV_SIGNING_SECRET: payload["signing_secret"],
+            ENV_KID: payload["kid"],
+            ENV_SNAPSHOT: json.dumps(principals),
+        }
+    )
+    supervisor_star = mint_session_token(
+        secret=payload["signing_secret"],
+        claims=default_claims(
+            sub="dashboard-hybrid",
+            now=NOW,
+            token_version=1,
+            roles=["supervisor"],
+            sites=["*"],
+        ),
+        kid=payload["kid"],
+    )
+    refused = auth.verify(supervisor_star, now=NOW)
+    assert refused.principal is None
+    assert refused.reason is SessionFailure.INVALID
+
+    inspector_star = mint_session_token(
+        secret=payload["signing_secret"],
+        claims=default_claims(
+            sub="dashboard-hybrid",
+            now=NOW,
+            token_version=1,
+            roles=["inspector"],
+            sites=["*"],
+        ),
+        kid=payload["kid"],
+    )
+    accepted = auth.verify(inspector_star, now=NOW)
+    assert accepted.principal is not None
+    assert accepted.principal.roles == ("inspector",)
+    assert accepted.principal.sites == ("*",)
+
+
 def test_role_widening_refused() -> None:
     result = _verify(_token(roles=["supervisor", "inspector"]))
     assert result.reason is SessionFailure.INVALID
