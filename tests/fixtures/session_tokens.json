@@ -1,0 +1,36 @@
+{
+  "kid": "hg-synth",
+  "principals": {
+    "dashboard-inactive": {
+      "active": false,
+      "roles": [
+        "supervisor"
+      ],
+      "sites": [
+        "dubai"
+      ],
+      "token_version": 1
+    },
+    "dashboard-inspector": {
+      "active": true,
+      "roles": [
+        "inspector"
+      ],
+      "sites": [
+        "*"
+      ],
+      "token_version": 3
+    },
+    "dashboard-supervisor": {
+      "active": true,
+      "roles": [
+        "supervisor"
+      ],
+      "sites": [
+        "dubai"
+      ],
+      "token_version": 1
+    }
+  },
+  "signing_secret": "hg-synth-session-hs256-not-for-production"
+}

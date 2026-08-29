@@ -46,6 +46,13 @@
     "outcome",
     "key_class"
   ],
+  "auth.session": [
+    "request_id",
+    "route_group",
+    "outcome",
+    "key_class",
+    "reason"
+  ],
   "wbgt.path_selected": [
     "path",
     "exception_type"

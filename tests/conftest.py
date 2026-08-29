@@ -20,6 +20,19 @@ if _API_KEY_FIXTURE.exists():
         json.dumps(_api_key_payload["bundle"], separators=(",", ":")),
     )
 
+_SESSION_FIXTURE = Path(__file__).parent / "fixtures" / "session_tokens.json"
+if _SESSION_FIXTURE.exists():
+    _session_payload = json.loads(_SESSION_FIXTURE.read_text(encoding="utf-8"))
+    os.environ.setdefault(
+        "HEATGUARD_SESSION_SIGNING_SECRET",
+        _session_payload["signing_secret"],
+    )
+    os.environ.setdefault("HEATGUARD_SESSION_KID", _session_payload["kid"])
+    os.environ.setdefault(
+        "HEATGUARD_IDENTITY_SNAPSHOT",
+        json.dumps(_session_payload["principals"], separators=(",", ":")),
+    )
+
 from heatguard import canonical, golden
 from heatguard._paths import _REPO_ROOT
 from heatguard.types import Site, Weather, Worker
