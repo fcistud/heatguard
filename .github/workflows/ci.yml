@@ -72,6 +72,7 @@ jobs:
           print("OK — numpy/pythermalcomfort/thermofeel match golden MANIFEST pins")
           PY
       - name: Run tests
+        # WO-006 route-table coverage gate is included (tests/test_route_coverage.py).
         env:
           HEATGUARD_ENV: test
           HEATGUARD_TRACE_EXPORTER: none

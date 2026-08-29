@@ -17,9 +17,31 @@ Not everything is automated in the running API or `cloudbuild.yaml` yet:
 | Rate limiting | Metric `heatguard_ratelimit_rejected_total` + helper only | 429 responses, demo-key exemption — **middleware pending** |
 | Canary deploy | Direct Cloud Run deploy | 10% → 50% → 100% progression — **comments in `cloudbuild.yaml` only** |
 | Auth dual-mode | Log event `auth.deprecated_anonymous` + monitoring gate | `HEATGUARD_AUTH_MODE=dual` → `enforce` — **API auth middleware pending** |
+| Route coverage gate | pytest vs `tests/fixtures/route_inventory.json` | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
 
 When a procedure assumes behaviour that is not in code yet, treat it as the target
 state after the trust-boundary epic lands.
+
+### Route coverage gate (required CI check)
+
+Every HTTP method-path pair and static mount on the assembled FastAPI app must be
+classified by `EnforcementMiddleware` (`classify_request` / `_ROUTE_SPEC`). The
+gate lives in `tests/test_route_coverage.py` (also invoked from `tests/test_api.py`)
+and runs in the existing GitHub Actions **Python engine + API tests** job — no
+separate workflow.
+
+If it fails:
+
+1. Do **not** bump `non_probe_count` blindly.
+2. Add a `_ROUTE_SPEC` row in `src/heatguard/boundary/enforcement.py` for the new
+   path (or remove a stale inventory row if the route was deleted on purpose).
+3. Update `tests/fixtures/route_inventory.json` in the same change. The failure
+   message lists **added**, **removed**, and **reclassified** entries separately.
+4. Dashboard mount/redirect rows are optional (`web/dist` is gitignored); landing
+   at `/` is required.
+
+Exempt set is exact: `GET /health`, `GET /health/`, `GET /health/live`,
+`GET /health/ready`, `GET /metrics`. No other route may be exempt.
 
 ---
 
