@@ -62,6 +62,7 @@ weather_field_substituted_total: Counter
 risk_model_fallback_total: Counter
 degraded_conditions_total: Counter
 ratelimit_rejected_total: Counter
+auth_outcome_total: Counter
 process_start_duration_seconds: Gauge
 
 
@@ -96,7 +97,7 @@ def _register(registry: CollectorRegistry) -> None:
     global engine_decisions_total, wbgt_source_total, ratelimit_rejected_total
     global wbgt_path_total, weather_field_substituted_total
     global risk_model_fallback_total, degraded_conditions_total
-    global process_start_duration_seconds
+    global process_start_duration_seconds, auth_outcome_total
 
     http_requests_total = Counter(
         "heatguard_http_requests_total",
@@ -200,6 +201,12 @@ def _register(registry: CollectorRegistry) -> None:
         "heatguard_ratelimit_rejected_total",
         "Rate-limit rejections (trust-boundary epic wires enforcement)",
         ["route", "key_class"],
+        registry=registry,
+    )
+    auth_outcome_total = Counter(
+        "heatguard_auth_outcome_total",
+        "Authentication outcomes by endpoint group and key class (WO-005)",
+        ["route_group", "key_class", "outcome"],
         registry=registry,
     )
     process_start_duration_seconds = Gauge(
@@ -406,6 +413,25 @@ def observe_ratelimit_rejected(*, route: str, key_class: str) -> None:
     _safe("heatguard_ratelimit_rejected_total", _do)
 
 
+def observe_auth_outcome(
+    *,
+    route_group: str,
+    key_class: str,
+    outcome: str,
+) -> None:
+    """Count dual/enforce outcomes. Labels stay bounded — never path or principal."""
+
+    def _do() -> None:
+        get_registry()
+        auth_outcome_total.labels(
+            route_group=route_group,
+            key_class=key_class,
+            outcome=outcome,
+        ).inc()
+
+    _safe("heatguard_auth_outcome_total", _do)
+
+
 def record_process_start_duration(seconds: float) -> None:
     def _do() -> None:
         get_registry()
@@ -442,6 +468,7 @@ def registered_metric_label_names() -> dict[str, frozenset[str]]:
         "heatguard_risk_model_fallback_total": frozenset(),
         "heatguard_degraded_conditions_total": frozenset({"reason_code"}),
         "heatguard_ratelimit_rejected_total": frozenset({"route", "key_class"}),
+        "heatguard_auth_outcome_total": frozenset({"route_group", "key_class", "outcome"}),
         "heatguard_process_start_duration_seconds": frozenset(),
     }
 

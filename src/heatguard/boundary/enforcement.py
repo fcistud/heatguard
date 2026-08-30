@@ -3,7 +3,8 @@
 Classifies every HTTP request, stamps group/exempt on the ASGI scope, verifies
 integrator API keys (WO-003) and HS256 session tokens (WO-004) when presented,
 and never fails open: unexpected errors become a structured 403. Missing
-credentials still admit (dual mode until WO-005). Quota attaches later.
+credentials admit in dual mode and receive 401 in enforce (WO-005). Quota
+attaches later.
 """
 from __future__ import annotations
 
@@ -14,6 +15,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from heatguard.boundary.api_keys import MAX_SECRET_CHARS, KeyStore, KeyStoreRef
+from heatguard.boundary.auth_mode import (
+    DEFAULT_SNAPSHOT,
+    AuthMode,
+    AuthModeRef,
+    AuthModeSnapshot,
+    principal_permits_route,
+)
 from heatguard.boundary.session_tokens import (
     MAX_TOKEN_CHARS,
     SessionAuth,
@@ -27,6 +35,7 @@ from heatguard.observability.logging import (
     emit_auth_deprecated_anonymous,
     get_logger,
 )
+from heatguard.observability.metrics import observe_auth_outcome
 from heatguard.types import (
     PRINCIPAL_SCOPE_KEY,
     REQUEST_ID_SCOPE_KEY,
@@ -38,6 +47,7 @@ EMPTY_PRINCIPAL = PrincipalContext()
 
 REFUSAL_CODE_INTERNAL = "enforcement_internal_error"
 REFUSAL_CODE_UNAUTHENTICATED = "unauthenticated"
+REFUSAL_CODE_FORBIDDEN = "forbidden"
 REFUSAL_MESSAGE = "Request refused."
 REFUSAL_STATUS = 403
 REFUSAL_STATUS_UNAUTH = 401
@@ -154,15 +164,26 @@ def classification_from_scope(scope: Mapping[str, Any]) -> RouteClassification:
 
 def access_decision(
     classification: RouteClassification,
-    _principal: PrincipalContext,
+    principal: PrincipalContext,
+    *,
+    mode: AuthMode = AuthMode.DUAL,
+    path: str = "",
 ) -> str:
-    """Admit or deny after classification.
+    """Admit or deny after classification and optional enforce-mode authz.
 
-    Exempt routes skip credential checks. Missing credentials still admit
-    (dual mode) until WO-005; presented-but-invalid keys are refused earlier.
+    Exempt routes skip credential and site checks. Dual mode still admits
+    anonymous callers. Enforce mode denies anonymous (401 at the caller) and
+    authenticated principals that fail site-scope (403).
     """
     if classification.exempt:
         return "admit"
+    if mode is AuthMode.ENFORCE:
+        if principal.principal_id is None and not principal.roles and not principal.sites:
+            return "deny"
+        if principal.principal_id is not None and not principal_permits_route(
+            path, principal
+        ):
+            return "deny"
     return "admit"
 
 
@@ -296,6 +317,36 @@ def _resolve_session_auth(
     return None
 
 
+def _resolve_auth_modes(
+    *,
+    injected: AuthModeSnapshot | None,
+    ref: AuthModeRef | None,
+    app: Any,
+    scope: Mapping[str, Any],
+) -> AuthModeSnapshot:
+    if injected is not None:
+        return injected
+    if ref is not None and isinstance(ref.snapshot, AuthModeSnapshot):
+        return ref.snapshot
+    for candidate in (app, scope.get("app")):
+        state = getattr(candidate, "state", None)
+        snapshot = getattr(state, "auth_modes", None)
+        if isinstance(snapshot, AuthModeSnapshot):
+            return snapshot
+    return DEFAULT_SNAPSHOT
+
+
+def _header_text(headers: list[tuple[bytes, bytes]], name: bytes) -> str | None:
+    values = _header_values(headers, name)
+    if not values:
+        return None
+    raw = values[0]
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1", errors="replace")
+
+
 def _log_api_key(
     *,
     request_id: str,
@@ -363,6 +414,8 @@ class EnforcementMiddleware:
         key_store_ref: KeyStoreRef | None = None,
         session_auth: SessionAuth | None = None,
         session_auth_ref: SessionAuthRef | None = None,
+        auth_modes: AuthModeSnapshot | None = None,
+        auth_mode_ref: AuthModeRef | None = None,
     ) -> None:
         self.app = app
         self._classify = classify
@@ -370,6 +423,8 @@ class EnforcementMiddleware:
         self._key_store_ref = key_store_ref
         self._session_auth = session_auth
         self._session_auth_ref = session_auth_ref
+        self._auth_modes = auth_modes
+        self._auth_mode_ref = auth_mode_ref
 
     async def __call__(self, scope: dict[str, Any], receive: ReceiveFn, send: SendFn) -> None:
         if scope.get("type") != "http":
@@ -429,15 +484,82 @@ class EnforcementMiddleware:
                     if principal is None:
                         return
                 else:
+                    snapshot = _resolve_auth_modes(
+                        injected=self._auth_modes,
+                        ref=self._auth_mode_ref,
+                        app=self.app,
+                        scope=scope,
+                    )
+                    mode = snapshot.mode_for(group)
+                    if mode is AuthMode.ENFORCE:
+                        observe_auth_outcome(
+                            route_group=group,
+                            key_class="anonymous",
+                            outcome="unauthenticated",
+                        )
+                        await _send_refusal(
+                            send,
+                            request_id=request_id,
+                            code=REFUSAL_CODE_UNAUTHENTICATED,
+                            status=REFUSAL_STATUS_UNAUTH,
+                        )
+                        return
+                    headers = list(scope.get("headers") or [])
                     emit_auth_deprecated_anonymous(
                         route=canonical_path(path),
+                        origin=_header_text(headers, b"origin"),
+                        user_agent=_header_text(headers, b"user-agent"),
                         request_id=request_id,
+                        route_group=group,
+                    )
+                    observe_auth_outcome(
+                        route_group=group,
+                        key_class="anonymous",
+                        outcome="deprecated_anonymous",
                     )
 
             scope[PRINCIPAL_SCOPE_KEY] = principal
-            if access_decision(classification, principal) != "admit":
-                await _send_refusal(send, request_id=request_id, code="forbidden")
+            snapshot = _resolve_auth_modes(
+                injected=self._auth_modes,
+                ref=self._auth_mode_ref,
+                app=self.app,
+                scope=scope,
+            )
+            mode = snapshot.mode_for(group)
+            if access_decision(
+                classification, principal, mode=mode, path=str(path)
+            ) != "admit":
+                if principal.principal_id is None:
+                    observe_auth_outcome(
+                        route_group=group,
+                        key_class="anonymous",
+                        outcome="unauthenticated",
+                    )
+                    await _send_refusal(
+                        send,
+                        request_id=request_id,
+                        code=REFUSAL_CODE_UNAUTHENTICATED,
+                        status=REFUSAL_STATUS_UNAUTH,
+                    )
+                    return
+                observe_auth_outcome(
+                    route_group=group,
+                    key_class=principal.key_class or "none",
+                    outcome="forbidden",
+                )
+                await _send_refusal(
+                    send,
+                    request_id=request_id,
+                    code=REFUSAL_CODE_FORBIDDEN,
+                    status=REFUSAL_STATUS,
+                )
                 return
+            if principal.principal_id is not None:
+                observe_auth_outcome(
+                    route_group=group,
+                    key_class=principal.key_class or "none",
+                    outcome="authenticated",
+                )
         except Exception as exc:
             log = get_logger("heatguard.enforcement")
             log.error(

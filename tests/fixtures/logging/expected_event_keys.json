@@ -38,7 +38,8 @@
     "route",
     "origin",
     "user_agent",
-    "request_id"
+    "request_id",
+    "route_group"
   ],
   "auth.api_key": [
     "request_id",

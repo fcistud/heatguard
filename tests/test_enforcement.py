@@ -252,7 +252,7 @@ def test_principal_and_classification_attached_on_http_request() -> None:
     ["/sites", "/hour/dubai/2025-05-16/12", "/demo/dubai"],
 )
 def test_anonymous_advisory_still_admitted(path: str) -> None:
-    """Missing credentials still admit (dual mode until WO-005)."""
+    """Missing credentials still admit when the group is in dual mode."""
     resp = client.get(path)
     assert resp.status_code not in (401, 403)
 
@@ -434,7 +434,7 @@ def test_access_decision_hook_denies_non_exempt(
 ) -> None:
     """WO-003+ will deny here; prove exempt is consulted, not discarded."""
 
-    def policy(classification: object, _principal: object) -> str:
+    def policy(classification: object, _principal: object, **_kwargs: object) -> str:
         return "admit" if getattr(classification, "exempt", False) else "deny"
 
     monkeypatch.setattr(
@@ -464,7 +464,7 @@ def test_access_decision_hook_denies_non_exempt(
     import asyncio
 
     assert asyncio.run(send_for("/health/live")) == 200
-    assert asyncio.run(send_for("/sites")) == 403
+    assert asyncio.run(send_for("/sites")) == 401
 
 
 def test_latency_p99_under_3ms() -> None:

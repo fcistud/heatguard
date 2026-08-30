@@ -16,4 +16,5 @@ heatguard_weather_field_substituted_total|field
 heatguard_risk_model_fallback_total|
 heatguard_degraded_conditions_total|reason_code
 heatguard_ratelimit_rejected_total|route,key_class
+heatguard_auth_outcome_total|route_group,key_class,outcome
 heatguard_process_start_duration_seconds|
