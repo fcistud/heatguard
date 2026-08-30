@@ -44,6 +44,8 @@ REFUSAL_STATUS_UNAUTH = 401
 
 HEADER_API_KEY = b"x-api-key"
 HEADER_AUTHORIZATION = b"authorization"
+# Observable proof the chokepoint classified this request (WO-006 traversal).
+HEADER_ROUTE_GROUP = b"x-heatguard-route-group"
 
 # (pattern, group, exempt) — most specific first; compiled once at import.
 _ROUTE_SPEC: tuple[tuple[str, str, bool], ...] = (
@@ -170,6 +172,21 @@ def refusal_body(request_id: str, *, code: str = REFUSAL_CODE_INTERNAL) -> dict[
         "message": REFUSAL_MESSAGE,
         "request_id": request_id,
     }
+
+
+def _send_with_route_group(send: SendFn, group_holder: dict[str, str]) -> SendFn:
+    """Stamp ``x-heatguard-route-group`` on every HTTP response start."""
+
+    async def wrapped(message: dict[str, Any]) -> None:
+        if message.get("type") == "http.response.start":
+            headers = list(message.get("headers") or [])
+            headers.append(
+                (HEADER_ROUTE_GROUP, group_holder["group"].encode("ascii"))
+            )
+            message = {**message, "headers": headers}
+        await send(message)
+
+    return wrapped
 
 
 def _request_id_from_scope(scope: Mapping[str, Any]) -> str:
@@ -360,6 +377,8 @@ class EnforcementMiddleware:
             return
 
         request_id = _request_id_from_scope(scope)
+        group_holder = {"group": "unknown"}
+        send = _send_with_route_group(send, group_holder)
         group = "unknown"
         try:
             classifier = self._classify
@@ -369,6 +388,7 @@ class EnforcementMiddleware:
             method = scope.get("method") or "GET"
             classification = classifier(path, method)
             group = classification.group
+            group_holder["group"] = group
             scope[ROUTE_CLASSIFICATION_SCOPE_KEY] = classification
             principal = EMPTY_PRINCIPAL
 

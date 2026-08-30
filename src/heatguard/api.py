@@ -12,7 +12,8 @@ import time
 from contextlib import asynccontextmanager
 from datetime import date
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -132,6 +133,8 @@ def register_cors_middleware(
 # Starlette runs last-added outermost, so runtime order is:
 # Correlation → CORS → Enforcement → app.
 # Lifespan re-binds the store; import-time bind covers TestClient without lifespan.
+# Route-table coverage (WO-006): tests/fixtures/route_inventory.json must list every
+# live method-path pair and static mount; new routes fail CI until classified.
 app.add_middleware(
     EnforcementMiddleware,
     key_store_ref=_KEY_STORE_REF,
@@ -170,11 +173,25 @@ def private_metrics():
     return Response(content=body, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
+def _registered_paths(routes: Sequence[Any]) -> set[str]:
+    """Collect paths from ``app.routes``, including ``include_router`` wrappers."""
+    paths: set[str] = set()
+    for route in routes:
+        original = getattr(route, "original_router", None)
+        nested = getattr(original, "routes", None) if original is not None else None
+        if nested:
+            paths |= _registered_paths(nested)
+            continue
+        path = getattr(route, "path", None)
+        if isinstance(path, str) and path:
+            paths.add(path)
+    return paths
+
+
 def mount_private_routes(application: FastAPI | None = None) -> bool:
     """Attach private routes once. Exposition itself stays gated by ``HEATGUARD_METRICS_ENABLED``."""
     target = application or app
-    paths = {getattr(r, "path", None) for r in target.routes}
-    if "/metrics" not in paths:
+    if "/metrics" not in _registered_paths(target.routes):
         target.include_router(_private_router)
     return True
 
@@ -476,7 +493,11 @@ def _resolve_static_dirs() -> tuple[str | None, str | None]:
 
 
 def _mount_optional_static() -> None:
-    """Serve landing at / and the React dashboard at /dashboard/ (Cloud Run / Docker / dev)."""
+    """Serve landing at / and the React dashboard at /dashboard/ (Cloud Run / Docker / dev).
+
+    Landing is committed and always mounted in pytest. ``web/dist`` is gitignored, so
+    the dashboard redirect + mount are optional inventory rows (WO-006).
+    """
     from pathlib import Path
 
     from fastapi.staticfiles import StaticFiles

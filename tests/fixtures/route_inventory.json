@@ -1,0 +1,297 @@
+{
+  "description": "Live FastAPI route inventory for the WO-006 enforcement coverage gate. Diff against app.routes using the production classify_request helper. Do not auto-update this file; classify new routes in src/heatguard/boundary/enforcement.py (_ROUTE_SPEC) in the same change.",
+  "non_probe_count": 29,
+  "non_probe_count_note": "Bump only after classifying the new route in _ROUTE_SPEC and adding it to entries below in the same change. Do not bump this number blindly.",
+  "exempt_paths": [
+    "/health",
+    "/health/",
+    "/health/live",
+    "/health/ready",
+    "/metrics"
+  ],
+  "entries": [
+    {
+      "kind": "mount",
+      "path": "/",
+      "method": "",
+      "name": "landing",
+      "group": "static",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/backtest",
+      "method": "GET",
+      "name": "backtest",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/compliance/{site_key}/export",
+      "method": "GET",
+      "name": "compliance_export",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/datasets",
+      "method": "GET",
+      "name": "datasets",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/decide",
+      "method": "POST",
+      "name": "decide",
+      "group": "advisory",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/demo/{site_key}",
+      "method": "GET",
+      "name": "demo",
+      "group": "advisory",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/demos",
+      "method": "GET",
+      "name": "demos",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/docs",
+      "method": "GET",
+      "name": "swagger_ui_html",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/docs",
+      "method": "HEAD",
+      "name": "swagger_ui_html",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/docs/oauth2-redirect",
+      "method": "GET",
+      "name": "swagger_ui_redirect",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/docs/oauth2-redirect",
+      "method": "HEAD",
+      "name": "swagger_ui_redirect",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/economics/{site_key}",
+      "method": "GET",
+      "name": "economics",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/forecast/{site_key}",
+      "method": "GET",
+      "name": "forecast",
+      "group": "advisory",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/health",
+      "method": "GET",
+      "name": "health",
+      "group": "probes",
+      "exempt": true
+    },
+    {
+      "kind": "route",
+      "path": "/health/",
+      "method": "GET",
+      "name": "health_trailing_slash",
+      "group": "probes",
+      "exempt": true
+    },
+    {
+      "kind": "route",
+      "path": "/health/live",
+      "method": "GET",
+      "name": "health_live",
+      "group": "probes",
+      "exempt": true
+    },
+    {
+      "kind": "route",
+      "path": "/health/ready",
+      "method": "GET",
+      "name": "health_ready",
+      "group": "probes",
+      "exempt": true
+    },
+    {
+      "kind": "route",
+      "path": "/hour/{site_key}/{day}/{hour}",
+      "method": "GET",
+      "name": "hour",
+      "group": "advisory",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/impact/{site_key}",
+      "method": "GET",
+      "name": "impact",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/landing",
+      "method": "GET",
+      "name": "_landing_legacy_redirect",
+      "group": "static",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/landing/",
+      "method": "GET",
+      "name": "_landing_legacy_redirect",
+      "group": "static",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/metrics",
+      "method": "GET",
+      "name": "private_metrics",
+      "group": "metrics",
+      "exempt": true
+    },
+    {
+      "kind": "route",
+      "path": "/openapi.json",
+      "method": "GET",
+      "name": "openapi",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/openapi.json",
+      "method": "HEAD",
+      "name": "openapi",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/policy/corpus",
+      "method": "GET",
+      "name": "policy_corpus",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/policy/demo-questions",
+      "method": "GET",
+      "name": "policy_demo_questions",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/policy/query",
+      "method": "POST",
+      "name": "policy_query",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/redoc",
+      "method": "GET",
+      "name": "redoc_html",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/redoc",
+      "method": "HEAD",
+      "name": "redoc_html",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/scale/{site_key}",
+      "method": "GET",
+      "name": "scale",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/sensitivity/{site_key}",
+      "method": "GET",
+      "name": "sensitivity",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/sites",
+      "method": "GET",
+      "name": "sites",
+      "group": "reference",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/timeline/{site_key}/{day}",
+      "method": "GET",
+      "name": "timeline",
+      "group": "advisory",
+      "exempt": false
+    }
+  ],
+  "optional_entries": [
+    {
+      "kind": "mount",
+      "path": "/dashboard",
+      "method": "",
+      "name": "dashboard",
+      "group": "static",
+      "exempt": false
+    },
+    {
+      "kind": "route",
+      "path": "/dashboard",
+      "method": "GET",
+      "name": "_dashboard_redirect",
+      "group": "static",
+      "exempt": false
+    }
+  ],
+  "optional_entries_note": "Present only when web/dist exists (gitignored). CI Python job typically omits them; local dashboard builds include them. Both must classify as static."
+}

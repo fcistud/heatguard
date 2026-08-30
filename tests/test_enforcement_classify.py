@@ -70,6 +70,37 @@ def test_unknown_path_is_not_exempt() -> None:
     assert result.exempt is False
 
 
+def test_parameterised_fastapi_path_strings() -> None:
+    timeline = classify_request("/timeline/{site_key}/{day}", "GET")
+    hour = classify_request("/hour/{site_key}/{day}/{hour}", "GET")
+    compliance = classify_request("/compliance/{site_key}/export", "GET")
+    demo = classify_request("/demo/{site_key}", "GET")
+    assert timeline.group == "advisory" and timeline.exempt is False
+    assert hour.group == "advisory" and hour.exempt is False
+    assert demo.group == "advisory" and demo.exempt is False
+    assert compliance.group == "reference" and compliance.exempt is False
+
+
+def test_mount_paths_classify_as_static() -> None:
+    dashboard = classify_request("/dashboard", "GET")
+    dashboard_asset = classify_request("/dashboard/index.html", "GET")
+    root = classify_request("/", "GET")
+    landing = classify_request("/landing", "GET")
+    assert dashboard.group == dashboard_asset.group == "static"
+    assert root.group == landing.group == "static"
+    assert dashboard.exempt is False
+    assert root.exempt is False
+
+
+def test_method_path_pairs_share_path_group() -> None:
+    assert classify_request("/policy/query", "POST").group == "reference"
+    assert classify_request("/policy/query", "GET").group == "reference"
+    assert classify_request("/decide", "POST").group == "advisory"
+    assert classify_request("/decide", "GET").group == "advisory"
+    assert classify_request("/sites", "HEAD").group == "reference"
+    assert classify_request("/health/live", "OPTIONS").exempt is True
+
+
 def test_refusal_body_shape_matches_fixture() -> None:
     expected = _fixture()["refusal_body"]
     body = refusal_body("abc-123")

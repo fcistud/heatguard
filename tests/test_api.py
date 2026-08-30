@@ -324,6 +324,28 @@ def test_cors_no_origin_header_unaffected():
     assert r.json()["status"] == "ok"
 
 
+def test_route_table_coverage_gate() -> None:
+    """Enumerate app.routes against the production enforcement classifier (WO-006)."""
+    from pathlib import Path
+
+    from route_coverage_gate import (
+        collect_live_route_entries,
+        coverage_report,
+        format_coverage_failure,
+        report_is_clean,
+    )
+
+    fixture = json.loads(
+        (Path(__file__).parent / "fixtures" / "route_inventory.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    live = collect_live_route_entries(app)
+    report = coverage_report(live, fixture)
+    if not report_is_clean(report):
+        raise AssertionError(format_coverage_failure(report))
+
+
 def test_register_cors_boot_fails_on_production_wildcard():
     from fastapi import FastAPI
 
