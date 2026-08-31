@@ -26,6 +26,7 @@ from .boundary.api_keys import KeyStoreRef, load_key_store
 from .boundary.auth_mode import AuthModeRef, load_auth_modes
 from .boundary.cors_config import ConfigurationError, CorsSettings, resolve_cors_settings
 from .boundary.enforcement import EnforcementMiddleware
+from .boundary.quota import QuotaRef, load_quota_runtime
 from .boundary.session_tokens import SessionAuthRef, load_session_auth
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
@@ -35,6 +36,7 @@ log = get_logger(__name__)
 _KEY_STORE_REF = KeyStoreRef()
 _SESSION_AUTH_REF = SessionAuthRef()
 _AUTH_MODE_REF = AuthModeRef()
+_QUOTA_REF = QuotaRef()
 
 
 def bind_key_store(application: FastAPI | None = None, env: Mapping[str, str] | None = None) -> None:
@@ -63,6 +65,19 @@ def bind_auth_modes(
     _AUTH_MODE_REF.snapshot = snapshot
     if application is not None:
         application.state.auth_modes = snapshot
+
+
+def bind_quota(
+    application: FastAPI | None = None,
+    env: Mapping[str, str] | None = None,
+    *,
+    clock: Any = None,
+) -> None:
+    """Resolve bucket sizing and allocate the in-process store once."""
+    runtime = load_quota_runtime(env if env is not None else os.environ, clock=clock)
+    _QUOTA_REF.runtime = runtime
+    if application is not None:
+        application.state.quota = runtime
 
 
 def _warm_caches() -> None:
@@ -102,6 +117,7 @@ async def lifespan(app: FastAPI):
     bind_key_store(app)
     bind_session_auth(app)
     bind_auth_modes(app)
+    bind_quota(app)
     v = sys.version_info
     log.info(
         "heatguard.runtime",
@@ -153,11 +169,13 @@ app.add_middleware(
     key_store_ref=_KEY_STORE_REF,
     session_auth_ref=_SESSION_AUTH_REF,
     auth_mode_ref=_AUTH_MODE_REF,
+    quota_ref=_QUOTA_REF,
 )
 try:
     bind_key_store(app)
     bind_session_auth(app)
     bind_auth_modes(app)
+    bind_quota(app)
 except ConfigurationError:
     pass
 # Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).

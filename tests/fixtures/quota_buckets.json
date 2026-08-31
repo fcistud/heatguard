@@ -1,0 +1,76 @@
+{
+  "description": "Bucket-configuration matrix for HEATGUARD_QUOTA_* (WO-007). Do not auto-heal.",
+  "defaults": {
+    "capacity": 10000,
+    "refill_per_sec": 1000,
+    "max_buckets": 4096
+  },
+  "known_key_classes": ["anonymous", "dashboard", "demo", "internal", "partner"],
+  "cases": [
+    {
+      "id": "empty_uses_defaults",
+      "env": {},
+      "expect": {
+        "anonymous/reference": [10000, 1000],
+        "demo/advisory": [10000, 1000]
+      }
+    },
+    {
+      "id": "key_class_override",
+      "env": {
+        "HEATGUARD_QUOTA_KEY_CAPACITY_ANONYMOUS": "3",
+        "HEATGUARD_QUOTA_KEY_REFILL_ANONYMOUS": "1"
+      },
+      "expect": {
+        "anonymous/reference": [3, 1],
+        "dashboard/reference": [10000, 1000]
+      }
+    },
+    {
+      "id": "group_override",
+      "env": {
+        "HEATGUARD_QUOTA_GROUP_CAPACITY_SESSION": "5",
+        "HEATGUARD_QUOTA_GROUP_REFILL_SESSION": "1"
+      },
+      "expect": {
+        "anonymous/session": [5, 1],
+        "anonymous/reference": [10000, 1000]
+      }
+    },
+    {
+      "id": "cell_beats_key_and_group",
+      "env": {
+        "HEATGUARD_QUOTA_KEY_CAPACITY_ANONYMOUS": "8",
+        "HEATGUARD_QUOTA_GROUP_CAPACITY_ADVISORY": "6",
+        "HEATGUARD_QUOTA_CELL_CAPACITY_ANONYMOUS_ADVISORY": "2"
+      },
+      "expect": {
+        "anonymous/advisory": [2, 1000],
+        "anonymous/reference": [8, 1000],
+        "dashboard/advisory": [6, 1000]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "zero_capacity",
+      "env": {"HEATGUARD_QUOTA_CAPACITY": "0"},
+      "variable": "HEATGUARD_QUOTA_CAPACITY"
+    },
+    {
+      "id": "unknown_key_class",
+      "env": {"HEATGUARD_QUOTA_KEY_CAPACITY_SPOOF": "10"},
+      "variable": "HEATGUARD_QUOTA_KEY_CAPACITY_SPOOF"
+    },
+    {
+      "id": "unknown_group",
+      "env": {"HEATGUARD_QUOTA_GROUP_CAPACITY_TIMELINE": "10"},
+      "variable": "HEATGUARD_QUOTA_GROUP_CAPACITY_TIMELINE"
+    },
+    {
+      "id": "invalid_observe_only",
+      "env": {"HEATGUARD_QUOTA_OBSERVE_ONLY": "maybe"},
+      "variable": "HEATGUARD_QUOTA_OBSERVE_ONLY"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ Not everything is automated in the running API or `cloudbuild.yaml` yet:
 
 | Area | Shipped today | Runbook / alert contract |
 |------|---------------|---------------------------|
-| Rate limiting | Metric `heatguard_ratelimit_rejected_total` + helper only | 429 responses, demo-key exemption — **middleware pending** |
+| Rate limiting | In-process token bucket in EnforcementMiddleware; 429 + `Retry-After`; demo `key_class` exempt; `HEATGUARD_QUOTA_OBSERVE_ONLY` | Shared Memorystore store — **WO-008 pending** |
 | Canary deploy | Direct Cloud Run deploy | 10% → 50% → 100% progression — **comments in `cloudbuild.yaml` only** |
 | Auth dual-mode | Per-group `HEATGUARD_AUTH_MODE` / `HEATGUARD_AUTH_MODE_<GROUP>` in EnforcementMiddleware | dual admits + `auth.deprecated_anonymous`; enforce → 401/403 |
 | Route coverage gate | pytest vs `tests/fixtures/route_inventory.json` | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
@@ -107,6 +107,24 @@ demo ops channel. No compliance escalation.
 
 Public demo routes and anonymous callers. Authenticated / demo-key traffic must
 remain available for investor sessions.
+
+Configuration (resolved once at boot; invalid values fail the revision):
+
+- `HEATGUARD_QUOTA_CAPACITY` / `HEATGUARD_QUOTA_REFILL_PER_SEC` — defaults
+  10000 tokens and 1000/s (generous so a false 429 on an advisory is not the
+  boot posture).
+- `HEATGUARD_QUOTA_KEY_CAPACITY_<CLASS>` / `HEATGUARD_QUOTA_KEY_REFILL_<CLASS>`
+  — per `key_class` (`ANONYMOUS`, `DEMO`, `PARTNER`, `INTERNAL`, `DASHBOARD`).
+- `HEATGUARD_QUOTA_GROUP_CAPACITY_<GROUP>` / `HEATGUARD_QUOTA_GROUP_REFILL_<GROUP>`
+  — per endpoint group. Session is origin-strict.
+- `HEATGUARD_QUOTA_CELL_CAPACITY_<CLASS>_<GROUP>` — most specific override.
+- `HEATGUARD_QUOTA_OBSERVE_ONLY` — count would-be 429s without refusing.
+- `HEATGUARD_QUOTA_MAX_BUCKETS` — LRU cap (default 4096).
+- Demo `key_class` is never throttled. Probes and `/metrics` are exempt.
+- Capacity or refill `<= 0` fails boot.
+
+Shared Memorystore backing is **WO-008**. An in-process limiter failure admits
+the request (quota-only fail-open) rather than withholding an advisory.
 
 ### Immediate mitigation
 
