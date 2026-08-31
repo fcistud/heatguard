@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from . import health as health_probes
 from . import service
 from .boundary.api_keys import KeyStoreRef, load_key_store
+from .boundary.auth_mode import AuthModeRef, load_auth_modes
 from .boundary.cors_config import ConfigurationError, CorsSettings, resolve_cors_settings
 from .boundary.enforcement import EnforcementMiddleware
 from .boundary.session_tokens import SessionAuthRef, load_session_auth
@@ -33,6 +34,7 @@ from .types import MetabolicCategory
 log = get_logger(__name__)
 _KEY_STORE_REF = KeyStoreRef()
 _SESSION_AUTH_REF = SessionAuthRef()
+_AUTH_MODE_REF = AuthModeRef()
 
 
 def bind_key_store(application: FastAPI | None = None, env: Mapping[str, str] | None = None) -> None:
@@ -51,6 +53,16 @@ def bind_session_auth(
     _SESSION_AUTH_REF.auth = auth
     if application is not None:
         application.state.session_auth = auth
+
+
+def bind_auth_modes(
+    application: FastAPI | None = None, env: Mapping[str, str] | None = None
+) -> None:
+    """Resolve per-group dual/enforce posture once for EnforcementMiddleware."""
+    snapshot = load_auth_modes(env if env is not None else os.environ)
+    _AUTH_MODE_REF.snapshot = snapshot
+    if application is not None:
+        application.state.auth_modes = snapshot
 
 
 def _warm_caches() -> None:
@@ -89,6 +101,7 @@ async def lifespan(app: FastAPI):
     obs_metrics.maybe_configure_export()
     bind_key_store(app)
     bind_session_auth(app)
+    bind_auth_modes(app)
     v = sys.version_info
     log.info(
         "heatguard.runtime",
@@ -139,10 +152,12 @@ app.add_middleware(
     EnforcementMiddleware,
     key_store_ref=_KEY_STORE_REF,
     session_auth_ref=_SESSION_AUTH_REF,
+    auth_mode_ref=_AUTH_MODE_REF,
 )
 try:
     bind_key_store(app)
     bind_session_auth(app)
+    bind_auth_modes(app)
 except ConfigurationError:
     pass
 # Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).

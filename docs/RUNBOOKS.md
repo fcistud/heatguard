@@ -16,7 +16,7 @@ Not everything is automated in the running API or `cloudbuild.yaml` yet:
 |------|---------------|---------------------------|
 | Rate limiting | Metric `heatguard_ratelimit_rejected_total` + helper only | 429 responses, demo-key exemption — **middleware pending** |
 | Canary deploy | Direct Cloud Run deploy | 10% → 50% → 100% progression — **comments in `cloudbuild.yaml` only** |
-| Auth dual-mode | Log event `auth.deprecated_anonymous` + monitoring gate | `HEATGUARD_AUTH_MODE=dual` → `enforce` — **API auth middleware pending** |
+| Auth dual-mode | Per-group `HEATGUARD_AUTH_MODE` / `HEATGUARD_AUTH_MODE_<GROUP>` in EnforcementMiddleware | dual admits + `auth.deprecated_anonymous`; enforce → 401/403 |
 | Route coverage gate | pytest vs `tests/fixtures/route_inventory.json` | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
 
 When a procedure assumes behaviour that is not in code yet, treat it as the target
@@ -290,10 +290,32 @@ immutable image digest already recorded at deploy time.
 
 ## Auth dual-mode promotion gate
 
-Monitored condition (not a paging incident class): promotion from
-`HEATGUARD_AUTH_MODE=dual` to `enforce` requires **zero**
-`auth.deprecated_anonymous` structured events for **72 consecutive hours**
-(WO-013 / [SLO.md](SLO.md)).
+Monitored condition (not a paging incident class): promotion of **one
+endpoint group** from `HEATGUARD_AUTH_MODE=dual` to `enforce` requires **zero**
+`auth.deprecated_anonymous` structured events **for that group** for **72
+consecutive hours** (WO-013 / [SLO.md](SLO.md)).
+
+Configuration (resolved once at boot; invalid values fail the revision):
+
+- `HEATGUARD_AUTH_MODE` — service baseline (`dual` default, or `enforce`).
+- `HEATGUARD_AUTH_MODE_<GROUP>` — per-group override (`ADVISORY`, `REFERENCE`,
+  `SESSION`, `STATIC`). Probes and metrics cannot be overridden and stay
+  reachable without credentials.
+- Request-time `unknown` paths follow the baseline (never a weaker admit).
+
+### Promotion procedure
+
+1. Confirm the 72-hour quiet window for the group (`route_group` on
+   `auth.deprecated_anonymous`).
+2. Record sign-off (WO-041 ledger when present).
+3. Deploy a revision that sets only that group's override to `enforce`.
+4. Verify anonymous callers to that group receive 401; other groups unchanged.
+
+### Revert procedure
+
+1. Set that group's override back to `dual` (or unset it if the baseline is dual).
+2. Deploy; anonymous admission returns for **only** that group.
+3. Re-open the quiet window before promoting again.
 
 ### Symptom and alert that fires
 

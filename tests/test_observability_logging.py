@@ -267,6 +267,7 @@ def test_auth_deprecated_anonymous_helper_schema(captured_logs: list[dict]) -> N
         origin="https://example.test",
         user_agent="pytest",
         request_id="r1",
+        route_group="advisory",
     )
     events = _events(captured_logs, AUTH_DEPRECATED_ANONYMOUS)
     assert len(events) == 1
