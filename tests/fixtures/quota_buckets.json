@@ -53,9 +53,9 @@
   ],
   "invalid": [
     {
-      "id": "zero_capacity",
-      "env": {"HEATGUARD_QUOTA_CAPACITY": "0"},
-      "variable": "HEATGUARD_QUOTA_CAPACITY"
+      "id": "zero_refill",
+      "env": {"HEATGUARD_QUOTA_REFILL_PER_SEC": "0"},
+      "variable": "HEATGUARD_QUOTA_REFILL_PER_SEC"
     },
     {
       "id": "unknown_key_class",

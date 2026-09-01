@@ -25,6 +25,7 @@ from heatguard.boundary.quota import (
     InProcessQuotaStore,
     bucket_key,
     coarse_origin,
+    load_quota_runtime,
     resolve_quota_settings,
     retry_after_seconds,
 )
@@ -92,6 +93,23 @@ def test_resolve_quota_settings_invalid_fails_boot(case: dict) -> None:
     with pytest.raises(ConfigurationError) as excinfo:
         resolve_quota_settings(case["env"])
     assert case["variable"] in str(excinfo.value)
+
+
+def test_zero_refill_error_does_not_say_capacity() -> None:
+    with pytest.raises(ConfigurationError) as excinfo:
+        resolve_quota_settings({"HEATGUARD_QUOTA_REFILL_PER_SEC": "0"})
+    message = str(excinfo.value)
+    assert "HEATGUARD_QUOTA_REFILL_PER_SEC" in message
+    assert "must be > 0" in message
+    assert "capacity" not in message.lower()
+
+
+def test_runtime_now_uses_injected_clock() -> None:
+    clock = FakeClock(3.5)
+    runtime = load_quota_runtime({}, clock=clock)
+    assert runtime.now() == 3.5
+    clock.advance(1.0)
+    assert runtime.now() == 4.5
 
 
 def test_retry_after_never_zero_or_negative() -> None:

@@ -125,6 +125,11 @@ class QuotaRuntime:
 
     settings: QuotaSettings
     store: InProcessQuotaStore
+    clock: Callable[[], float] = time.monotonic
+
+    def now(self) -> float:
+        """Monotonic timestamp for ``consume``. Tests inject a fake clock here."""
+        return self.clock()
 
 
 def retry_after_seconds(*, deficit: float, refill_per_sec: float) -> int:
@@ -142,10 +147,8 @@ class InProcessQuotaStore:
         self,
         *,
         max_buckets: int = DEFAULT_MAX_BUCKETS,
-        clock: Callable[[], float] | None = None,
     ) -> None:
         self._max_buckets = max_buckets
-        self._clock = clock or time.monotonic
         self._lock = threading.Lock()
         self._buckets: OrderedDict[str, tuple[float, float]] = OrderedDict()
         self.evictions = 0
@@ -212,7 +215,7 @@ def _parse_positive_float(raw: str, *, variable: str) -> float:
         ) from exc
     if value <= 0:
         raise ConfigurationError(
-            f"{variable}={raw!r} must be > 0; a zero capacity would reject every request."
+            f"{variable}={raw!r} must be > 0."
         )
     return value
 
@@ -367,7 +370,8 @@ def load_quota_runtime(
     settings = resolve_quota_settings(env)
     return QuotaRuntime(
         settings=settings,
-        store=InProcessQuotaStore(max_buckets=settings.max_buckets, clock=clock),
+        store=InProcessQuotaStore(max_buckets=settings.max_buckets),
+        clock=clock or time.monotonic,
     )
 
 

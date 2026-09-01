@@ -665,7 +665,7 @@ class EnforcementMiddleware:
                 group=group,
             ),
             1.0,
-            runtime.store._clock(),
+            runtime.now(),
             capacity=capacity,
             refill_per_sec=refill,
         )
