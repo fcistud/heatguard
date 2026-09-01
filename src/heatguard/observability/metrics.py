@@ -64,6 +64,7 @@ degraded_conditions_total: Counter
 ratelimit_rejected_total: Counter
 ratelimit_would_reject_total: Counter
 quota_bucket_evicted_total: Counter
+quota_store_breaker_open: Gauge
 auth_outcome_total: Counter
 process_start_duration_seconds: Gauge
 
@@ -215,6 +216,11 @@ def _register(registry: CollectorRegistry) -> None:
     quota_bucket_evicted_total = Counter(
         "heatguard_quota_bucket_evicted_total",
         "In-process quota buckets evicted by the LRU cap (WO-007)",
+        registry=registry,
+    )
+    quota_store_breaker_open = Gauge(
+        "heatguard_quota_store_breaker_open",
+        "1 when the shared quota store breaker is open (WO-008)",
         registry=registry,
     )
     auth_outcome_total = Counter(
@@ -447,6 +453,16 @@ def observe_quota_bucket_evicted() -> None:
     _safe("heatguard_quota_bucket_evicted_total", _do)
 
 
+def observe_quota_store_breaker(*, open_: bool) -> None:
+    """Breaker open=1 / closed=0. Bounded — never labels the Redis URL."""
+
+    def _do() -> None:
+        get_registry()
+        quota_store_breaker_open.set(1.0 if open_ else 0.0)
+
+    _safe("heatguard_quota_store_breaker_open", _do)
+
+
 def observe_auth_outcome(
     *,
     route_group: str,
@@ -504,6 +520,7 @@ def registered_metric_label_names() -> dict[str, frozenset[str]]:
         "heatguard_ratelimit_rejected_total": frozenset({"route", "key_class"}),
         "heatguard_ratelimit_would_reject_total": frozenset({"route", "key_class"}),
         "heatguard_quota_bucket_evicted_total": frozenset(),
+        "heatguard_quota_store_breaker_open": frozenset(),
         "heatguard_auth_outcome_total": frozenset({"route_group", "key_class", "outcome"}),
         "heatguard_process_start_duration_seconds": frozenset(),
     }

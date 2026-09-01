@@ -26,6 +26,7 @@ from .quota import (
     load_quota_runtime,
     resolve_quota_settings,
 )
+from .quota_redis import RedisQuotaStore
 from .session_tokens import SessionAuth, load_session_auth, mint_session_token
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "KeyStore",
     "QuotaSettings",
     "QuotaStore",
+    "RedisQuotaStore",
     "RouteClassification",
     "SessionAuth",
     "access_decision",

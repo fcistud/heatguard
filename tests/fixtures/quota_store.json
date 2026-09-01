@@ -1,0 +1,22 @@
+{
+  "outage": {
+    "id": "command_timeout",
+    "fail": "timeout",
+    "capacity": "2",
+    "refill": "1"
+  },
+  "malformed": {
+    "id": "malformed_reply",
+    "fail": "malformed",
+    "capacity": "2",
+    "refill": "1"
+  },
+  "recovery": {
+    "id": "timeout_then_ok",
+    "fail_then_recover": true,
+    "capacity": "2",
+    "refill": "1",
+    "breaker_failures": "1",
+    "cooldown": "10"
+  }
+}

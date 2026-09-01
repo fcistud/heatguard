@@ -1,7 +1,7 @@
-"""In-process token-bucket quota (WO-007).
+"""In-process token-bucket quota (WO-007) plus shared-store fallback (WO-008).
 
-``QuotaStore.consume`` is the interface WO-008 will back with Memorystore.
-This module performs no network I/O; bucket math uses a monotonic clock.
+``QuotaStore.consume`` is the interface. ``InProcessQuotaStore`` is local;
+``RedisQuotaStore`` (``quota_redis``) is authoritative when a URL is configured.
 """
 from __future__ import annotations
 
@@ -120,16 +120,132 @@ class QuotaRef:
 
 
 @dataclass(slots=True)
+class StoreBreaker:
+    """Skip the shared store after consecutive failures for a cool-down."""
+
+    failure_threshold: int = 3
+    cooldown_seconds: float = 5.0
+    consecutive_failures: int = 0
+    open_until: float = 0.0
+
+    def is_open(self, now: float) -> bool:
+        return now < self.open_until
+
+    def record_success(self) -> None:
+        self.consecutive_failures = 0
+        self.open_until = 0.0
+
+    def record_failure(self, now: float) -> None:
+        self.consecutive_failures += 1
+        if self.consecutive_failures >= self.failure_threshold:
+            self.open_until = now + self.cooldown_seconds
+
+
+@dataclass(slots=True)
 class QuotaRuntime:
-    """Settings plus the in-process store consulted on every request."""
+    """Settings plus the store consulted on every request.
+
+    When ``fallback`` is set, ``store`` is the shared Redis adapter and
+    in-process buckets are used only after a timeout or breaker-open.
+    """
 
     settings: QuotaSettings
-    store: InProcessQuotaStore
+    store: QuotaStore
     clock: Callable[[], float] = time.monotonic
+    fallback: InProcessQuotaStore | None = None
+    breaker: StoreBreaker | None = None
+    _unavailable_counted: bool = False
 
     def now(self) -> float:
-        """Monotonic timestamp for ``consume``. Tests inject a fake clock here."""
+        """Timestamp for ``consume``. Tests inject a fake clock here."""
         return self.clock()
+
+    def consume(
+        self,
+        bucket_key: str,
+        cost: float,
+        now: float,
+        *,
+        capacity: float,
+        refill_per_sec: float,
+    ) -> ConsumeResult:
+        """Debit ``store``, falling back to in-process on shared-store failure.
+
+        A request is never charged against both bucket sets.
+        """
+        fallback = self.fallback
+        breaker = self.breaker
+        if fallback is None or breaker is None:
+            return self.store.consume(
+                bucket_key,
+                cost,
+                now,
+                capacity=capacity,
+                refill_per_sec=refill_per_sec,
+            )
+        if breaker.is_open(now):
+            self._latch_unavailable()
+            return fallback.consume(
+                bucket_key,
+                cost,
+                now,
+                capacity=capacity,
+                refill_per_sec=refill_per_sec,
+            )
+        try:
+            result = self.store.consume(
+                bucket_key,
+                cost,
+                now,
+                capacity=capacity,
+                refill_per_sec=refill_per_sec,
+            )
+        except Exception as exc:
+            from heatguard.boundary.quota_redis import QuotaStoreUnavailable
+
+            if not isinstance(exc, QuotaStoreUnavailable):
+                raise
+            breaker.record_failure(now)
+            self._latch_unavailable()
+            self._set_breaker_gauge(open_=breaker.is_open(now))
+            return fallback.consume(
+                bucket_key,
+                cost,
+                now,
+                capacity=capacity,
+                refill_per_sec=refill_per_sec,
+            )
+        breaker.record_success()
+        self._unavailable_counted = False
+        self._set_breaker_gauge(open_=False)
+        return result
+
+    def _latch_unavailable(self) -> None:
+        from heatguard.observability.degradation import (
+            RATELIMIT_STORE_UNAVAILABLE,
+            report_degraded,
+        )
+        from heatguard.observability.events import QUOTA_STORE_UNAVAILABLE
+        from heatguard.observability.metrics import observe_degraded_condition
+
+        first = not self._unavailable_counted
+        self._unavailable_counted = True
+
+        def _inc() -> None:
+            observe_degraded_condition(reason_code=RATELIMIT_STORE_UNAVAILABLE)
+
+        report_degraded(
+            RATELIMIT_STORE_UNAVAILABLE,
+            detail="shared quota store unreachable",
+            once_key="ratelimit_store_unavailable",
+            log_event=QUOTA_STORE_UNAVAILABLE,
+            increment_metric=_inc if first else None,
+        )
+
+    def _set_breaker_gauge(self, *, open_: bool) -> None:
+        from heatguard.observability.metrics import observe_quota_store_breaker
+
+        observe_quota_store_breaker(open_=open_)
 
 
 def retry_after_seconds(*, deficit: float, refill_per_sec: float) -> int:
@@ -365,13 +481,33 @@ def load_quota_runtime(
     env: Mapping[str, str] | None = None,
     *,
     clock: Callable[[], float] | None = None,
+    shared_store: QuotaStore | None = None,
 ) -> QuotaRuntime:
-    """Bind-time wrapper: freeze settings and allocate a fresh in-process store."""
+    """Bind-time wrapper: freeze settings and attach in-process and/or Redis stores."""
+    from heatguard.boundary.quota_redis import (
+        RedisQuotaStore,
+        resolve_redis_settings,
+    )
+
     settings = resolve_quota_settings(env)
+    in_process = InProcessQuotaStore(max_buckets=settings.max_buckets)
+    redis_cfg = resolve_redis_settings(env)
+    if shared_store is None and not redis_cfg.url:
+        return QuotaRuntime(
+            settings=settings,
+            store=in_process,
+            clock=clock or time.monotonic,
+        )
+    primary = shared_store or RedisQuotaStore.from_url(redis_cfg)
     return QuotaRuntime(
         settings=settings,
-        store=InProcessQuotaStore(max_buckets=settings.max_buckets),
-        clock=clock or time.monotonic,
+        store=primary,
+        fallback=in_process,
+        breaker=StoreBreaker(
+            failure_threshold=redis_cfg.breaker_failures,
+            cooldown_seconds=redis_cfg.breaker_cooldown,
+        ),
+        clock=clock or time.time,
     )
 
 

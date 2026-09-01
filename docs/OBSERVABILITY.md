@@ -67,6 +67,7 @@ Unknown scanner paths use route label `unmatched`.
 | `heatguard_ratelimit_rejected_total` | counter | `route`, `key_class` | Incremented on 429 via `observe_ratelimit_rejected` |
 | `heatguard_ratelimit_would_reject_total` | counter | `route`, `key_class` | Observe-only over-limit counts (`HEATGUARD_QUOTA_OBSERVE_ONLY`) |
 | `heatguard_quota_bucket_evicted_total` | counter | — | LRU evictions of in-process buckets |
+| `heatguard_quota_store_breaker_open` | gauge | — | 1 while the shared-store breaker is open |
 | `heatguard_process_start_duration_seconds` | gauge | — | Lifespan warm-up once per process |
 
 ### Helpers for later epics
@@ -75,6 +76,7 @@ Unknown scanner paths use route label `unmatched`.
 - `observe_not_modified(route)` / `observe_compression_ratio(ratio)` — caching/compression
 - `observe_ratelimit_rejected(route, key_class)` — 429 path
 - `observe_ratelimit_would_reject(route, key_class)` — observe-only over-limit
+- `observe_quota_store_breaker(open_)` — Redis breaker open/closed
 
 ### SLO queries (WO-017)
 

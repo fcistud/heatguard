@@ -658,7 +658,7 @@ class EnforcementMiddleware:
             _header_text(list(scope.get("headers") or []), b"origin")
         )
         capacity, refill = runtime.settings.params_for(key_class, group)
-        result = runtime.store.consume(
+        result = runtime.consume(
             bucket_key(
                 principal_id=principal.principal_id,
                 origin=origin,
@@ -675,7 +675,6 @@ class EnforcementMiddleware:
         if runtime.settings.observe_only:
             observe_ratelimit_would_reject(route=route, key_class=key_class)
             return False
-        observe_ratelimit_rejected(route=route, key_class=key_class)
         await _send_refusal(
             send,
             request_id=request_id,
@@ -685,6 +684,7 @@ class EnforcementMiddleware:
                 (b"retry-after", str(result.retry_after_seconds).encode("ascii")),
             ],
         )
+        observe_ratelimit_rejected(route=route, key_class=key_class)
         return True
 
     async def _authenticate_api_key(
