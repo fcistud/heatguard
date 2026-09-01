@@ -64,14 +64,17 @@ Unknown scanner paths use route label `unmatched`.
 | `heatguard_compliance_records_appended_total` | counter | `site_key`, `kind` | Per append |
 | `heatguard_engine_decisions_total` | counter | `signal` | Season replays batched |
 | `heatguard_wbgt_source_total` | counter | `source` | `liljegren`\|`measured`\|`fallback` |
-| `heatguard_ratelimit_rejected_total` | counter | `route`, `key_class` | Metric contract + helper `observe_ratelimit_rejected`; **429 enforcement middleware not shipped yet** |
+| `heatguard_ratelimit_rejected_total` | counter | `route`, `key_class` | Incremented on 429 via `observe_ratelimit_rejected` |
+| `heatguard_ratelimit_would_reject_total` | counter | `route`, `key_class` | Observe-only over-limit counts (`HEATGUARD_QUOTA_OBSERVE_ONLY`) |
+| `heatguard_quota_bucket_evicted_total` | counter | — | LRU evictions of in-process buckets |
 | `heatguard_process_start_duration_seconds` | gauge | — | Lifespan warm-up once per process |
 
 ### Helpers for later epics
 
 - `observe_panel_cache(panel, result)` — panel cache epic
 - `observe_not_modified(route)` / `observe_compression_ratio(ratio)` — caching/compression
-- `observe_ratelimit_rejected(route, key_class)` — auth / trust boundary
+- `observe_ratelimit_rejected(route, key_class)` — 429 path
+- `observe_ratelimit_would_reject(route, key_class)` — observe-only over-limit
 
 ### SLO queries (WO-017)
 

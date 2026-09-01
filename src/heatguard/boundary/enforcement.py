@@ -4,7 +4,8 @@ Classifies every HTTP request, stamps group/exempt on the ASGI scope, verifies
 integrator API keys (WO-003) and HS256 session tokens (WO-004) when presented,
 and never fails open: unexpected errors become a structured 403. Missing
 credentials admit in dual mode and receive 401 in enforce (WO-005). Quota
-attaches later.
+is the one fail-open path: limiter errors admit rather than withhold an
+advisory.
 """
 from __future__ import annotations
 
@@ -22,6 +23,15 @@ from heatguard.boundary.auth_mode import (
     AuthModeSnapshot,
     principal_permits_route,
 )
+from heatguard.boundary.quota import (
+    ANONYMOUS_KEY_CLASS,
+    DEFAULT_RUNTIME,
+    DEMO_KEY_CLASS,
+    QuotaRef,
+    QuotaRuntime,
+    bucket_key,
+    coarse_origin,
+)
 from heatguard.boundary.session_tokens import (
     MAX_TOKEN_CHARS,
     SessionAuth,
@@ -35,7 +45,11 @@ from heatguard.observability.logging import (
     emit_auth_deprecated_anonymous,
     get_logger,
 )
-from heatguard.observability.metrics import observe_auth_outcome
+from heatguard.observability.metrics import (
+    observe_auth_outcome,
+    observe_ratelimit_rejected,
+    observe_ratelimit_would_reject,
+)
 from heatguard.types import (
     PRINCIPAL_SCOPE_KEY,
     REQUEST_ID_SCOPE_KEY,
@@ -48,9 +62,11 @@ EMPTY_PRINCIPAL = PrincipalContext()
 REFUSAL_CODE_INTERNAL = "enforcement_internal_error"
 REFUSAL_CODE_UNAUTHENTICATED = "unauthenticated"
 REFUSAL_CODE_FORBIDDEN = "forbidden"
+REFUSAL_CODE_QUOTA = "quota_exceeded"
 REFUSAL_MESSAGE = "Request refused."
 REFUSAL_STATUS = 403
 REFUSAL_STATUS_UNAUTH = 401
+REFUSAL_STATUS_QUOTA = 429
 
 HEADER_API_KEY = b"x-api-key"
 HEADER_AUTHORIZATION = b"authorization"
@@ -317,6 +333,25 @@ def _resolve_session_auth(
     return None
 
 
+def _resolve_quota(
+    *,
+    injected: QuotaRuntime | None,
+    ref: QuotaRef | None,
+    app: Any,
+    scope: Mapping[str, Any],
+) -> QuotaRuntime:
+    if injected is not None:
+        return injected
+    if ref is not None and isinstance(ref.runtime, QuotaRuntime):
+        return ref.runtime
+    for candidate in (app, scope.get("app")):
+        state = getattr(candidate, "state", None)
+        runtime = getattr(state, "quota", None)
+        if isinstance(runtime, QuotaRuntime):
+            return runtime
+    return DEFAULT_RUNTIME
+
+
 def _resolve_auth_modes(
     *,
     injected: AuthModeSnapshot | None,
@@ -387,6 +422,7 @@ async def _send_refusal(
     request_id: str,
     code: str = REFUSAL_CODE_INTERNAL,
     status: int = REFUSAL_STATUS,
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
 ) -> None:
     payload = json.dumps(
         refusal_body(request_id, code=code),
@@ -398,6 +434,8 @@ async def _send_refusal(
         (b"x-request-id", request_id.encode("ascii", errors="replace")),
         (b"content-length", str(len(payload)).encode("ascii")),
     ]
+    if extra_headers:
+        headers.extend(extra_headers)
     await send({"type": "http.response.start", "status": status, "headers": headers})
     await send({"type": "http.response.body", "body": payload, "more_body": False})
 
@@ -416,6 +454,8 @@ class EnforcementMiddleware:
         session_auth_ref: SessionAuthRef | None = None,
         auth_modes: AuthModeSnapshot | None = None,
         auth_mode_ref: AuthModeRef | None = None,
+        quota: QuotaRuntime | None = None,
+        quota_ref: QuotaRef | None = None,
     ) -> None:
         self.app = app
         self._classify = classify
@@ -425,6 +465,8 @@ class EnforcementMiddleware:
         self._session_auth_ref = session_auth_ref
         self._auth_modes = auth_modes
         self._auth_mode_ref = auth_mode_ref
+        self._quota = quota
+        self._quota_ref = quota_ref
 
     async def __call__(self, scope: dict[str, Any], receive: ReceiveFn, send: SendFn) -> None:
         if scope.get("type") != "http":
@@ -560,6 +602,25 @@ class EnforcementMiddleware:
                     key_class=principal.key_class or "none",
                     outcome="authenticated",
                 )
+            if not classification.exempt:
+                try:
+                    refused = await self._enforce_quota(
+                        send,
+                        request_id=request_id,
+                        path=str(path),
+                        group=group,
+                        principal=principal,
+                        scope=scope,
+                    )
+                except Exception:
+                    get_logger("heatguard.enforcement").warning(
+                        "quota.limiter_error",
+                        request_id=request_id,
+                        route_group=group,
+                    )
+                    refused = False
+                if refused:
+                    return
         except Exception as exc:
             log = get_logger("heatguard.enforcement")
             log.error(
@@ -572,6 +633,59 @@ class EnforcementMiddleware:
             return
 
         await self.app(scope, receive, send)
+
+    async def _enforce_quota(
+        self,
+        send: SendFn,
+        *,
+        request_id: str,
+        path: str,
+        group: str,
+        principal: PrincipalContext,
+        scope: Mapping[str, Any],
+    ) -> bool:
+        """Return True when a 429 was sent. Demo keys and limiter errors admit."""
+        if principal.key_class == DEMO_KEY_CLASS:
+            return False
+        runtime = _resolve_quota(
+            injected=self._quota,
+            ref=self._quota_ref,
+            app=self.app,
+            scope=scope,
+        )
+        key_class = principal.key_class or ANONYMOUS_KEY_CLASS
+        origin = coarse_origin(
+            _header_text(list(scope.get("headers") or []), b"origin")
+        )
+        capacity, refill = runtime.settings.params_for(key_class, group)
+        result = runtime.store.consume(
+            bucket_key(
+                principal_id=principal.principal_id,
+                origin=origin,
+                group=group,
+            ),
+            1.0,
+            runtime.now(),
+            capacity=capacity,
+            refill_per_sec=refill,
+        )
+        if result.allowed:
+            return False
+        route = canonical_path(path)
+        if runtime.settings.observe_only:
+            observe_ratelimit_would_reject(route=route, key_class=key_class)
+            return False
+        observe_ratelimit_rejected(route=route, key_class=key_class)
+        await _send_refusal(
+            send,
+            request_id=request_id,
+            code=REFUSAL_CODE_QUOTA,
+            status=REFUSAL_STATUS_QUOTA,
+            extra_headers=[
+                (b"retry-after", str(result.retry_after_seconds).encode("ascii")),
+            ],
+        )
+        return True
 
     async def _authenticate_api_key(
         self,

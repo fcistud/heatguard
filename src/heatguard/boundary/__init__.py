@@ -19,6 +19,13 @@ from .enforcement import (
     principal_from_scope,
     refusal_body,
 )
+from .quota import (
+    InProcessQuotaStore,
+    QuotaSettings,
+    QuotaStore,
+    load_quota_runtime,
+    resolve_quota_settings,
+)
 from .session_tokens import SessionAuth, load_session_auth, mint_session_token
 
 __all__ = [
@@ -26,7 +33,10 @@ __all__ = [
     "AuthModeSnapshot",
     "EMPTY_PRINCIPAL",
     "EnforcementMiddleware",
+    "InProcessQuotaStore",
     "KeyStore",
+    "QuotaSettings",
+    "QuotaStore",
     "RouteClassification",
     "SessionAuth",
     "access_decision",
@@ -35,11 +45,13 @@ __all__ = [
     "compute_digest",
     "load_auth_modes",
     "load_key_store",
+    "load_quota_runtime",
     "load_session_auth",
     "mint_session_token",
     "principal_from_scope",
     "principal_permits_route",
     "refusal_body",
     "resolve_auth_modes",
+    "resolve_quota_settings",
     "site_key_from_path",
 ]

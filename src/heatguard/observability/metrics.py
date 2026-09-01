@@ -62,6 +62,8 @@ weather_field_substituted_total: Counter
 risk_model_fallback_total: Counter
 degraded_conditions_total: Counter
 ratelimit_rejected_total: Counter
+ratelimit_would_reject_total: Counter
+quota_bucket_evicted_total: Counter
 auth_outcome_total: Counter
 process_start_duration_seconds: Gauge
 
@@ -95,6 +97,7 @@ def _register(registry: CollectorRegistry) -> None:
     global weather_fetch_total, weather_fetch_duration_seconds
     global compliance_chain_verify_total, compliance_records_appended_total
     global engine_decisions_total, wbgt_source_total, ratelimit_rejected_total
+    global ratelimit_would_reject_total, quota_bucket_evicted_total
     global wbgt_path_total, weather_field_substituted_total
     global risk_model_fallback_total, degraded_conditions_total
     global process_start_duration_seconds, auth_outcome_total
@@ -199,8 +202,19 @@ def _register(registry: CollectorRegistry) -> None:
     )
     ratelimit_rejected_total = Counter(
         "heatguard_ratelimit_rejected_total",
-        "Rate-limit rejections (trust-boundary epic wires enforcement)",
+        "Rate-limit rejections by route and key class",
         ["route", "key_class"],
+        registry=registry,
+    )
+    ratelimit_would_reject_total = Counter(
+        "heatguard_ratelimit_would_reject_total",
+        "Would-be rate-limit rejections counted in observe-only mode (WO-007)",
+        ["route", "key_class"],
+        registry=registry,
+    )
+    quota_bucket_evicted_total = Counter(
+        "heatguard_quota_bucket_evicted_total",
+        "In-process quota buckets evicted by the LRU cap (WO-007)",
         registry=registry,
     )
     auth_outcome_total = Counter(
@@ -413,6 +427,26 @@ def observe_ratelimit_rejected(*, route: str, key_class: str) -> None:
     _safe("heatguard_ratelimit_rejected_total", _do)
 
 
+def observe_ratelimit_would_reject(*, route: str, key_class: str) -> None:
+    """Count observe-only over-limit events. Labels stay bounded — never origin."""
+
+    def _do() -> None:
+        get_registry()
+        ratelimit_would_reject_total.labels(route=route, key_class=key_class).inc()
+
+    _safe("heatguard_ratelimit_would_reject_total", _do)
+
+
+def observe_quota_bucket_evicted() -> None:
+    """Count LRU evictions of in-process quota buckets."""
+
+    def _do() -> None:
+        get_registry()
+        quota_bucket_evicted_total.inc()
+
+    _safe("heatguard_quota_bucket_evicted_total", _do)
+
+
 def observe_auth_outcome(
     *,
     route_group: str,
@@ -468,6 +502,8 @@ def registered_metric_label_names() -> dict[str, frozenset[str]]:
         "heatguard_risk_model_fallback_total": frozenset(),
         "heatguard_degraded_conditions_total": frozenset({"reason_code"}),
         "heatguard_ratelimit_rejected_total": frozenset({"route", "key_class"}),
+        "heatguard_ratelimit_would_reject_total": frozenset({"route", "key_class"}),
+        "heatguard_quota_bucket_evicted_total": frozenset(),
         "heatguard_auth_outcome_total": frozenset({"route_group", "key_class", "outcome"}),
         "heatguard_process_start_duration_seconds": frozenset(),
     }
