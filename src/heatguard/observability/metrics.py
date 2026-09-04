@@ -99,6 +99,7 @@ def _register(registry: CollectorRegistry) -> None:
     global compliance_chain_verify_total, compliance_records_appended_total
     global engine_decisions_total, wbgt_source_total, ratelimit_rejected_total
     global ratelimit_would_reject_total, quota_bucket_evicted_total
+    global quota_store_breaker_open
     global wbgt_path_total, weather_field_substituted_total
     global risk_model_fallback_total, degraded_conditions_total
     global process_start_duration_seconds, auth_outcome_total
