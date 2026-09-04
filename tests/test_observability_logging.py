@@ -30,6 +30,7 @@ from heatguard.observability.events import (
     ENFORCEMENT_INTERNAL_ERROR,
     POLICY_INDEX_BUILD_FAILED,
     POLICY_INDEX_UNAVAILABLE,
+    QUOTA_STORE_UNAVAILABLE,
     RISK_MODEL_HEURISTIC_FALLBACK,
     RISK_MODEL_LOAD_FAILED,
     WEATHER_FIELD_SUBSTITUTED,
@@ -301,6 +302,7 @@ def test_event_schemas_for_instrumented_paths(captured_logs: list[dict]) -> None
         RISK_MODEL_LOAD_FAILED,
         ENGINE_PHS_WARNING,
         ENFORCEMENT_INTERNAL_ERROR,
+        QUOTA_STORE_UNAVAILABLE,
     }
     for name, keys in EXPECTED.items():
         if name in skip_presence:

@@ -18,5 +18,6 @@ heatguard_degraded_conditions_total|reason_code
 heatguard_ratelimit_rejected_total|route,key_class
 heatguard_ratelimit_would_reject_total|route,key_class
 heatguard_quota_bucket_evicted_total|
+heatguard_quota_store_breaker_open|
 heatguard_auth_outcome_total|route_group,key_class,outcome
 heatguard_process_start_duration_seconds|

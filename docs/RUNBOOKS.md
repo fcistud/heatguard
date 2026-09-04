@@ -14,10 +14,11 @@ Not everything is automated in the running API or `cloudbuild.yaml` yet:
 
 | Area | Shipped today | Runbook / alert contract |
 |------|---------------|---------------------------|
-| Rate limiting | In-process token bucket in EnforcementMiddleware; 429 + `Retry-After`; demo `key_class` exempt; `HEATGUARD_QUOTA_OBSERVE_ONLY` | Shared Memorystore store — **WO-008 pending** |
+| Rate limiting | In-process token bucket plus RedisQuotaStore when `HEATGUARD_QUOTA_REDIS_URL` is set; fail-open to per-instance buckets latches `ratelimit_store_unavailable` | Shared Memorystore is authoritative; in-process is degraded fallback |
 | Canary deploy | Direct Cloud Run deploy | 10% → 50% → 100% progression — **comments in `cloudbuild.yaml` only** |
 | Auth dual-mode | Per-group `HEATGUARD_AUTH_MODE` / `HEATGUARD_AUTH_MODE_<GROUP>` in EnforcementMiddleware | dual admits + `auth.deprecated_anonymous`; enforce → 401/403 |
 | Route coverage gate | pytest vs `tests/fixtures/route_inventory.json` | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
+| Quota login-state gate | pytest vs Redis command log + identity import scan | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
 
 When a procedure assumes behaviour that is not in code yet, treat it as the target
 state after the trust-boundary epic lands.
@@ -42,6 +43,15 @@ If it fails:
 
 Exempt set is exact: `GET /health`, `GET /health/`, `GET /health/live`,
 `GET /health/ready`, `GET /metrics`. No other route may be exempt.
+
+### Quota login-state gate (required CI check)
+
+Failed-login counters, lockout windows and last-successful-login state stay
+per-instance and must never be written to the shared quota store. The gate is
+`tests/test_quota_login_state_gate.py` and runs in **Python engine + API tests**.
+
+If it fails: a Redis command used a login/lockout key, or an identity module
+imported `redis`. Do not "fix" it by persisting lockout to Memorystore.
 
 ---
 
@@ -120,11 +130,20 @@ Configuration (resolved once at boot; invalid values fail the revision):
 - `HEATGUARD_QUOTA_CELL_CAPACITY_<CLASS>_<GROUP>` — most specific override.
 - `HEATGUARD_QUOTA_OBSERVE_ONLY` — count would-be 429s without refusing.
 - `HEATGUARD_QUOTA_MAX_BUCKETS` — LRU cap (default 4096).
+- `HEATGUARD_QUOTA_REDIS_URL` — when set, Redis is authoritative; empty keeps
+  in-process only (local/dev).
+- `HEATGUARD_QUOTA_REDIS_CONNECT_TIMEOUT` / `_COMMAND_TIMEOUT` — defaults 50 ms.
+- `HEATGUARD_QUOTA_REDIS_BREAKER_FAILURES` (default 3) /
+  `HEATGUARD_QUOTA_REDIS_BREAKER_COOLDOWN_SEC` (default 5).
 - Demo `key_class` is never throttled. Probes and `/metrics` are exempt.
 - Capacity or refill `<= 0` fails boot.
 
-Shared Memorystore backing is **WO-008**. An in-process limiter failure admits
-the request (quota-only fail-open) rather than withholding an advisory.
+When the shared store times out or the breaker is open, the limiter falls back
+to per-instance buckets, latches `ratelimit_store_unavailable` on
+`GET /health/ready` (`degraded`, never `not_ready`), and admits the request
+(quota-only fail-open) rather than withholding an advisory.
+
+See also [quota store unavailable](#quota-store-unavailable).
 
 ### Immediate mitigation
 
@@ -161,6 +180,53 @@ Platform on-call → security if intentional abuse. Demo ops owns pitch windows.
 
 - Rejected rate returns to baseline; demo-key traffic succeeds.
 - CPU / latency alerts clear without leaving the demo revision unpinned mid-session.
+
+---
+
+## Quota store unavailable
+
+### Symptom and alert that fires
+
+- Alert: `quota-store-unavailable`
+- Symptoms: `GET /health/ready` status `degraded` with
+  `ratelimit_store_unavailable` in the `degraded` array;
+  `heatguard_degraded_conditions_total{reason_code="ratelimit_store_unavailable"}`
+  incremented; `heatguard_quota_store_breaker_open` is 1; logs show
+  `quota.store_unavailable` once per process.
+
+### Blast radius
+
+Quota accuracy across instances. Advisories are still served (quota-only
+fail-open). Authentication and authorization are unchanged.
+
+### Immediate mitigation
+
+1. Confirm readiness is `degraded`, not `not_ready`. Do **not** withhold
+   advisories or fail the revision closed.
+2. Check Memorystore / Redis reachability from Cloud Run (VPC connector).
+3. Confirm `HEATGUARD_QUOTA_REDIS_URL` and the 50 ms connect/command timeouts.
+4. Wait for the breaker cool-down (`HEATGUARD_QUOTA_REDIS_BREAKER_COOLDOWN_SEC`);
+   the next successful EVAL restores shared-store decisions.
+
+### Diagnostic commands
+
+```bash
+# Readiness
+curl -sf "$SERVICE_URL/health/ready"
+
+# Metric
+increase(heatguard_degraded_conditions_total{reason_code="ratelimit_store_unavailable"}[15m])
+```
+
+### Escalation
+
+Platform on-call (Memorystore / VPC). Do not page security for store timeouts.
+
+### Verified recovery
+
+- `ratelimit_store_unavailable` leaves the degraded array after TTL.
+- `heatguard_quota_store_breaker_open` is 0.
+- Shared-store 429s resume matching the configured bucket.
 
 ---
 

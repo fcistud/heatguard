@@ -72,9 +72,14 @@ def bind_quota(
     env: Mapping[str, str] | None = None,
     *,
     clock: Any = None,
+    shared_store: Any = None,
 ) -> None:
-    """Resolve bucket sizing and allocate the in-process store once."""
-    runtime = load_quota_runtime(env if env is not None else os.environ, clock=clock)
+    """Resolve bucket sizing and attach in-process and/or shared quota stores."""
+    runtime = load_quota_runtime(
+        env if env is not None else os.environ,
+        clock=clock,
+        shared_store=shared_store,
+    )
     _QUOTA_REF.runtime = runtime
     if application is not None:
         application.state.quota = runtime
