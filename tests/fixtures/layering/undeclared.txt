@@ -1,0 +1,27 @@
+---------
+Contracts
+---------
+
+Analyzed 46 files, 179 dependencies.
+------------------------------------
+
+HeatGuard layered architecture BROKEN
+types leaf purity KEPT
+legal_precedence never imports service or api KEPT
+policy_retrieval above policy_rag KEPT
+
+Contracts: 3 kept, 1 broken.
+
+
+----------------
+Broken contracts
+----------------
+
+HeatGuard layered architecture
+------------------------------
+
+The following modules are not listed as layers:
+
+- heatguard.brand_new
+
+(Since this contract is marked as 'exhaustive', every child of every container must be declared as a layer.)

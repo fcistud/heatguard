@@ -19,6 +19,7 @@ Not everything is automated in the running API or `cloudbuild.yaml` yet:
 | Auth dual-mode | Per-group `HEATGUARD_AUTH_MODE` / `HEATGUARD_AUTH_MODE_<GROUP>` in EnforcementMiddleware | dual admits + `auth.deprecated_anonymous`; enforce → 401/403 |
 | Route coverage gate | pytest vs `tests/fixtures/route_inventory.json` | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
 | Quota login-state gate | pytest vs Redis command log + identity import scan | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
+| Architecture layering gate | `scripts/check_layering.py` vs `.importlinter` + ratchet baseline | Required check inside **Python engine + API tests** |
 
 When a procedure assumes behaviour that is not in code yet, treat it as the target
 state after the trust-boundary epic lands.
@@ -52,6 +53,28 @@ per-instance and must never be written to the shared quota store. The gate is
 
 If it fails: a Redis command used a login/lockout key, or an identity module
 imported `redis`. Do not "fix" it by persisting lockout to Memorystore.
+
+### Architecture layering gate (required CI check)
+
+`scripts/check_layering.py` runs `lint-imports` against `.importlinter` and diffs
+the report with `infra/architecture/layering_baseline.json`. The job is
+**Architecture layering gate** inside **Python engine + API tests**.
+
+If it fails:
+
+1. Run `uv run python scripts/check_layering.py` locally. The script prints each
+   new violation and each stale baseline entry (with the exact row to delete).
+2. **New violation** — fix the import. Do **not** add a baseline row to make the
+   build pass. Baseline growth requires engineering-lead sign-off recorded in the
+   PR description.
+3. **Stale baseline** — a tolerated inversion no longer reproduces. Delete that
+   object from `layering_baseline.json` in the same change. The debt can only
+   shrink.
+4. **Forbidden contract** (`types leaf purity`, `legal_precedence never imports
+   service or api`) — there is no baseline. Remove the new import.
+
+`types.py` is a leaf. `legal_precedence` must not import `service` or `api`
+directly. `policy_retrieval` stays above `policy_rag`.
 
 ---
 
@@ -432,6 +455,49 @@ Manual procedure (non-production project):
 | Date | Operator | Result |
 |------|----------|--------|
 | _pending_ | — | Manual smoke test not yet recorded for this environment |
+
+---
+
+## Architecture layering gate failed
+
+### Symptom and alert that fires
+
+- CI job **Python engine + API tests** / step **Architecture layering gate** is red,
+  or `uv run pytest tests/test_layering_contract.py` fails the subprocess check.
+- Local diagnostic: `uv run python scripts/check_layering.py`
+
+### Blast radius
+
+Architecture only — runtime advisories, enforcement, and golden numerics are
+unchanged. A red gate means a new import edge (or a rotting baseline row), not
+an on-call weather or quota incident.
+
+### Immediate mitigation
+
+1. Read the script output. New violations name `importer -> imported` and the
+   contract. Stale rows print the JSON fields to delete.
+2. Restore the lawful direction (higher layer may import lower). Function-local
+   imports still count.
+3. Do **not** grow `infra/architecture/layering_baseline.json` without
+   engineering-lead sign-off in the PR description. Forbidden contracts have an
+   empty baseline and must stay that way.
+4. After a real cycle-break, delete every baseline row that no longer
+   reproduces — leaving them is also a failure.
+
+### Diagnostic commands
+
+```bash
+uv sync --frozen --extra api --extra ml --extra dev
+uv run python scripts/check_layering.py
+NO_COLOR=1 PYTHONPATH=src uv run lint-imports
+```
+
+### How to read the baseline
+
+Each entry is one tolerated layers-contract pair: `importer`, `imported`,
+`contract`, one-line `reason`, `owner`, `dated_at`. The two forbidden contracts
+must never appear. A renamed module that stops matching is a stale entry — delete
+it; do not rewrite history in place to hide a new edge.
 
 ---
 

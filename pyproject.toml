@@ -42,6 +42,8 @@ dev = [
     "packaging>=23,<26",
     # Offline monitoring policy validation (scripts/validate_monitoring.py, WO-017).
     "pyyaml>=6.0.1,<7",
+    # Architecture layering gate (scripts/check_layering.py, WO-011). Exclusive minor.
+    "import-linter>=2.13,<2.14",
 ]
 # Tooling extras — never install into the production image (WO-011).
 deck = ["python-pptx>=0.6.21,<2"]

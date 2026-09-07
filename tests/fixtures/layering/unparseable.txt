@@ -1,0 +1,19 @@
+---------
+Contracts
+---------
+
+HeatGuard layered architecture BROKEN
+types leaf purity KEPT
+
+Contracts: 1 kept, 1 broken.
+
+
+----------------
+Broken contracts
+----------------
+
+HeatGuard layered architecture
+------------------------------
+
+something went sideways in a future lint-imports release
+no recognizable violation lines here

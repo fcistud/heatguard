@@ -25,6 +25,8 @@ _SKIP = {
     "itertools",
     "dataclasses",
     "argparse",
+    "shutil",
+    "subprocess",
     "heatguard",
     "__future__",
 }
@@ -86,7 +88,13 @@ def test_deck_and_notebook_imports_are_declared():
     declared = _declared_dists()
     deck = (_REPO_ROOT / "scripts" / "build_deck.py").read_text()
     nb = (_REPO_ROOT / "notebooks" / "build_validation_notebook.py").read_text()
-    imports = _imports_from_source(deck) | _imports_from_source(nb) | _cell_imports_from_builder(nb)
+    layering = (_REPO_ROOT / "scripts" / "check_layering.py").read_text()
+    imports = (
+        _imports_from_source(deck)
+        | _imports_from_source(nb)
+        | _cell_imports_from_builder(nb)
+        | _imports_from_source(layering)
+    )
     missing: list[str] = []
     for name in sorted(imports):
         if name in _SKIP or name.startswith("_"):

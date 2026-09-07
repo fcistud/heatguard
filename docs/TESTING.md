@@ -84,6 +84,7 @@ Every push / PR runs (see `.github/workflows/ci.yml`):
 | **React dashboard build + lint** | Node **24**, lint + test + build |
 | **Container image smoke** | Build image; assert tooling extras absent; health reports 3.12; demo/forecast/dashboard |
 | **Monitoring config** | `scripts/validate_monitoring.py` — alert policies, runbook anchors, SLO doc links |
+| **Architecture layering** | `scripts/check_layering.py` — import-linter contracts vs ratchet baseline |
 
 Actions are SHA-pinned (checkout v7, setup-python v6, setup-node v6, upload-artifact v7).
 
