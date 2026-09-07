@@ -24,8 +24,6 @@ from pathlib import Path
 from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_BASELINE = ROOT / "infra" / "architecture" / "layering_baseline.json"
-DEFAULT_CONTRACTS = ROOT / ".importlinter"
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 NOT_ALLOWED_RE = re.compile(
