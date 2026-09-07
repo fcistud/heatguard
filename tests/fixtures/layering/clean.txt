@@ -1,0 +1,13 @@
+---------
+Contracts
+---------
+
+Analyzed 45 files, 179 dependencies.
+------------------------------------
+
+HeatGuard layered architecture KEPT
+types leaf purity KEPT
+legal_precedence never imports service or api KEPT
+policy_retrieval above policy_rag KEPT
+
+Contracts: 4 kept, 0 broken.

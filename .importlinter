@@ -1,0 +1,54 @@
+[importlinter]
+root_package = heatguard
+
+# Normative stack (highest → lowest):
+#   api > service > golden/impact/scale > legal_precedence
+#   > scheduler/calendar_ban/worktables/acclimatization/hydration/wbgt/solar
+#   > types
+# Extra first-level modules are pinned onto those tiers so exhaustive=true
+# fails when a new sibling is added without being assigned.
+[importlinter:contract:layers]
+name = HeatGuard layered architecture
+type = layers
+exhaustive = true
+containers =
+    heatguard
+layers =
+    api : cli : health : boundary : observability
+    service
+    golden : impact : scale : economics : compliance : risk_model : datasets : sites : cache_integrity : canonical : policy_retrieval
+    legal_precedence
+    scheduler : calendar_ban : worktables : acclimatization : hydration : wbgt : solar : weather : policy_rag
+    types : _paths
+
+[importlinter:contract:types-leaf]
+name = types leaf purity
+type = forbidden
+source_modules =
+    heatguard.types
+# Wildcard so heatguard.types itself is skipped as an overlapping pair, while
+# any other heatguard.* import is a hard failure.
+forbidden_modules =
+    heatguard.*
+as_packages = true
+
+[importlinter:contract:legal-precedence-isolation]
+name = legal_precedence never imports service or api
+type = forbidden
+source_modules =
+    heatguard.legal_precedence
+forbidden_modules =
+    heatguard.service
+    heatguard.api
+as_packages = true
+# Direct edges only. The existing scheduler -> risk_model -> service chain is
+# layers-baseline debt (cycle-break is a later story); a new import of service
+# or api inside legal_precedence.py must still fail this contract.
+allow_indirect_imports = true
+
+[importlinter:contract:policy-facade]
+name = policy_retrieval above policy_rag
+type = layers
+layers =
+    heatguard.policy_retrieval
+    heatguard.policy_rag
