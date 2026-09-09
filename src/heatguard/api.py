@@ -28,6 +28,9 @@ from .boundary.cors_config import ConfigurationError, CorsSettings, resolve_cors
 from .boundary.enforcement import EnforcementMiddleware
 from .boundary.quota import QuotaRef, load_quota_runtime
 from .boundary.session_tokens import SessionAuthRef, load_session_auth
+# OpenAPI-only: responses=model populates required arrays without response_model
+# filtering, which would reorder/drop keys and break golden bytes (WO-012).
+from .contracts import HourAdvisoryPayload, TimelineResponse
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
@@ -332,7 +335,10 @@ def _check_intensity(intensity: str | None) -> None:
         raise HTTPException(400, f"intensity must be one of {sorted(_INTENSITIES)}")
 
 
-@app.get("/timeline/{site_key}/{day}")
+@app.get(
+    "/timeline/{site_key}/{day}",
+    responses={200: {"model": TimelineResponse}},
+)
 def timeline(
     site_key: str,
     day: str,
@@ -348,7 +354,10 @@ def timeline(
         raise HTTPException(400, "day must be YYYY-MM-DD")
 
 
-@app.get("/hour/{site_key}/{day}/{hour}")
+@app.get(
+    "/hour/{site_key}/{day}/{hour}",
+    responses={200: {"model": HourAdvisoryPayload}},
+)
 def hour(
     site_key: str,
     day: str,
@@ -493,7 +502,10 @@ class DecideRequest(BaseModel):
     has_comorbidity: bool = False
 
 
-@app.post("/decide")
+@app.post(
+    "/decide",
+    responses={200: {"model": HourAdvisoryPayload}},
+)
 def decide(req: DecideRequest) -> dict:
     if req.intensity not in {m.value for m in MetabolicCategory}:
         raise HTTPException(400, f"intensity must be one of {[m.value for m in MetabolicCategory]}")

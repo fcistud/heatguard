@@ -1,0 +1,16 @@
+{
+  "scientific_advisory": {"signal": "WORK", "cycle": {"work_min_per_hour": 45}},
+  "advisory": {"signal": "STOP", "cycle": {"work_min_per_hour": 0}},
+  "legal": {
+    "banned": true,
+    "description": "Saudi Arabia: 12:00-15:00, 15 Jun - 15 Sep",
+    "precedence_applied": true,
+    "scientific_vs_legal_conflict": true
+  },
+  "live": ["STOP"],
+  "scientific_live": ["WORK"],
+  "veteran": {"signal": "WORK"},
+  "newcomer": {"signal": "WORK"},
+  "veteran_effective": {"signal": "STOP"},
+  "newcomer_effective": {"signal": "STOP"}
+}

@@ -19,7 +19,7 @@ layers =
     golden : impact : scale : economics : compliance : risk_model : datasets : sites : cache_integrity : canonical : policy_retrieval
     legal_precedence
     scheduler : calendar_ban : worktables : acclimatization : hydration : wbgt : solar : weather : policy_rag
-    types : _paths
+    types : _paths : contracts
 
 [importlinter:contract:types-leaf]
 name = types leaf purity
