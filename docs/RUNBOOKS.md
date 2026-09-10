@@ -501,6 +501,49 @@ it; do not rewrite history in place to hide a new edge.
 
 ---
 
+## Guardrail copy-lint failed
+
+### Symptom and alert that fires
+
+- `uv run pytest tests/test_guardrail_copy.py` fails, or
+  `uv run python scripts/check_guardrail_copy.py` exits non-zero.
+- Output names `file:line` and the matched prohibited phrase from
+  [SCOPE_GUARDRAIL.md](SCOPE_GUARDRAIL.md) Appendix A.
+
+### Blast radius
+
+Copy only — runtime advisories, legal precedence, and golden numerics are
+unchanged. A red gate means user-facing wording drifted into a prohibited
+phrase, not an on-call weather or quota incident.
+
+### Immediate mitigation
+
+1. Run the diagnostic command below and read `file:line:phrase`.
+2. Replace the wording with an **approved** Appendix A phrase (or a clearly
+   analytic `[AN]` formulation with the required disclaimer). Typical
+   operational stand-in: “Do not work — legal prohibition in effect.”
+3. Do **not** delete or weaken phrases in Appendix A to make the build pass.
+   The document is the single source of truth; the lint parses it live.
+
+### Diagnostic commands
+
+```bash
+uv run python scripts/check_guardrail_copy.py
+uv run pytest tests/test_guardrail_copy.py -q
+```
+
+### Approved-phrase alternatives
+
+Parse live from Appendix A (do not copy a second list into code). Current
+operational / compliance stand-ins include:
+
+- “Do not work — legal prohibition in effect.”
+- “Scientific assessment indicates some work may be possible; legal ban governs operational permission.”
+- “Comparison view for analysis. Legal prohibition always governs operational permission.”
+- “This tool supports compliance; it does not provide legal advice.”
+
+---
+
 ## Related
 
 - [SLO.md](SLO.md)  
