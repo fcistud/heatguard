@@ -200,12 +200,143 @@ def test_hour_legal_precedence_blocks_work_during_ban():
 
 
 def test_timeline_includes_effective_lanes():
+    from test_legal_precedence import assert_banned_effective_non_authorizing
+
     tl = client.get("/timeline/riyadh/2024-07-15").json()
     banned_work = next(
         r for r in tl["rows"] if r["banned"] and r["veteran"]["signal"] == "WORK"
     )
     assert banned_work["veteran_effective"]["signal"] == "STOP"
+    assert banned_work["newcomer_effective"]["signal"] != "WORK"
     assert banned_work["legal"]["precedence_applied"] is True
+    assert_banned_effective_non_authorizing(banned_work)
+
+
+def test_timeline_every_row_has_four_lanes_two_jurisdictions():
+    """SA 12:00-15:00 vs AE 12:30-15:00 — every row carries all four lanes."""
+    from heatguard.contracts import LEGAL_CONTRACT_INVENTORY
+    from test_legal_precedence import (
+        assert_banned_effective_non_authorizing,
+        assert_four_timeline_lanes,
+    )
+
+    cases = (
+        ("/timeline/riyadh/2024-07-15", {12, 13, 14, 15}),
+        ("/timeline/dubai/2025-07-15", {13, 14, 15}),
+    )
+    for path, banned_hours in cases:
+        tl = client.get(path)
+        assert tl.status_code == 200, path
+        body = tl.json()
+        assert body["rows"], path
+        seen_banned: set[int] = set()
+        for row in body["rows"]:
+            assert_four_timeline_lanes(row)
+            for lane in LEGAL_CONTRACT_INVENTORY.timeline_lanes:
+                assert row[lane]["signal"]
+            if row["legal"]["banned"]:
+                seen_banned.add(row["hour"])
+                assert_banned_effective_non_authorizing(row)
+        assert seen_banned == banned_hours, (path, seen_banned)
+
+
+def test_hour_four_lane_invariants_two_jurisdictions():
+    # Distinct windows: SA first/last 12 and 15; AE on-the-hour first/last 13 and 15.
+    specs = (
+        ("riyadh", "2024-07-15", 12, True),
+        ("riyadh", "2024-07-15", 15, True),
+        ("riyadh", "2024-07-15", 11, False),
+        ("riyadh", "2024-07-15", 8, False),
+        ("dubai", "2025-07-15", 13, True),
+        ("dubai", "2025-07-15", 15, True),
+        ("dubai", "2025-07-15", 12, False),
+    )
+    for site, day, hour, expect_banned in specs:
+        for worker in ("veteran", "newcomer"):
+            r = client.get(f"/hour/{site}/{day}/{hour}?worker={worker}")
+            assert r.status_code == 200, (site, day, hour, worker)
+            body = r.json()
+            assert body["legal"]["banned"] is expect_banned
+            sci = body["scientific_advisory"]
+            eff = body["effective_advisory"]
+            if expect_banned:
+                assert eff["signal"] != "WORK"
+                assert eff["cycle"]["work_min_per_hour"] == 0
+                if sci["signal"] == "WORK":
+                    assert sci["cycle"]["work_min_per_hour"] > 0
+                    assert body["legal"]["precedence_applied"] is True
+                else:
+                    assert eff["signal"] == sci["signal"]
+                    assert (
+                        eff["hydration"]["water_ml_per_h"]
+                        == sci["hydration"]["water_ml_per_h"]
+                    )
+                    if sci["cycle"]["work_min_per_hour"] == 0:
+                        assert body["legal"]["precedence_applied"] is False
+            else:
+                assert eff["signal"] == sci["signal"]
+                assert eff["cycle"]["work_min_per_hour"] == sci["cycle"]["work_min_per_hour"]
+                assert body["legal"]["precedence_applied"] is False
+
+
+def test_timeline_out_of_season_effective_matches_scientific():
+    from test_legal_precedence import assert_four_timeline_lanes
+
+    tl = client.get("/timeline/dubai/2025-05-16").json()
+    assert tl["rows"]
+    for row in tl["rows"]:
+        assert_four_timeline_lanes(row)
+        assert row["legal"]["banned"] is False
+        assert row["legal"]["precedence_applied"] is False
+        assert row["veteran_effective"]["signal"] == row["veteran"]["signal"]
+        assert row["newcomer_effective"]["signal"] == row["newcomer"]["signal"]
+
+
+def test_timeline_gap_hours_still_have_four_lanes():
+    from test_legal_precedence import assert_four_timeline_lanes
+
+    focus = client.get("/demo/dubai").json()["focus_day"]
+    tl = client.get(f"/timeline/dubai/{focus}").json()
+    gaps = [r for r in tl["rows"] if r["gap"]]
+    assert gaps, "dubai focus day must include gap hours"
+    for row in gaps:
+        assert_four_timeline_lanes(row)
+        assert row["legal"]["banned"] is False
+        assert row["veteran_effective"]["signal"] == row["veteran"]["signal"]
+        assert row["newcomer_effective"]["signal"] == row["newcomer"]["signal"]
+
+
+def test_hour_protective_rest_survives_riyadh_ban():
+    """Riyadh hours 13–14: veteran REST_IN_SHADE inside the SA window."""
+    for hour in (13, 14):
+        r = client.get(f"/hour/riyadh/2024-07-15/{hour}?worker=veteran")
+        assert r.status_code == 200, hour
+        body = r.json()
+        sci = body["scientific_advisory"]
+        eff = body["effective_advisory"]
+        assert body["legal"]["banned"] is True
+        assert sci["signal"] == "REST_IN_SHADE"
+        assert sci["cycle"]["work_min_per_hour"] > 0
+        assert eff["signal"] == "REST_IN_SHADE"
+        assert eff["cycle"]["work_min_per_hour"] == 0
+        assert eff["hydration"]["water_ml_per_h"] == sci["hydration"]["water_ml_per_h"]
+        assert body["legal"]["precedence_applied"] is True
+
+
+def test_legal_lanes_banned_fixture_is_canonical():
+    from heatguard import canonical
+    from heatguard._paths import _REPO_ROOT
+    from heatguard.contracts import LEGAL_CONTRACT_INVENTORY
+
+    path = _REPO_ROOT / "web" / "src" / "test" / "fixtures" / "legal_lanes_banned.json"
+    loaded = canonical.load(path)
+    assert path.read_bytes() == canonical.dumps(loaded).encode("utf-8") + b"\n"
+    for lane in LEGAL_CONTRACT_INVENTORY.timeline_lanes:
+        assert lane in loaded
+    assert loaded["legal"]["banned"] is True
+    from test_legal_precedence import assert_banned_effective_non_authorizing
+
+    assert_banned_effective_non_authorizing(loaded)
 
 
 # ---- scale / lives-saved projection -----------------------------------------
