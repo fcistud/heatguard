@@ -238,11 +238,21 @@ def test_seed_covers_all_roles_wildcard_and_disabled() -> None:
     assert all(row["username"].startswith("syn.") for row in users)
 
 
+def _sql_dump(path: Path) -> str:
+    """Logical SQLite contents — stable across library versions; file bytes are not."""
+    conn = sqlite3.connect(path)
+    try:
+        return "\n".join(conn.iterdump())
+    finally:
+        conn.close()
+
+
 def test_fixture_builder_determinism(tmp_path: Path) -> None:
     users = load_seed_document(SEED_JSON)
     a = write_seeded_database(tmp_path / "a.db", users)
     b = write_seeded_database(tmp_path / "b.db", users)
     assert a.read_bytes() == b.read_bytes()
+    assert _sql_dump(a) == _sql_dump(b)
 
 
 def test_seeded_fixture_readonly_uri(tmp_path: Path) -> None:
@@ -277,4 +287,4 @@ def test_committed_db_round_trip_readonly(tmp_path: Path) -> None:
     finally:
         conn.close()
     rebuilt = write_seeded_database(tmp_path / "rebuilt.db", users)
-    assert SEEDED_DB.read_bytes() == rebuilt.read_bytes()
+    assert _sql_dump(SEEDED_DB) == _sql_dump(rebuilt)
