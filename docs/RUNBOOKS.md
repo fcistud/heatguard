@@ -599,4 +599,79 @@ as green.
 
 Do not open the cycle-breaking / layering refactor until this drill has a
 green dated report. A gate that cannot be shown to fail is not a gate.
- 
+
+---
+
+## Guardrail CI jobs (required checks)
+
+These six jobs are merge-blocking once a maintainer enables them under
+**Settings → Branches → Branch protection rules**. Enabling that setting is a
+**maintainer repository-settings action** — it is not automated by this
+repository. Exact GitHub check names (the job `name:` fields):
+
+| Check name | Gate |
+|---|---|
+| `arch-contract` | `scripts/check_layering.py` |
+| `openapi-contract` | `tests/test_legal_contract_schema.py` |
+| `guardrail-copy-lint` | `scripts/check_guardrail_copy.py` |
+| `legal-lane-regression` | four-lane tests in `tests/test_legal_precedence.py` and `tests/test_api.py` |
+| `guardrail-drill` | `scripts/guardrail_drill.py` |
+| `identity-db-ceiling` | `scripts/check_identity_db_size.py` |
+
+`tests/test_ci_gates.py` fails the build if any of those job ids disappears,
+loses its `run` step, sets `continue-on-error`, or uses a non-SHA-pinned action.
+
+Local run of all six (clean tree, exit 0):
+
+```bash
+uv run python scripts/check_layering.py
+uv run pytest tests/test_legal_contract_schema.py -q
+uv run python scripts/check_guardrail_copy.py
+uv run pytest tests/test_legal_precedence.py \
+  tests/test_api.py::test_hour_legal_precedence_blocks_work_during_ban \
+  tests/test_api.py::test_timeline_includes_effective_lanes \
+  tests/test_api.py::test_timeline_every_row_has_four_lanes_two_jurisdictions \
+  tests/test_api.py::test_hour_four_lane_invariants_two_jurisdictions \
+  tests/test_api.py::test_timeline_out_of_season_effective_matches_scientific \
+  tests/test_api.py::test_timeline_gap_hours_still_have_four_lanes \
+  tests/test_api.py::test_hour_protective_rest_survives_riyadh_ban \
+  tests/test_api.py::test_legal_lanes_banned_fixture_is_canonical \
+  -q
+uv run python scripts/guardrail_drill.py
+uv run python scripts/check_identity_db_size.py
+```
+
+### arch-contract failed
+
+Layering inversions or a types-leaf / legal_precedence forbidden import.
+Run `uv run python scripts/check_layering.py`. Do not grow the baseline to
+make the build pass. Artifact: `arch-contract` (`layering-report.txt`).
+
+### openapi-contract failed
+
+A required legal field dropped from the Pydantic inventory or OpenAPI
+`required` arrays. Run `uv run pytest tests/test_legal_contract_schema.py -q`.
+
+### guardrail-copy-lint failed
+
+A prohibited Appendix A phrase on an application surface. Run
+`uv run python scripts/check_guardrail_copy.py`. Artifact: `guardrail-copy-lint`.
+
+### legal-lane-regression failed
+
+Effective timeline lanes authorized work during a ban, or a lane is missing.
+Run the four-lane pytest node ids listed above.
+
+### guardrail-drill failed
+
+A seeded violation did not trip its gate (or the drill was inconclusive).
+Read `artifacts/guardrail-drill/summary.md`. See the deliberate-break drill
+section above.
+
+### identity-db-ceiling failed
+
+Identity SQLite object over 8 MiB, a worker-personal-data column
+(`age`, `weight_kg`, `height_m`, `has_comorbidity`, `worker_id`, `crew_id`),
+a broken role CHECK, or no identity object/DDL resolvable. Run
+`uv run python scripts/check_identity_db_size.py`. An absent identity set is
+never compliant. Artifact: `identity-db-ceiling`.
