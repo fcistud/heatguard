@@ -12,6 +12,9 @@ import time
 from contextlib import asynccontextmanager
 from datetime import date
 
+from collections.abc import Mapping, Sequence
+from typing import Any
+
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -19,11 +22,70 @@ from pydantic import BaseModel, Field
 
 from . import health as health_probes
 from . import service
+from .boundary.api_keys import KeyStoreRef, load_key_store
+from .boundary.auth_mode import AuthModeRef, load_auth_modes
+from .boundary.cors_config import ConfigurationError, CorsSettings, resolve_cors_settings
+from .boundary.enforcement import EnforcementMiddleware
+from .boundary.quota import QuotaRef, load_quota_runtime
+from .boundary.session_tokens import SessionAuthRef, load_session_auth
+# OpenAPI-only: responses=model populates required arrays without response_model
+# filtering, which would reorder/drop keys and break golden bytes (WO-012).
+from .contracts import HourAdvisoryPayload, TimelineResponse
 from .observability import CorrelationMiddleware, configure_logging, get_logger
 from .sites import get_site
 from .types import MetabolicCategory
 
 log = get_logger(__name__)
+_KEY_STORE_REF = KeyStoreRef()
+_SESSION_AUTH_REF = SessionAuthRef()
+_AUTH_MODE_REF = AuthModeRef()
+_QUOTA_REF = QuotaRef()
+
+
+def bind_key_store(application: FastAPI | None = None, env: Mapping[str, str] | None = None) -> None:
+    """Load HMAC digests once and attach them for EnforcementMiddleware."""
+    store = load_key_store(env if env is not None else os.environ)
+    _KEY_STORE_REF.store = store
+    if application is not None:
+        application.state.key_store = store
+
+
+def bind_session_auth(
+    application: FastAPI | None = None, env: Mapping[str, str] | None = None
+) -> None:
+    """Load HS256 signing material and identity snapshot once for the pass."""
+    auth = load_session_auth(env if env is not None else os.environ)
+    _SESSION_AUTH_REF.auth = auth
+    if application is not None:
+        application.state.session_auth = auth
+
+
+def bind_auth_modes(
+    application: FastAPI | None = None, env: Mapping[str, str] | None = None
+) -> None:
+    """Resolve per-group dual/enforce posture once for EnforcementMiddleware."""
+    snapshot = load_auth_modes(env if env is not None else os.environ)
+    _AUTH_MODE_REF.snapshot = snapshot
+    if application is not None:
+        application.state.auth_modes = snapshot
+
+
+def bind_quota(
+    application: FastAPI | None = None,
+    env: Mapping[str, str] | None = None,
+    *,
+    clock: Any = None,
+    shared_store: Any = None,
+) -> None:
+    """Resolve bucket sizing and attach in-process and/or shared quota stores."""
+    runtime = load_quota_runtime(
+        env if env is not None else os.environ,
+        clock=clock,
+        shared_store=shared_store,
+    )
+    _QUOTA_REF.runtime = runtime
+    if application is not None:
+        application.state.quota = runtime
 
 
 def _warm_caches() -> None:
@@ -60,6 +122,10 @@ async def lifespan(app: FastAPI):
     configure_tracing(app)
     obs_metrics.warn_if_multiprocess_unconfigured()
     obs_metrics.maybe_configure_export()
+    bind_key_store(app)
+    bind_session_auth(app)
+    bind_auth_modes(app)
+    bind_quota(app)
     v = sys.version_info
     log.info(
         "heatguard.runtime",
@@ -79,15 +145,49 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Permissive by default for the local Vite dev server; lock down in production via
-# HEATGUARD_CORS_ORIGINS="https://app.example.com,https://..." (comma-separated).
-_cors_origins = [o.strip() for o in os.environ.get("HEATGUARD_CORS_ORIGINS", "*").split(",") if o.strip()]
+
+def register_cors_middleware(
+    application: FastAPI,
+    env: Mapping[str, str] | None = None,
+) -> CorsSettings:
+    """Attach enumerated CORS middleware from the environment-scoped resolver.
+
+    Raises ``ConfigurationError`` on illegal production wildcards / empty allowlists
+    so Cloud Run revisions fail closed rather than serving ``*``.
+    """
+    settings = resolve_cors_settings(env if env is not None else os.environ)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.origins),
+        allow_methods=list(settings.methods),
+        allow_headers=list(settings.headers),
+        allow_credentials=settings.allow_credentials,
+    )
+    return settings
+
+
+# Innermost enforcement chokepoint (added first → closest to the application).
+# Starlette runs last-added outermost, so runtime order is:
+# Correlation → CORS → Enforcement → app.
+# Lifespan re-binds the store; import-time bind covers TestClient without lifespan.
+# Route-table coverage (WO-006): tests/fixtures/route_inventory.json must list every
+# live method-path pair and static mount; new routes fail CI until classified.
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    EnforcementMiddleware,
+    key_store_ref=_KEY_STORE_REF,
+    session_auth_ref=_SESSION_AUTH_REF,
+    auth_mode_ref=_AUTH_MODE_REF,
+    quota_ref=_QUOTA_REF,
 )
+try:
+    bind_key_store(app)
+    bind_session_auth(app)
+    bind_auth_modes(app)
+    bind_quota(app)
+except ConfigurationError:
+    pass
+# Environment-scoped allowlist (dev → localhost Vite; production requires explicit origins).
+register_cors_middleware(app)
 # Outermost correlation / access log (Starlette runs last-added middleware first).
 app.add_middleware(CorrelationMiddleware)
 
@@ -114,11 +214,25 @@ def private_metrics():
     return Response(content=body, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
+def _registered_paths(routes: Sequence[Any]) -> set[str]:
+    """Collect paths from ``app.routes``, including ``include_router`` wrappers."""
+    paths: set[str] = set()
+    for route in routes:
+        original = getattr(route, "original_router", None)
+        nested = getattr(original, "routes", None) if original is not None else None
+        if nested:
+            paths |= _registered_paths(nested)
+            continue
+        path = getattr(route, "path", None)
+        if isinstance(path, str) and path:
+            paths.add(path)
+    return paths
+
+
 def mount_private_routes(application: FastAPI | None = None) -> bool:
     """Attach private routes once. Exposition itself stays gated by ``HEATGUARD_METRICS_ENABLED``."""
     target = application or app
-    paths = {getattr(r, "path", None) for r in target.routes}
-    if "/metrics" not in paths:
+    if "/metrics" not in _registered_paths(target.routes):
         target.include_router(_private_router)
     return True
 
@@ -221,7 +335,10 @@ def _check_intensity(intensity: str | None) -> None:
         raise HTTPException(400, f"intensity must be one of {sorted(_INTENSITIES)}")
 
 
-@app.get("/timeline/{site_key}/{day}")
+@app.get(
+    "/timeline/{site_key}/{day}",
+    responses={200: {"model": TimelineResponse}},
+)
 def timeline(
     site_key: str,
     day: str,
@@ -237,7 +354,10 @@ def timeline(
         raise HTTPException(400, "day must be YYYY-MM-DD")
 
 
-@app.get("/hour/{site_key}/{day}/{hour}")
+@app.get(
+    "/hour/{site_key}/{day}/{hour}",
+    responses={200: {"model": HourAdvisoryPayload}},
+)
 def hour(
     site_key: str,
     day: str,
@@ -382,7 +502,10 @@ class DecideRequest(BaseModel):
     has_comorbidity: bool = False
 
 
-@app.post("/decide")
+@app.post(
+    "/decide",
+    responses={200: {"model": HourAdvisoryPayload}},
+)
 def decide(req: DecideRequest) -> dict:
     if req.intensity not in {m.value for m in MetabolicCategory}:
         raise HTTPException(400, f"intensity must be one of {[m.value for m in MetabolicCategory]}")
@@ -420,7 +543,11 @@ def _resolve_static_dirs() -> tuple[str | None, str | None]:
 
 
 def _mount_optional_static() -> None:
-    """Serve landing at / and the React dashboard at /dashboard/ (Cloud Run / Docker / dev)."""
+    """Serve landing at / and the React dashboard at /dashboard/ (Cloud Run / Docker / dev).
+
+    Landing is committed and always mounted in pytest. ``web/dist`` is gitignored, so
+    the dashboard redirect + mount are optional inventory rows (WO-006).
+    """
     from pathlib import Path
 
     from fastapi.staticfiles import StaticFiles

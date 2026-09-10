@@ -24,12 +24,16 @@ WBGT_FALLBACK_ACTIVE = "wbgt_fallback_active"
 WEATHER_FIELDS_SUBSTITUTED = "weather_fields_substituted"
 POLICY_INDEX_UNAVAILABLE = "policy_index_unavailable"
 RISK_MODEL_HEURISTIC = "risk_model_heuristic"
+# Seventh planned readiness code (identity 5th/6th land in WO-043). Unregistered
+# codes are silently dropped from GET /health/ready — membership is a required gate.
+RATELIMIT_STORE_UNAVAILABLE = "ratelimit_store_unavailable"
 
 REASON_CODES: frozenset[str] = frozenset({
     WBGT_FALLBACK_ACTIVE,
     WEATHER_FIELDS_SUBSTITUTED,
     POLICY_INDEX_UNAVAILABLE,
     RISK_MODEL_HEURISTIC,
+    RATELIMIT_STORE_UNAVAILABLE,
 })
 
 DEGRADATION_REPORTING_FAILED = "degradation.reporting_failed"

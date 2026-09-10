@@ -62,6 +62,8 @@ jobs:
         run: pip install "uv==${{ env.UV_VERSION }}"
       - name: Sync frozen lock (api + ml + dev)
         run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Architecture layering gate
+        run: uv run python scripts/check_layering.py
       - name: Assert numerics pins match golden capture
         run: |
           uv run python - <<'PY'
@@ -72,6 +74,7 @@ jobs:
           print("OK — numpy/pythermalcomfort/thermofeel match golden MANIFEST pins")
           PY
       - name: Run tests
+        # WO-006 route-table coverage gate is included (tests/test_route_coverage.py).
         env:
           HEATGUARD_ENV: test
           HEATGUARD_TRACE_EXPORTER: none
@@ -252,7 +255,7 @@ jobs:
           docker run --rm -i --entrypoint python heatguard:ci - <<'PY'
           from importlib.metadata import distributions
           names = {d.metadata["Name"].lower() for d in distributions()}
-          forbidden = {"python-pptx", "nbformat", "matplotlib"}
+          forbidden = {"python-pptx", "nbformat", "matplotlib", "import-linter"}
           hit = sorted(forbidden & names)
           assert not hit, f"tooling extras leaked into runtime image: {hit}"
           print("OK — deck/notebook packages absent from runtime closure")
@@ -266,16 +269,42 @@ jobs:
       - name: Serve health, sites, demo, forecast (read-only + tmpfs cache)
         run: |
           set -euo pipefail
+          python - <<'PY' > /tmp/hg-api-key.env
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
+          print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
+          print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+          session = json.loads(Path("tests/fixtures/session_tokens.json").read_text())
+          print(f"HEATGUARD_SESSION_SIGNING_SECRET={session['signing_secret']}")
+          print(f"HEATGUARD_SESSION_KID={session['kid']}")
+          print("HEATGUARD_IDENTITY_SNAPSHOT=" + json.dumps(session["principals"], separators=(",", ":")))
+          PY
           docker run -d --name hg -p 8080:8080 \
             --read-only \
             --tmpfs /tmp:rw,mode=1777 \
             --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
             -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
+            --env-file /tmp/hg-api-key.env \
             heatguard:ci
+          healthy=0
           for i in $(seq 1 60); do
-            if curl -sf http://127.0.0.1:8080/health >/dev/null; then break; fi
+            if curl -sf http://127.0.0.1:8080/health >/dev/null; then
+              healthy=1
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' hg 2>/dev/null || echo false)" != "true" ]; then
+              echo "container exited before health"
+              docker logs hg
+              exit 1
+            fi
             sleep 2
           done
+          if [ "${healthy}" != "1" ]; then
+            echo "health never became ready"
+            docker logs hg
+            exit 1
+          fi
           proc_uid="$(docker exec hg id -u)"
           test "${proc_uid}" = "10001"
           echo "OK — running process UID ${proc_uid}"
@@ -330,4 +359,143 @@ jobs:
         with:
           name: build-determinism
           path: artifacts/build-determinism/
+          if-no-files-found: ignore
+
+  arch-contract:
+    name: arch-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Layering contract
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/check_layering.py | tee artifacts/layering-report.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: arch-contract
+          path: artifacts/layering-report.txt
+          if-no-files-found: ignore
+
+  openapi-contract:
+    name: openapi-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Legal contract schema
+        env:
+          HEATGUARD_ENV: test
+        run: uv run pytest tests/test_legal_contract_schema.py -q
+
+  guardrail-copy-lint:
+    name: guardrail-copy-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Guardrail copy-lint
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/check_guardrail_copy.py | tee artifacts/copy-lint.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: guardrail-copy-lint
+          path: artifacts/copy-lint.txt
+          if-no-files-found: ignore
+
+  legal-lane-regression:
+    name: legal-lane-regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Four-lane legal regression
+        env:
+          HEATGUARD_ENV: test
+        run: |
+          uv run pytest \
+            tests/test_legal_precedence.py \
+            tests/test_api.py::test_hour_legal_precedence_blocks_work_during_ban \
+            tests/test_api.py::test_timeline_includes_effective_lanes \
+            tests/test_api.py::test_timeline_every_row_has_four_lanes_two_jurisdictions \
+            tests/test_api.py::test_hour_four_lane_invariants_two_jurisdictions \
+            tests/test_api.py::test_timeline_out_of_season_effective_matches_scientific \
+            tests/test_api.py::test_timeline_gap_hours_still_have_four_lanes \
+            tests/test_api.py::test_hour_protective_rest_survives_riyadh_ban \
+            tests/test_api.py::test_legal_lanes_banned_fixture_is_canonical \
+            -q
+
+  guardrail-drill:
+    name: guardrail-drill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Deliberate-break drill
+        env:
+          HEATGUARD_ENV: test
+        run: |
+          mkdir -p artifacts/guardrail-drill
+          uv run python scripts/guardrail_drill.py --output-dir artifacts/guardrail-drill
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: guardrail-drill
+          path: artifacts/guardrail-drill/
+          if-no-files-found: ignore
+
+  identity-db-ceiling:
+    name: identity-db-ceiling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Identity size ceiling and schema exclusion
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/check_identity_db_size.py --report artifacts/identity-ceiling-report.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: identity-db-ceiling
+          path: artifacts/identity-ceiling-report.json
           if-no-files-found: ignore

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "importer": "heatguard.compliance",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Compliance records emit structured events and metrics from the write path.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.golden",
+      "imported": "heatguard.service",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Golden capture orchestrates service payloads; inversion waits on cycle-break.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.hydration",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "PHS path reports degradation and tracing from the science module.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.policy_rag",
+      "imported": "heatguard.datasets",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Legacy policy_rag loads the committed corpus via datasets.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.policy_rag",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Index build and query emit policy.* events and degradation codes.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.risk_model",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Heuristic fallback latches risk_model reason codes and counters.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.risk_model",
+      "imported": "heatguard.service",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Training helper reads service.DEMOS; function-local inversion for cycle-break.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.scheduler",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "decide() opens engine spans from the science layer.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.scheduler",
+      "imported": "heatguard.risk_model",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Personal-risk scoring is called from decide(); layer split is later work.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.service",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Service emits engine/compliance metrics via function-local imports.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.wbgt",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "WBGT path selection reports degradation and tracing.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.weather",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Open-Meteo client logs weather.fetch and fetch-span metrics.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    }
+  ]
+}

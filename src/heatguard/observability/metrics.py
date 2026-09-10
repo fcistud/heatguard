@@ -62,6 +62,10 @@ weather_field_substituted_total: Counter
 risk_model_fallback_total: Counter
 degraded_conditions_total: Counter
 ratelimit_rejected_total: Counter
+ratelimit_would_reject_total: Counter
+quota_bucket_evicted_total: Counter
+quota_store_breaker_open: Gauge
+auth_outcome_total: Counter
 process_start_duration_seconds: Gauge
 
 
@@ -94,9 +98,11 @@ def _register(registry: CollectorRegistry) -> None:
     global weather_fetch_total, weather_fetch_duration_seconds
     global compliance_chain_verify_total, compliance_records_appended_total
     global engine_decisions_total, wbgt_source_total, ratelimit_rejected_total
+    global ratelimit_would_reject_total, quota_bucket_evicted_total
+    global quota_store_breaker_open
     global wbgt_path_total, weather_field_substituted_total
     global risk_model_fallback_total, degraded_conditions_total
-    global process_start_duration_seconds
+    global process_start_duration_seconds, auth_outcome_total
 
     http_requests_total = Counter(
         "heatguard_http_requests_total",
@@ -198,8 +204,30 @@ def _register(registry: CollectorRegistry) -> None:
     )
     ratelimit_rejected_total = Counter(
         "heatguard_ratelimit_rejected_total",
-        "Rate-limit rejections (trust-boundary epic wires enforcement)",
+        "Rate-limit rejections by route and key class",
         ["route", "key_class"],
+        registry=registry,
+    )
+    ratelimit_would_reject_total = Counter(
+        "heatguard_ratelimit_would_reject_total",
+        "Would-be rate-limit rejections counted in observe-only mode (WO-007)",
+        ["route", "key_class"],
+        registry=registry,
+    )
+    quota_bucket_evicted_total = Counter(
+        "heatguard_quota_bucket_evicted_total",
+        "In-process quota buckets evicted by the LRU cap (WO-007)",
+        registry=registry,
+    )
+    quota_store_breaker_open = Gauge(
+        "heatguard_quota_store_breaker_open",
+        "1 when the shared quota store breaker is open (WO-008)",
+        registry=registry,
+    )
+    auth_outcome_total = Counter(
+        "heatguard_auth_outcome_total",
+        "Authentication outcomes by endpoint group and key class (WO-005)",
+        ["route_group", "key_class", "outcome"],
         registry=registry,
     )
     process_start_duration_seconds = Gauge(
@@ -406,6 +434,55 @@ def observe_ratelimit_rejected(*, route: str, key_class: str) -> None:
     _safe("heatguard_ratelimit_rejected_total", _do)
 
 
+def observe_ratelimit_would_reject(*, route: str, key_class: str) -> None:
+    """Count observe-only over-limit events. Labels stay bounded — never origin."""
+
+    def _do() -> None:
+        get_registry()
+        ratelimit_would_reject_total.labels(route=route, key_class=key_class).inc()
+
+    _safe("heatguard_ratelimit_would_reject_total", _do)
+
+
+def observe_quota_bucket_evicted() -> None:
+    """Count LRU evictions of in-process quota buckets."""
+
+    def _do() -> None:
+        get_registry()
+        quota_bucket_evicted_total.inc()
+
+    _safe("heatguard_quota_bucket_evicted_total", _do)
+
+
+def observe_quota_store_breaker(*, open_: bool) -> None:
+    """Breaker open=1 / closed=0. Bounded — never labels the Redis URL."""
+
+    def _do() -> None:
+        get_registry()
+        quota_store_breaker_open.set(1.0 if open_ else 0.0)
+
+    _safe("heatguard_quota_store_breaker_open", _do)
+
+
+def observe_auth_outcome(
+    *,
+    route_group: str,
+    key_class: str,
+    outcome: str,
+) -> None:
+    """Count dual/enforce outcomes. Labels stay bounded — never path or principal."""
+
+    def _do() -> None:
+        get_registry()
+        auth_outcome_total.labels(
+            route_group=route_group,
+            key_class=key_class,
+            outcome=outcome,
+        ).inc()
+
+    _safe("heatguard_auth_outcome_total", _do)
+
+
 def record_process_start_duration(seconds: float) -> None:
     def _do() -> None:
         get_registry()
@@ -442,6 +519,10 @@ def registered_metric_label_names() -> dict[str, frozenset[str]]:
         "heatguard_risk_model_fallback_total": frozenset(),
         "heatguard_degraded_conditions_total": frozenset({"reason_code"}),
         "heatguard_ratelimit_rejected_total": frozenset({"route", "key_class"}),
+        "heatguard_ratelimit_would_reject_total": frozenset({"route", "key_class"}),
+        "heatguard_quota_bucket_evicted_total": frozenset(),
+        "heatguard_quota_store_breaker_open": frozenset(),
+        "heatguard_auth_outcome_total": frozenset({"route_group", "key_class", "outcome"}),
         "heatguard_process_start_duration_seconds": frozenset(),
     }
 

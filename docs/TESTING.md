@@ -44,7 +44,10 @@ heatguard golden check
 
 Parity compares strip host/VCS fields from `MANIFEST.json` (`git_commit`,
 `platform`, `python_implementation`) so Linux CI can match goldens captured on
-macOS. Package pins and cache checksums still fail the gate if they drift.
+macOS. `python_version` is compared at major.minor (same policy as the
+interpreter-drift job), so a CPython security patch (`3.12.13` vs `3.12.14`)
+does not fail the gate; `3.11` vs `3.12` still does. Package pins and cache
+checksums still fail the gate if they drift.
 
 ## Canonical JSON
 
@@ -81,6 +84,7 @@ Every push / PR runs (see `.github/workflows/ci.yml`):
 | **React dashboard build + lint** | Node **24**, lint + test + build |
 | **Container image smoke** | Build image; assert tooling extras absent; health reports 3.12; demo/forecast/dashboard |
 | **Monitoring config** | `scripts/validate_monitoring.py` — alert policies, runbook anchors, SLO doc links |
+| **Architecture layering** | `scripts/check_layering.py` — import-linter contracts vs ratchet baseline |
 
 Actions are SHA-pinned (checkout v7, setup-python v6, setup-node v6, upload-artifact v7).
 

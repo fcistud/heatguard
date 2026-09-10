@@ -14,12 +14,67 @@ Not everything is automated in the running API or `cloudbuild.yaml` yet:
 
 | Area | Shipped today | Runbook / alert contract |
 |------|---------------|---------------------------|
-| Rate limiting | Metric `heatguard_ratelimit_rejected_total` + helper only | 429 responses, demo-key exemption — **middleware pending** |
+| Rate limiting | In-process token bucket plus RedisQuotaStore when `HEATGUARD_QUOTA_REDIS_URL` is set; fail-open to per-instance buckets latches `ratelimit_store_unavailable` | Shared Memorystore is authoritative; in-process is degraded fallback |
 | Canary deploy | Direct Cloud Run deploy | 10% → 50% → 100% progression — **comments in `cloudbuild.yaml` only** |
-| Auth dual-mode | Log event `auth.deprecated_anonymous` + monitoring gate | `HEATGUARD_AUTH_MODE=dual` → `enforce` — **API auth middleware pending** |
+| Auth dual-mode | Per-group `HEATGUARD_AUTH_MODE` / `HEATGUARD_AUTH_MODE_<GROUP>` in EnforcementMiddleware | dual admits + `auth.deprecated_anonymous`; enforce → 401/403 |
+| Route coverage gate | pytest vs `tests/fixtures/route_inventory.json` | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
+| Quota login-state gate | pytest vs Redis command log + identity import scan | Required check inside **Python engine + API tests** (`uv run pytest -q`) |
+| Architecture layering gate | `scripts/check_layering.py` vs `.importlinter` + ratchet baseline | Required check inside **Python engine + API tests** |
 
 When a procedure assumes behaviour that is not in code yet, treat it as the target
 state after the trust-boundary epic lands.
+
+### Route coverage gate (required CI check)
+
+Every HTTP method-path pair and static mount on the assembled FastAPI app must be
+classified by `EnforcementMiddleware` (`classify_request` / `_ROUTE_SPEC`). The
+gate lives in `tests/test_route_coverage.py` (also invoked from `tests/test_api.py`)
+and runs in the existing GitHub Actions **Python engine + API tests** job — no
+separate workflow.
+
+If it fails:
+
+1. Do **not** bump `non_probe_count` blindly.
+2. Add a `_ROUTE_SPEC` row in `src/heatguard/boundary/enforcement.py` for the new
+   path (or remove a stale inventory row if the route was deleted on purpose).
+3. Update `tests/fixtures/route_inventory.json` in the same change. The failure
+   message lists **added**, **removed**, and **reclassified** entries separately.
+4. Dashboard mount/redirect rows are optional (`web/dist` is gitignored); landing
+   at `/` is required.
+
+Exempt set is exact: `GET /health`, `GET /health/`, `GET /health/live`,
+`GET /health/ready`, `GET /metrics`. No other route may be exempt.
+
+### Quota login-state gate (required CI check)
+
+Failed-login counters, lockout windows and last-successful-login state stay
+per-instance and must never be written to the shared quota store. The gate is
+`tests/test_quota_login_state_gate.py` and runs in **Python engine + API tests**.
+
+If it fails: a Redis command used a login/lockout key, or an identity module
+imported `redis`. Do not "fix" it by persisting lockout to Memorystore.
+
+### Architecture layering gate (required CI check)
+
+`scripts/check_layering.py` runs `lint-imports` against `.importlinter` and diffs
+the report with `infra/architecture/layering_baseline.json`. The job is
+**Architecture layering gate** inside **Python engine + API tests**.
+
+If it fails:
+
+1. Run `uv run python scripts/check_layering.py` locally. The script prints each
+   new violation and each stale baseline entry (with the exact row to delete).
+2. **New violation** — fix the import. Do **not** add a baseline row to make the
+   build pass. Baseline growth requires engineering-lead sign-off recorded in the
+   PR description.
+3. **Stale baseline** — a tolerated inversion no longer reproduces. Delete that
+   object from `layering_baseline.json` in the same change. The debt can only
+   shrink.
+4. **Forbidden contract** (`types leaf purity`, `legal_precedence never imports
+   service or api`) — there is no baseline. Remove the new import.
+
+`types.py` is a leaf. `legal_precedence` must not import `service` or `api`
+directly. `policy_retrieval` stays above `policy_rag`.
 
 ---
 
@@ -86,6 +141,33 @@ demo ops channel. No compliance escalation.
 Public demo routes and anonymous callers. Authenticated / demo-key traffic must
 remain available for investor sessions.
 
+Configuration (resolved once at boot; invalid values fail the revision):
+
+- `HEATGUARD_QUOTA_CAPACITY` / `HEATGUARD_QUOTA_REFILL_PER_SEC` — defaults
+  10000 tokens and 1000/s (generous so a false 429 on an advisory is not the
+  boot posture).
+- `HEATGUARD_QUOTA_KEY_CAPACITY_<CLASS>` / `HEATGUARD_QUOTA_KEY_REFILL_<CLASS>`
+  — per `key_class` (`ANONYMOUS`, `DEMO`, `PARTNER`, `INTERNAL`, `DASHBOARD`).
+- `HEATGUARD_QUOTA_GROUP_CAPACITY_<GROUP>` / `HEATGUARD_QUOTA_GROUP_REFILL_<GROUP>`
+  — per endpoint group. Session is origin-strict.
+- `HEATGUARD_QUOTA_CELL_CAPACITY_<CLASS>_<GROUP>` — most specific override.
+- `HEATGUARD_QUOTA_OBSERVE_ONLY` — count would-be 429s without refusing.
+- `HEATGUARD_QUOTA_MAX_BUCKETS` — LRU cap (default 4096).
+- `HEATGUARD_QUOTA_REDIS_URL` — when set, Redis is authoritative; empty keeps
+  in-process only (local/dev).
+- `HEATGUARD_QUOTA_REDIS_CONNECT_TIMEOUT` / `_COMMAND_TIMEOUT` — defaults 50 ms.
+- `HEATGUARD_QUOTA_REDIS_BREAKER_FAILURES` (default 3) /
+  `HEATGUARD_QUOTA_REDIS_BREAKER_COOLDOWN_SEC` (default 5).
+- Demo `key_class` is never throttled. Probes and `/metrics` are exempt.
+- Capacity or refill `<= 0` fails boot.
+
+When the shared store times out or the breaker is open, the limiter falls back
+to per-instance buckets, latches `ratelimit_store_unavailable` on
+`GET /health/ready` (`degraded`, never `not_ready`), and admits the request
+(quota-only fail-open) rather than withholding an advisory.
+
+See also [quota store unavailable](#quota-store-unavailable).
+
 ### Immediate mitigation
 
 1. **Investor / live pitch first:** confirm demo-key exemption path is active
@@ -121,6 +203,53 @@ Platform on-call → security if intentional abuse. Demo ops owns pitch windows.
 
 - Rejected rate returns to baseline; demo-key traffic succeeds.
 - CPU / latency alerts clear without leaving the demo revision unpinned mid-session.
+
+---
+
+## Quota store unavailable
+
+### Symptom and alert that fires
+
+- Alert: `quota-store-unavailable`
+- Symptoms: `GET /health/ready` status `degraded` with
+  `ratelimit_store_unavailable` in the `degraded` array;
+  `heatguard_degraded_conditions_total{reason_code="ratelimit_store_unavailable"}`
+  incremented; `heatguard_quota_store_breaker_open` is 1; logs show
+  `quota.store_unavailable` once per process.
+
+### Blast radius
+
+Quota accuracy across instances. Advisories are still served (quota-only
+fail-open). Authentication and authorization are unchanged.
+
+### Immediate mitigation
+
+1. Confirm readiness is `degraded`, not `not_ready`. Do **not** withhold
+   advisories or fail the revision closed.
+2. Check Memorystore / Redis reachability from Cloud Run (VPC connector).
+3. Confirm `HEATGUARD_QUOTA_REDIS_URL` and the 50 ms connect/command timeouts.
+4. Wait for the breaker cool-down (`HEATGUARD_QUOTA_REDIS_BREAKER_COOLDOWN_SEC`);
+   the next successful EVAL restores shared-store decisions.
+
+### Diagnostic commands
+
+```bash
+# Readiness
+curl -sf "$SERVICE_URL/health/ready"
+
+# Metric
+increase(heatguard_degraded_conditions_total{reason_code="ratelimit_store_unavailable"}[15m])
+```
+
+### Escalation
+
+Platform on-call (Memorystore / VPC). Do not page security for store timeouts.
+
+### Verified recovery
+
+- `ratelimit_store_unavailable` leaves the degraded array after TTL.
+- `heatguard_quota_store_breaker_open` is 0.
+- Shared-store 429s resume matching the configured bucket.
 
 ---
 
@@ -268,10 +397,32 @@ immutable image digest already recorded at deploy time.
 
 ## Auth dual-mode promotion gate
 
-Monitored condition (not a paging incident class): promotion from
-`HEATGUARD_AUTH_MODE=dual` to `enforce` requires **zero**
-`auth.deprecated_anonymous` structured events for **72 consecutive hours**
-(WO-013 / [SLO.md](SLO.md)).
+Monitored condition (not a paging incident class): promotion of **one
+endpoint group** from `HEATGUARD_AUTH_MODE=dual` to `enforce` requires **zero**
+`auth.deprecated_anonymous` structured events **for that group** for **72
+consecutive hours** (WO-013 / [SLO.md](SLO.md)).
+
+Configuration (resolved once at boot; invalid values fail the revision):
+
+- `HEATGUARD_AUTH_MODE` — service baseline (`dual` default, or `enforce`).
+- `HEATGUARD_AUTH_MODE_<GROUP>` — per-group override (`ADVISORY`, `REFERENCE`,
+  `SESSION`, `STATIC`). Probes and metrics cannot be overridden and stay
+  reachable without credentials.
+- Request-time `unknown` paths follow the baseline (never a weaker admit).
+
+### Promotion procedure
+
+1. Confirm the 72-hour quiet window for the group (`route_group` on
+   `auth.deprecated_anonymous`).
+2. Record sign-off (WO-041 ledger when present).
+3. Deploy a revision that sets only that group's override to `enforce`.
+4. Verify anonymous callers to that group receive 401; other groups unchanged.
+
+### Revert procedure
+
+1. Set that group's override back to `dual` (or unset it if the baseline is dual).
+2. Deploy; anonymous admission returns for **only** that group.
+3. Re-open the quiet window before promoting again.
 
 ### Symptom and alert that fires
 
@@ -307,9 +458,220 @@ Manual procedure (non-production project):
 
 ---
 
+## Architecture layering gate failed
+
+### Symptom and alert that fires
+
+- CI job **Python engine + API tests** / step **Architecture layering gate** is red,
+  or `uv run pytest tests/test_layering_contract.py` fails the subprocess check.
+- Local diagnostic: `uv run python scripts/check_layering.py`
+
+### Blast radius
+
+Architecture only — runtime advisories, enforcement, and golden numerics are
+unchanged. A red gate means a new import edge (or a rotting baseline row), not
+an on-call weather or quota incident.
+
+### Immediate mitigation
+
+1. Read the script output. New violations name `importer -> imported` and the
+   contract. Stale rows print the JSON fields to delete.
+2. Restore the lawful direction (higher layer may import lower). Function-local
+   imports still count.
+3. Do **not** grow `infra/architecture/layering_baseline.json` without
+   engineering-lead sign-off in the PR description. Forbidden contracts have an
+   empty baseline and must stay that way.
+4. After a real cycle-break, delete every baseline row that no longer
+   reproduces — leaving them is also a failure.
+
+### Diagnostic commands
+
+```bash
+uv sync --frozen --extra api --extra ml --extra dev
+uv run python scripts/check_layering.py
+NO_COLOR=1 PYTHONPATH=src uv run lint-imports
+```
+
+### How to read the baseline
+
+Each entry is one tolerated layers-contract pair: `importer`, `imported`,
+`contract`, one-line `reason`, `owner`, `dated_at`. The two forbidden contracts
+must never appear. A renamed module that stops matching is a stale entry — delete
+it; do not rewrite history in place to hide a new edge.
+
+---
+
+## Guardrail copy-lint failed
+
+### Symptom and alert that fires
+
+- `uv run pytest tests/test_guardrail_copy.py` fails, or
+  `uv run python scripts/check_guardrail_copy.py` exits non-zero.
+- Output names `file:line` and the matched prohibited phrase from
+  [SCOPE_GUARDRAIL.md](SCOPE_GUARDRAIL.md) Appendix A.
+
+### Blast radius
+
+Copy only — runtime advisories, legal precedence, and golden numerics are
+unchanged. A red gate means user-facing wording drifted into a prohibited
+phrase, not an on-call weather or quota incident.
+
+### Immediate mitigation
+
+1. Run the diagnostic command below and read `file:line:phrase`.
+2. Replace the wording with an **approved** Appendix A phrase (or a clearly
+   analytic `[AN]` formulation with the required disclaimer). Typical
+   operational stand-in: “Do not work — legal prohibition in effect.”
+3. Do **not** delete or weaken phrases in Appendix A to make the build pass.
+   The document is the single source of truth; the lint parses it live.
+
+### Diagnostic commands
+
+```bash
+uv run python scripts/check_guardrail_copy.py
+uv run pytest tests/test_guardrail_copy.py -q
+```
+
+### Approved-phrase alternatives
+
+Parse live from Appendix A (do not copy a second list into code). Current
+operational / compliance stand-ins include:
+
+- “Do not work — legal prohibition in effect.”
+- “Scientific assessment indicates some work may be possible; legal ban governs operational permission.”
+- “Comparison view for analysis. Legal prohibition always governs operational permission.”
+- “This tool supports compliance; it does not provide legal advice.”
+
+---
+
 ## Related
 
 - [SLO.md](SLO.md)  
 - [OBSERVABILITY.md](OBSERVABILITY.md)  
 - `infra/monitoring/policies.yaml`  
-- `scripts/validate_monitoring.py`  
+- `scripts/validate_monitoring.py`
+
+---
+
+## Guardrail deliberate-break drill
+
+A required check that has never been observed failing is indistinguishable
+from a check that cannot fail. This drill is the dated evidence that the
+four guardrail gates still bite. **The refactor phase must not open until a
+green dated report is recorded** (CI artifact or a local run checked into
+the engineering-lead log).
+
+### How to run locally
+
+```bash
+uv run python scripts/guardrail_drill.py
+uv run pytest tests/test_guardrail_drill.py -q
+```
+
+The script copies the repository into throwaway directories (never the
+checked-out tree), applies one seeded mutation from
+`tests/fixtures/drill/mutations.json` per case, and runs only that case's
+gate. Mutations cover:
+
+1. Layering — illegal import on the types leaf (`scripts/check_layering.py`)
+2. Legal contract schema — drop a required legal field (`tests/test_legal_contract_schema.py`)
+3. Copy-lint — prohibited Appendix A phrase on a dashboard surface (`scripts/check_guardrail_copy.py`)
+4. Four-lane regression — drop `newcomer_effective` from the timeline payload (`tests/test_api.py`)
+
+### How to read the report
+
+Default output (gitignored):
+
+- `artifacts/guardrail-drill/report.json` — machine-readable: case id, gate,
+  mutation, exit code, `matched_diagnostic`, duration, outcome
+- `artifacts/guardrail-drill/summary.md` — dated human-readable summary
+
+`outcome` is `pass` only when the gate exits non-zero **and** the output
+contains the expected diagnostic substring. A non-zero exit without that
+substring is `inconclusive` (treated as failure). A zero exit is `missed`
+(`gate did not fail on seeded violation`). Either non-pass fails the drill.
+
+`gates_covered` lists the four gates. A newly added gate with no drill case
+will not appear there — add a mutations.json case before treating the drill
+as green.
+
+### Refactor-phase rule
+
+Do not open the cycle-breaking / layering refactor until this drill has a
+green dated report. A gate that cannot be shown to fail is not a gate.
+
+---
+
+## Guardrail CI jobs (required checks)
+
+These six jobs are merge-blocking once a maintainer enables them under
+**Settings → Branches → Branch protection rules**. Enabling that setting is a
+**maintainer repository-settings action** — it is not automated by this
+repository. Exact GitHub check names (the job `name:` fields):
+
+| Check name | Gate |
+|---|---|
+| `arch-contract` | `scripts/check_layering.py` |
+| `openapi-contract` | `tests/test_legal_contract_schema.py` |
+| `guardrail-copy-lint` | `scripts/check_guardrail_copy.py` |
+| `legal-lane-regression` | four-lane tests in `tests/test_legal_precedence.py` and `tests/test_api.py` |
+| `guardrail-drill` | `scripts/guardrail_drill.py` |
+| `identity-db-ceiling` | `scripts/check_identity_db_size.py` |
+
+`tests/test_ci_gates.py` fails the build if any of those job ids disappears,
+loses its `run` step, sets `continue-on-error`, or uses a non-SHA-pinned action.
+
+Local run of all six (clean tree, exit 0):
+
+```bash
+uv run python scripts/check_layering.py
+uv run pytest tests/test_legal_contract_schema.py -q
+uv run python scripts/check_guardrail_copy.py
+uv run pytest tests/test_legal_precedence.py \
+  tests/test_api.py::test_hour_legal_precedence_blocks_work_during_ban \
+  tests/test_api.py::test_timeline_includes_effective_lanes \
+  tests/test_api.py::test_timeline_every_row_has_four_lanes_two_jurisdictions \
+  tests/test_api.py::test_hour_four_lane_invariants_two_jurisdictions \
+  tests/test_api.py::test_timeline_out_of_season_effective_matches_scientific \
+  tests/test_api.py::test_timeline_gap_hours_still_have_four_lanes \
+  tests/test_api.py::test_hour_protective_rest_survives_riyadh_ban \
+  tests/test_api.py::test_legal_lanes_banned_fixture_is_canonical \
+  -q
+uv run python scripts/guardrail_drill.py
+uv run python scripts/check_identity_db_size.py
+```
+
+### arch-contract failed
+
+Layering inversions or a types-leaf / legal_precedence forbidden import.
+Run `uv run python scripts/check_layering.py`. Do not grow the baseline to
+make the build pass. Artifact: `arch-contract` (`layering-report.txt`).
+
+### openapi-contract failed
+
+A required legal field dropped from the Pydantic inventory or OpenAPI
+`required` arrays. Run `uv run pytest tests/test_legal_contract_schema.py -q`.
+
+### guardrail-copy-lint failed
+
+A prohibited Appendix A phrase on an application surface. Run
+`uv run python scripts/check_guardrail_copy.py`. Artifact: `guardrail-copy-lint`.
+
+### legal-lane-regression failed
+
+Effective timeline lanes authorized work during a ban, or a lane is missing.
+Run the four-lane pytest node ids listed above.
+
+### guardrail-drill failed
+
+A seeded violation did not trip its gate (or the drill was inconclusive).
+Read `artifacts/guardrail-drill/summary.md`. See the deliberate-break drill
+section above.
+
+### identity-db-ceiling failed
+
+Identity SQLite object over 8 MiB, a worker-personal-data column
+(`age`, `weight_kg`, `height_m`, `has_comorbidity`, `worker_id`, `crew_id`),
+a broken role CHECK, or no identity object/DDL resolvable. Run
+`uv run python scripts/check_identity_db_size.py`. An absent identity set is
+never compliant. Artifact: `identity-db-ceiling`.

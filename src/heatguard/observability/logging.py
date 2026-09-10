@@ -244,6 +244,7 @@ def emit_auth_deprecated_anonymous(
     origin: str | None = None,
     user_agent: str | None = None,
     request_id: str | None = None,
+    route_group: str | None = None,
 ) -> None:
     """Reserved helper for the trust-boundary epic (do not redefine elsewhere)."""
     from .events import AUTH_DEPRECATED_ANONYMOUS
@@ -254,4 +255,5 @@ def emit_auth_deprecated_anonymous(
         origin=origin,
         user_agent=user_agent,
         request_id=request_id or current_request_id(),
+        route_group=route_group,
     )

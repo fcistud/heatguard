@@ -336,11 +336,27 @@ def file_tree_bytes(root: Path) -> dict[str, bytes]:
 _MANIFEST_VOLATILE = frozenset({"git_commit", "platform", "python_implementation"})
 
 
+def _python_majmin(version: str) -> str:
+    """``3.12.14`` → ``3.12`` so CPython security patches do not fail golden."""
+    parts = version.split(".")
+    if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+        return f"{parts[0]}.{parts[1]}"
+    return version
+
+
 def _manifest_for_compare(raw: bytes) -> bytes:
-    """Drop host/VCS fields so Linux CI can match goldens captured on macOS."""
+    """Drop host/VCS fields so Linux CI can match goldens captured on macOS.
+
+    ``python_version`` is compared at major.minor (same policy as
+    ``scripts/ci_version_drift.py``) so ``3.12.13`` vs ``3.12.14`` is not a
+    mismatch; ``3.11`` vs ``3.12`` still fails.
+    """
     data = json.loads(raw.decode("utf-8"))
     for key in _MANIFEST_VOLATILE:
         data.pop(key, None)
+    raw_py = data.get("python_version")
+    if isinstance(raw_py, str):
+        data["python_version"] = _python_majmin(raw_py)
     return canonical.dumps_bytes(data) + b"\n"
 
 

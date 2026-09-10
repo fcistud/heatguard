@@ -91,6 +91,7 @@ def test_observe_http_and_helpers_move_counters() -> None:
     )
     obs_metrics.observe_engine_decision(signal="WORK", wbgt_source="liljegren")
     obs_metrics.record_process_start_duration(1.25)
+    obs_metrics.observe_quota_store_breaker(open_=True)
 
     body = obs_metrics.render_prometheus().decode()
     assert 'heatguard_http_requests_total{method="GET",route="/health/live",status_class="2xx"} 1.0' in body
@@ -100,6 +101,7 @@ def test_observe_http_and_helpers_move_counters() -> None:
     assert 'outcome="cache_hit"' in body
     assert 'signal="WORK"' in body
     assert "heatguard_process_start_duration_seconds 1.25" in body
+    assert "heatguard_quota_store_breaker_open 1.0" in body
 
 
 def test_compliance_verify_ok_and_failed() -> None:

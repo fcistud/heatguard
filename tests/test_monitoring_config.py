@@ -93,6 +93,8 @@ def test_github_slug_matches_runbook_headings() -> None:
         "automated-rollback-and-canary",
         "auth-dual-mode-promotion-gate",
         "notification-channel-smoke-test",
+        "architecture-layering-gate-failed",
+        "guardrail-copy-lint-failed",
     ):
         assert expected in anchors, expected
 

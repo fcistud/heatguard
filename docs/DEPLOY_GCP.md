@@ -83,12 +83,25 @@ gcloud run services describe heatguard --region="${REGION}" --format='value(stat
 
 ```bash
 docker build -t heatguard .
+# Synthetic integrator keys (local/CI only — never production Secret Manager).
+python - <<'PY' > /tmp/hg-api-key.env
+import json
+from pathlib import Path
+payload = json.loads(Path("tests/fixtures/api_key_digests.json").read_text())
+print(f"HEATGUARD_API_KEY_PEPPER={payload['pepper']}")
+print("HEATGUARD_API_KEY_DIGESTS=" + json.dumps(payload["bundle"], separators=(",", ":")))
+session = json.loads(Path("tests/fixtures/session_tokens.json").read_text())
+print(f"HEATGUARD_SESSION_SIGNING_SECRET={session['signing_secret']}")
+print(f"HEATGUARD_SESSION_KID={session['kid']}")
+print("HEATGUARD_IDENTITY_SNAPSHOT=" + json.dumps(session["principals"], separators=(",", ":")))
+PY
 # Hardened local run (matches CI): read-only root + writable cache tmpfs
 docker run --rm -p 8080:8080 --read-only \
   --tmpfs /tmp:rw,mode=1777 \
   --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
   -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
   -e PORT=8080 \
+  --env-file /tmp/hg-api-key.env \
   heatguard
 ```
 
@@ -121,7 +134,7 @@ on Mac it is slower still (Linux VM overhead).
 | Approach | Command |
 |----------|---------|
 | **Dev (fastest)** | `scripts/run_demo.sh` — native Python, no VM |
-| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 heatguard` — slow start, then snappy UI |
+| **Docker + pre-warm** | `docker run --rm -p 8080:8080 -e HEATGUARD_WARM_DEMOS=1 --env-file /tmp/hg-api-key.env heatguard` — slow start, then snappy UI |
 | **Docker default** | First page load slow (~30–90s); **reload the same site** and it should be much faster (cached season replay) |
 | **Docker Desktop** | Settings → Resources → give **4+ CPUs** and **4+ GB RAM** |
 
@@ -140,7 +153,24 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_READINESS_TTL_SECONDS` | `5` | Memoisation window for `/health/ready` dependency checks |
 | `HEATGUARD_STATIC_DIR` | `/app/static` | Built React app (mounted at `/dashboard/`) |
 | `HEATGUARD_LANDING_DIR` | `/app/landing` | Marketing page (mounted at `/`) |
-| `HEATGUARD_CORS_ORIGINS` | `*` | Comma-separated origins if dashboard is hosted elsewhere |
+| `HEATGUARD_ENV` | `production` (Cloud Run) | Runtime environment; `staging`/`production` refuse empty or wildcard CORS without opt-in |
+| `HEATGUARD_CORS_ORIGINS` | _(required in production)_ | Comma-separated browser origins (no `*`). Set to the Cloud Run URL and any custom domains |
+| `HEATGUARD_CORS_ALLOW_WILDCARD` | unset | Must be the literal `true` to allow `*` in staging/production (temporary exception only) |
+| `HEATGUARD_API_KEY_PEPPER` | _(required)_ | HMAC pepper for integrator API keys. Inject from Secret Manager — never commit the production value. |
+| `HEATGUARD_API_KEY_DIGESTS` | _(required)_ | JSON object of integrator id → `{digest, key_class, active}`. `digest` is hex HMAC-SHA-256 of the presented secret keyed by the pepper. `key_class` is `demo`, `partner`, or `internal`. Empty or malformed JSON fails boot (never allow-all). |
+| `HEATGUARD_SESSION_SIGNING_SECRET` | _(required)_ | HS256 HMAC key for dashboard session JWTs. Minimum 32 bytes. Inject from Secret Manager — never commit the production value. |
+| `HEATGUARD_SESSION_KID` | unset | If set, the JWT `kid` header must match; missing or mismatched `kid` is refused. |
+| `HEATGUARD_IDENTITY_SNAPSHOT` | _(required)_ | JSON object of principal id → `{roles, sites, token_version, active}`. Empty or malformed JSON fails boot. Wildcard `sites: ["*"]` is inspector-only. |
+| `HEATGUARD_SESSION_CLOCK_SKEW_SECONDS` | `30` | Expiry/iat clock-skew tolerance (0–120). Documented default is 30 seconds. |
+
+> **gcloud comma footgun:** `--set-env-vars` / `--update-env-vars` split on commas by default.
+> When `HEATGUARD_CORS_ORIGINS` lists multiple origins, use the caret delimiter form:
+> `--update-env-vars='^@^HEATGUARD_CORS_ORIGINS=https://a.example,https://b.example'`.
+> `cloudbuild.yaml` and `scripts/deploy-gcp.sh` already use `^@^`.
+>
+> **Integrator API keys:** mount `HEATGUARD_API_KEY_PEPPER` and `HEATGUARD_API_KEY_DIGESTS` as Cloud Run secret references. The digest bundle is a JSON object, not comma-separated — still use `^@^` if you combine it with other `--update-env-vars` / `--update-secrets` flags. Local/offline tests use `tests/fixtures/api_key_digests.json` (synthetic only); regenerate with `python scripts/generate_api_key_digests.py`.
+>
+> **Session JWTs:** mount `HEATGUARD_SESSION_SIGNING_SECRET` and `HEATGUARD_IDENTITY_SNAPSHOT` as Cloud Run secret references. Local/offline tests use `tests/fixtures/session_tokens.json` (synthetic only); regenerate with `python scripts/generate_session_token_fixture.py`. Clock-skew default is 30 seconds.
 
 ---
 
@@ -164,14 +194,26 @@ gcloud run services update heatguard --region="${REGION}" --min-instances=1
 ## Custom domain (optional)
 
 1. [Map a domain to Cloud Run](https://cloud.google.com/run/docs/mapping-custom-domains)
-2. Set CORS if the frontend is on a different host:
+2. Set CORS to the Cloud Run URL **and** every custom-domain origin. Use `^@^` so commas inside the allowlist are not parsed as extra env keys:
 
 ```bash
+# Replace YOUR_SERVICE_URL with: gcloud run services describe heatguard --format='value(status.url)'
 gcloud run services update heatguard --region="${REGION}" \
-  --update-env-vars="HEATGUARD_CORS_ORIGINS=https://heatguard.example.com"
+  --update-env-vars="^@^HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://YOUR_SERVICE_URL,https://heatguard.example.com"
 ```
 
-If dashboard and API share the same Cloud Run URL, CORS is not required.
+Cloud Build always stamps the live service URL after deploy. Extra origins:
+
+```bash
+# Cloud Build --substitutions also splits on commas — use ^#^ when listing multiple origins.
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=^#^_CORS_ORIGINS=https://heatguard.example.com,https://app.example.com
+```
+
+Same-origin hosting (dashboard and API on one Cloud Run URL) still needs
+`HEATGUARD_CORS_ORIGINS` set to that URL whenever any cross-origin client may
+appear; never rely on a wildcard default. A temporary `*` requires
+`HEATGUARD_CORS_ALLOW_WILDCARD=true`.
 
 ---
 

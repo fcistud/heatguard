@@ -24,9 +24,13 @@ from heatguard.observability import (
     emit_auth_deprecated_anonymous,
 )
 from heatguard.observability.events import (
+    AUTH_API_KEY,
+    AUTH_SESSION,
     ENGINE_PHS_WARNING,
+    ENFORCEMENT_INTERNAL_ERROR,
     POLICY_INDEX_BUILD_FAILED,
     POLICY_INDEX_UNAVAILABLE,
+    QUOTA_STORE_UNAVAILABLE,
     RISK_MODEL_HEURISTIC_FALLBACK,
     RISK_MODEL_LOAD_FAILED,
     WEATHER_FIELD_SUBSTITUTED,
@@ -175,6 +179,71 @@ def test_redaction_drops_pii_from_decide_logs(captured_logs: list[dict]) -> None
         assert '"age": 55' not in dumped and "'age': 55" not in dumped
 
 
+def test_api_key_request_redacts_credential_fields(captured_logs: list[dict]) -> None:
+    fixture = json.loads(
+        (_REPO_ROOT / "tests" / "fixtures" / "api_key_digests.json").read_text(encoding="utf-8")
+    )
+    secret = fixture["secrets"]["demo-integrator"]
+    client = TestClient(app)
+    resp = client.get(
+        "/sites",
+        headers={"X-API-Key": secret, "Authorization": f"Bearer {secret}"},
+    )
+    assert resp.status_code == 200
+    dumped = json.dumps(captured_logs, default=str)
+    assert secret not in dumped
+    for ev in captured_logs:
+        if "api_key" in ev:
+            assert ev["api_key"] == "REDACTED"
+        if "authorization" in ev:
+            assert ev["authorization"] == "REDACTED"
+
+
+def test_session_token_outcome_log_redacts_and_records_reason(
+    captured_logs: list[dict],
+) -> None:
+    import time
+
+    from heatguard.boundary.session_tokens import default_claims, mint_session_token
+
+    fixture = json.loads(
+        (_REPO_ROOT / "tests" / "fixtures" / "session_tokens.json").read_text(encoding="utf-8")
+    )
+    now = int(time.time())
+    token = mint_session_token(
+        secret=fixture["signing_secret"],
+        claims=default_claims(
+            sub="dashboard-supervisor",
+            now=now,
+            token_version=1,
+            roles=["supervisor"],
+            sites=["dubai"],
+        ),
+        kid=fixture["kid"],
+    )
+    header, body, sig = token.split(".")
+    forged = f"{header}.{body}.{sig[:-2]}aa"
+    client = TestClient(app)
+    ok = client.get("/sites", headers={"Authorization": f"Bearer {token}"})
+    bad = client.get("/sites", headers={"Authorization": f"Bearer {forged}"})
+    assert ok.status_code == 200
+    assert bad.status_code == 401
+    dumped = json.dumps(captured_logs, default=str)
+    assert token not in dumped
+    assert forged not in dumped
+    assert fixture["signing_secret"] not in dumped
+    events = [e for e in captured_logs if e.get("event") == AUTH_SESSION]
+    assert len(events) >= 2
+    reasons = {e.get("reason") for e in events}
+    outcomes = {e.get("outcome") for e in events}
+    assert "authenticated" in outcomes
+    assert "unauthenticated" in outcomes
+    assert None in reasons or "invalid" in reasons
+    for ev in events:
+        for key in EXPECTED[AUTH_SESSION]:
+            assert key in ev
+
+
 def test_redact_processor_masks_secret_like_keys() -> None:
     out = redact_processor(
         None,
@@ -199,6 +268,7 @@ def test_auth_deprecated_anonymous_helper_schema(captured_logs: list[dict]) -> N
         origin="https://example.test",
         user_agent="pytest",
         request_id="r1",
+        route_group="advisory",
     )
     events = _events(captured_logs, AUTH_DEPRECATED_ANONYMOUS)
     assert len(events) == 1
@@ -223,12 +293,16 @@ def test_event_schemas_for_instrumented_paths(captured_logs: list[dict]) -> None
     # exercised in dedicated tests — not expected on this happy-path smoke.
     skip_presence = {
         AUTH_DEPRECATED_ANONYMOUS,
+        AUTH_API_KEY,
+        AUTH_SESSION,
         WEATHER_FIELD_SUBSTITUTED,
         POLICY_INDEX_UNAVAILABLE,
         POLICY_INDEX_BUILD_FAILED,
         RISK_MODEL_HEURISTIC_FALLBACK,
         RISK_MODEL_LOAD_FAILED,
         ENGINE_PHS_WARNING,
+        ENFORCEMENT_INTERNAL_ERROR,
+        QUOTA_STORE_UNAVAILABLE,
     }
     for name, keys in EXPECTED.items():
         if name in skip_presence:

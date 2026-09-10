@@ -1,0 +1,5 @@
+Formatting-disguised prohibited claim on one line:
+**SAFE   to work now**
+The next two lines split a phrase and must not match:
+HeatGuard permits work during
+banned hours

@@ -38,7 +38,21 @@
     "route",
     "origin",
     "user_agent",
-    "request_id"
+    "request_id",
+    "route_group"
+  ],
+  "auth.api_key": [
+    "request_id",
+    "route_group",
+    "outcome",
+    "key_class"
+  ],
+  "auth.session": [
+    "request_id",
+    "route_group",
+    "outcome",
+    "key_class",
+    "reason"
   ],
   "wbgt.path_selected": [
     "path",
@@ -64,5 +78,13 @@
   "engine.phs_warning": [
     "category",
     "message"
+  ],
+  "enforcement.internal_error": [
+    "request_id",
+    "route_group",
+    "exception_type"
+  ],
+  "quota.store_unavailable": [
+    "reason_code"
   ]
 }

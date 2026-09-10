@@ -326,6 +326,18 @@ def test_ready_includes_stable_degraded_codes():
     assert result.failed == []
 
 
+def test_ratelimit_store_unavailable_is_registered_reason_code() -> None:
+    """Unregistered codes are dropped from the snapshot — membership is required."""
+    assert deg.RATELIMIT_STORE_UNAVAILABLE in deg.REASON_CODES
+    deg.report_degraded(deg.RATELIMIT_STORE_UNAVAILABLE, detail="probe")
+    assert deg.RATELIMIT_STORE_UNAVAILABLE in deg.active_reason_codes()
+
+
+def test_unregistered_reason_code_is_dropped_from_snapshot() -> None:
+    deg.report_degraded("not_a_registered_code", detail="must-drop")
+    assert "not_a_registered_code" not in deg.active_reason_codes()
+
+
 def test_api_ready_degraded_fixture_integration(monkeypatch):
     import heatguard.policy_rag as pr
     import heatguard.risk_model as rm

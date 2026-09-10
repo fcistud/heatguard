@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "importer": "heatguard.golden",
+      "imported": "heatguard.service",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Synthetic fixture for the stale-baseline ratchet.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    },
+    {
+      "importer": "heatguard.hydration",
+      "imported": "heatguard.observability",
+      "contract": "HeatGuard layered architecture",
+      "reason": "Synthetic extra row that no longer reproduces.",
+      "owner": "architecture",
+      "dated_at": "2026-09-07"
+    }
+  ]
+}

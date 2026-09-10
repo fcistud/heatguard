@@ -78,6 +78,18 @@ policies:
       Sustained increase in heatguard_ratelimit_rejected_total by route/key_class.
       Demo-key exemption and pinned revision take priority during pitches.
 
+  - id: quota-store-unavailable
+    display_name: Shared quota store unavailable
+    severity: warning
+    notification_channel_ref: ops-email
+    runbook_url: docs/RUNBOOKS.md#quota-store-unavailable
+    auto_close: after_ok_30m
+    metrics:
+      - heatguard_degraded_conditions_total
+    condition_summary: >
+      ratelimit_store_unavailable latched on GET /health/ready; limiter on
+      per-instance fallback. Advisories are still served (quota fail-open).
+
   - id: compliance-chain-verify-failed
     display_name: Compliance chain verification failed
     severity: page

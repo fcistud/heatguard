@@ -1,0 +1,75 @@
+{
+  "description": "Group-mode matrix for HEATGUARD_AUTH_MODE resolution (WO-005). Do not auto-heal.",
+  "permitted_modes": ["dual", "enforce"],
+  "route_groups": ["advisory", "metrics", "probes", "reference", "session", "static"],
+  "cases": [
+    {
+      "id": "empty",
+      "env": {},
+      "baseline": "dual",
+      "overrides": {},
+      "expect": {
+        "advisory": "dual",
+        "reference": "dual",
+        "session": "dual",
+        "static": "dual",
+        "unknown": "dual"
+      }
+    },
+    {
+      "id": "baseline_only_enforce",
+      "env": {"HEATGUARD_AUTH_MODE": "enforce"},
+      "baseline": "enforce",
+      "overrides": {},
+      "expect": {
+        "advisory": "enforce",
+        "reference": "enforce",
+        "unknown": "enforce"
+      }
+    },
+    {
+      "id": "override_advisory",
+      "env": {
+        "HEATGUARD_AUTH_MODE": "dual",
+        "HEATGUARD_AUTH_MODE_ADVISORY": "enforce"
+      },
+      "baseline": "dual",
+      "overrides": {"advisory": "enforce"},
+      "expect": {
+        "advisory": "enforce",
+        "reference": "dual",
+        "unknown": "dual"
+      }
+    },
+    {
+      "id": "normalise_case_whitespace",
+      "env": {
+        "HEATGUARD_AUTH_MODE": " Enforce ",
+        "HEATGUARD_AUTH_MODE_REFERENCE": "DUAL"
+      },
+      "baseline": "enforce",
+      "overrides": {"reference": "dual"},
+      "expect": {
+        "advisory": "enforce",
+        "reference": "dual"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "invalid_baseline",
+      "env": {"HEATGUARD_AUTH_MODE": "off"},
+      "variable": "HEATGUARD_AUTH_MODE"
+    },
+    {
+      "id": "unknown_group_override",
+      "env": {"HEATGUARD_AUTH_MODE_TIMELINE": "enforce"},
+      "variable": "HEATGUARD_AUTH_MODE_TIMELINE"
+    },
+    {
+      "id": "probes_override",
+      "env": {"HEATGUARD_AUTH_MODE_PROBES": "enforce"},
+      "variable": "HEATGUARD_AUTH_MODE_PROBES"
+    }
+  ]
+}
