@@ -360,3 +360,142 @@ jobs:
           name: build-determinism
           path: artifacts/build-determinism/
           if-no-files-found: ignore
+
+  arch-contract:
+    name: arch-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Layering contract
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/check_layering.py | tee artifacts/layering-report.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: arch-contract
+          path: artifacts/layering-report.txt
+          if-no-files-found: ignore
+
+  openapi-contract:
+    name: openapi-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Legal contract schema
+        env:
+          HEATGUARD_ENV: test
+        run: uv run pytest tests/test_legal_contract_schema.py -q
+
+  guardrail-copy-lint:
+    name: guardrail-copy-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Guardrail copy-lint
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/check_guardrail_copy.py | tee artifacts/copy-lint.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: guardrail-copy-lint
+          path: artifacts/copy-lint.txt
+          if-no-files-found: ignore
+
+  legal-lane-regression:
+    name: legal-lane-regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Four-lane legal regression
+        env:
+          HEATGUARD_ENV: test
+        run: |
+          uv run pytest \
+            tests/test_legal_precedence.py \
+            tests/test_api.py::test_hour_legal_precedence_blocks_work_during_ban \
+            tests/test_api.py::test_timeline_includes_effective_lanes \
+            tests/test_api.py::test_timeline_every_row_has_four_lanes_two_jurisdictions \
+            tests/test_api.py::test_hour_four_lane_invariants_two_jurisdictions \
+            tests/test_api.py::test_timeline_out_of_season_effective_matches_scientific \
+            tests/test_api.py::test_timeline_gap_hours_still_have_four_lanes \
+            tests/test_api.py::test_hour_protective_rest_survives_riyadh_ban \
+            tests/test_api.py::test_legal_lanes_banned_fixture_is_canonical \
+            -q
+
+  guardrail-drill:
+    name: guardrail-drill
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Deliberate-break drill
+        env:
+          HEATGUARD_ENV: test
+        run: |
+          mkdir -p artifacts/guardrail-drill
+          uv run python scripts/guardrail_drill.py --output-dir artifacts/guardrail-drill
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: guardrail-drill
+          path: artifacts/guardrail-drill/
+          if-no-files-found: ignore
+
+  identity-db-ceiling:
+    name: identity-db-ceiling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Identity size ceiling and schema exclusion
+        run: |
+          mkdir -p artifacts
+          uv run python scripts/check_identity_db_size.py --report artifacts/identity-ceiling-report.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: identity-db-ceiling
+          path: artifacts/identity-ceiling-report.json
+          if-no-files-found: ignore
