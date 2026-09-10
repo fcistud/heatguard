@@ -214,6 +214,22 @@ class Advisory:
         }
 
 
+class IdentityRole(str, Enum):
+    """Operator principal roles stored in the identity SQLite schema (WO-017).
+
+    Must stay in lock-step with the ``users.role`` CHECK constraint.
+    """
+
+    SUPERVISOR = "supervisor"
+    OHS_OFFICER = "ohs_officer"
+    COMPLIANCE_OFFICER = "compliance_officer"
+    INSPECTOR = "inspector"
+
+
+IDENTITY_ROLES: tuple[str, ...] = tuple(role.value for role in IdentityRole)
+SITE_SCOPE_WILDCARD = "*"
+
+
 # ASGI scope keys for the enforcement chokepoint (WO-002). Documented so
 # handlers never invent a parallel global.
 PRINCIPAL_SCOPE_KEY = "heatguard.principal"
