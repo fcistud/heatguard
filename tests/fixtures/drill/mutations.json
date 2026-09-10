@@ -1,0 +1,79 @@
+{
+  "comment": "WO-015 deliberate-break drill. Each case mutates an isolated tree copy and must trip its gate.",
+  "gates_covered": [
+    "layering",
+    "legal_contract_schema",
+    "guardrail_copy",
+    "four_lane_regression"
+  ],
+  "cases": [
+    {
+      "id": "layering-types-leaf-import",
+      "gate": "layering",
+      "target": "src/heatguard/types.py",
+      "operation": "insert_line",
+      "payload": {
+        "text": "from . import calendar_ban  # drill: types leaf break\n",
+        "where": "end"
+      },
+      "gate_command": ["{python}", "scripts/check_layering.py", "--root", "{tree}"],
+      "expected_exit_code": 1,
+      "expected_diagnostic": "types leaf purity"
+    },
+    {
+      "id": "schema-drop-legal-banned",
+      "gate": "legal_contract_schema",
+      "target": "src/heatguard/contracts/legal_contract.py",
+      "operation": "replace_substring",
+      "payload": {
+        "old": "    banned: bool\n",
+        "new": "",
+        "count": 1
+      },
+      "gate_command": [
+        "{python}",
+        "-m",
+        "pytest",
+        "tests/test_legal_contract_schema.py",
+        "-q",
+        "--tb=short"
+      ],
+      "expected_exit_code": 1,
+      "expected_diagnostic": "missing properties ['banned']"
+    },
+    {
+      "id": "copy-lint-safe-to-work",
+      "gate": "guardrail_copy",
+      "target": "web/src/App.tsx",
+      "operation": "insert_line",
+      "payload": {
+        "text": "// Safe to work now\n",
+        "where": "end"
+      },
+      "gate_command": ["{python}", "scripts/check_guardrail_copy.py", "--root", "{tree}"],
+      "expected_exit_code": 1,
+      "expected_diagnostic": "prohibited phrase 'Safe to work now'"
+    },
+    {
+      "id": "four-lane-drop-newcomer-effective",
+      "gate": "four_lane_regression",
+      "target": "src/heatguard/service.py",
+      "operation": "replace_substring",
+      "payload": {
+        "old": "        \"newcomer_effective\": an_eff.to_dict(),\n",
+        "new": "",
+        "count": 0
+      },
+      "gate_command": [
+        "{python}",
+        "-m",
+        "pytest",
+        "tests/test_api.py::test_timeline_every_row_has_four_lanes_two_jurisdictions",
+        "-q",
+        "--tb=line"
+      ],
+      "expected_exit_code": 1,
+      "expected_diagnostic": "missing lane newcomer_effective"
+    }
+  ]
+}
