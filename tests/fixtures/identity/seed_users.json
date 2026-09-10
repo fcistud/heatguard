@@ -1,0 +1,65 @@
+{
+  "comment": "Synthetic HeatGuard identity seed (WO-017). Not production usernames or credentials.",
+  "users": [
+    {
+      "username": "syn.supervisor",
+      "password_hash": "$argon2id$v=19$m=8,t=1,p=1$c3ludGg$c3ludGg",
+      "salt": "c3ludGg",
+      "kdf_params": {"m": 8, "p": 1, "t": 1},
+      "role": "supervisor",
+      "sites": ["dubai"],
+      "token_version": 1,
+      "active": true,
+      "created_at_utc": "2024-01-01T00:00:00Z",
+      "updated_at_utc": "2024-01-01T00:00:00Z"
+    },
+    {
+      "username": "syn.ohs",
+      "password_hash": "$argon2id$v=19$m=8,t=1,p=1$c3ludGg$c3ludGg",
+      "salt": "c3ludGg",
+      "kdf_params": {"m": 8, "p": 1, "t": 1},
+      "role": "ohs_officer",
+      "sites": ["riyadh"],
+      "token_version": 1,
+      "active": true,
+      "created_at_utc": "2024-01-01T00:00:00Z",
+      "updated_at_utc": "2024-01-01T00:00:00Z"
+    },
+    {
+      "username": "syn.compliance",
+      "password_hash": "$argon2id$v=19$m=8,t=1,p=1$c3ludGg$c3ludGg",
+      "salt": "c3lundGg",
+      "kdf_params": {"m": 8, "p": 1, "t": 1},
+      "role": "compliance_officer",
+      "sites": ["doha"],
+      "token_version": 1,
+      "active": true,
+      "created_at_utc": "2024-01-01T00:00:00Z",
+      "updated_at_utc": "2024-01-01T00:00:00Z"
+    },
+    {
+      "username": "syn.inspector",
+      "password_hash": "$argon2id$v=19$m=8,t=1,p=1$c3lundGg$c3lundGg",
+      "salt": "c3lundGg",
+      "kdf_params": {"m": 8, "p": 1, "t": 1},
+      "role": "inspector",
+      "sites": ["*"],
+      "token_version": 1,
+      "active": true,
+      "created_at_utc": "2024-01-01T00:00:00Z",
+      "updated_at_utc": "2024-01-01T00:00:00Z"
+    },
+    {
+      "username": "syn.disabled",
+      "password_hash": "$argon2id$v=19$m=8,t=1,p=1$c3lundGg$c3lundGg",
+      "salt": "c3lundGg",
+      "kdf_params": {"m": 8, "p": 1, "t": 1},
+      "role": "supervisor",
+      "sites": ["abu_dhabi"],
+      "token_version": 2,
+      "active": false,
+      "created_at_utc": "2024-01-01T00:00:00Z",
+      "updated_at_utc": "2024-06-01T00:00:00Z"
+    }
+  ]
+}

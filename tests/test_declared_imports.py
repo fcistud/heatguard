@@ -27,6 +27,7 @@ _SKIP = {
     "argparse",
     "shutil",
     "subprocess",
+    "sqlite3",
     "heatguard",
     "__future__",
 }
