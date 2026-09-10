@@ -15,7 +15,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from heatguard.types import IDENTITY_ROLES
+from heatguard.types import IDENTITY_ROLES, SITE_SCOPE_WILDCARD
 
 SCHEMA_VERSION = 1
 SCHEMA_VERSION_KEY = "schema_version"
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL CHECK (role IN ({_ROLE_SQL})),
     sites TEXT NOT NULL,
     token_version INTEGER NOT NULL DEFAULT 1,
-    active INTEGER NOT NULL DEFAULT 1,
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
     created_at_utc TEXT NOT NULL,
     updated_at_utc TEXT NOT NULL
 )
@@ -118,6 +118,10 @@ def canonicalize_sites(sites: object) -> str:
         raise IdentitySitesError("sites entries must all be strings")
     if len(sites) != len(set(sites)):
         raise IdentitySitesError("sites must not contain duplicate values")
+    if SITE_SCOPE_WILDCARD in sites and sites != [SITE_SCOPE_WILDCARD]:
+        raise IdentitySitesError(
+            f"{SITE_SCOPE_WILDCARD!r} must be the sole sites entry when present"
+        )
     return _canonical_json(sites)
 
 
@@ -169,14 +173,6 @@ def assert_schema_compatible(connection: sqlite3.Connection) -> int:
     return stored
 
 
-def _has_identity_schema(connection: sqlite3.Connection) -> bool:
-    rows = connection.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('users', 'schema_meta')"
-    ).fetchall()
-    names = {row[0] for row in rows}
-    return names == {"users", "schema_meta"}
-
-
 def initialize(path: Path | str) -> int:
     """Create an empty identity database at *path*, idempotently.
 
@@ -188,16 +184,21 @@ def initialize(path: Path | str) -> int:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     try:
-        if _has_identity_schema(conn):
-            return assert_schema_compatible(conn)
         with conn:
             conn.execute("PRAGMA page_size=4096")
             for statement in DDL_STATEMENTS:
                 conn.execute(statement)
-            conn.execute(
-                "INSERT INTO schema_meta(key, value) VALUES (?, ?)",
-                (SCHEMA_VERSION_KEY, str(SCHEMA_VERSION)),
-            )
+            existing = conn.execute(
+                "SELECT value FROM schema_meta WHERE key = ?",
+                (SCHEMA_VERSION_KEY,),
+            ).fetchone()
+            if existing is not None:
+                assert_schema_compatible(conn)
+            else:
+                conn.execute(
+                    "INSERT INTO schema_meta(key, value) VALUES (?, ?)",
+                    (SCHEMA_VERSION_KEY, str(SCHEMA_VERSION)),
+                )
             conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         return SCHEMA_VERSION
     finally:
@@ -223,8 +224,10 @@ def insert_user(connection: sqlite3.Connection, row: Mapping[str, Any]) -> None:
     active = row.get("active", 1)
     if isinstance(active, bool):
         active_int = 1 if active else 0
+    elif isinstance(active, int) and active in (0, 1):
+        active_int = active
     else:
-        active_int = int(active)
+        raise IdentityError("active must be 0, 1, or a boolean")
     try:
         connection.execute(
             """

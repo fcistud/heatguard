@@ -28,7 +28,7 @@
     {
       "username": "syn.compliance",
       "password_hash": "$argon2id$v=19$m=8,t=1,p=1$c3ludGg$c3ludGg",
-      "salt": "c3lundGg",
+      "salt": "c3ludGg",
       "kdf_params": {"m": 8, "p": 1, "t": 1},
       "role": "compliance_officer",
       "sites": ["doha"],

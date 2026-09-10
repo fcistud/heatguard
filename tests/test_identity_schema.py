@@ -14,6 +14,7 @@ from heatguard.identity.schema import (
     SCHEMA_VERSION,
     USERS_COLUMNS,
     IdentityDuplicateError,
+    IdentityError,
     IdentitySchemaError,
     IdentitySitesError,
     assert_schema_compatible,
@@ -115,6 +116,70 @@ def test_initialize_idempotent_preserves_rows(tmp_path: Path) -> None:
         conn.close()
 
 
+def test_initialize_partial_schema_meta_is_idempotent(tmp_path: Path) -> None:
+    path = tmp_path / "identity.db"
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute(
+            "CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        conn.execute(
+            "INSERT INTO schema_meta(key, value) VALUES (?, ?)",
+            ("schema_version", str(SCHEMA_VERSION)),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    assert initialize(path) == SCHEMA_VERSION
+    conn = sqlite3.connect(path)
+    try:
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        assert tables >= {"users", "schema_meta"}
+        assert read_schema_version(conn) == SCHEMA_VERSION
+        assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
+def test_initialize_partial_schema_meta_mismatch(tmp_path: Path) -> None:
+    path = tmp_path / "identity.db"
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute(
+            "CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        conn.execute(
+            "INSERT INTO schema_meta(key, value) VALUES (?, ?)",
+            ("schema_version", "99"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    with pytest.raises(IdentitySchemaError, match="99"):
+        initialize(path)
+
+
+def test_insert_user_rejects_non_boolean_active(tmp_path: Path) -> None:
+    path = tmp_path / "identity.db"
+    initialize(path)
+    conn = sqlite3.connect(path)
+    try:
+        invalid = _user_row()
+        invalid["active"] = 2
+        with pytest.raises(IdentityError, match="active"):
+            insert_user(conn, invalid)
+        invalid["active"] = -1
+        with pytest.raises(IdentityError, match="active"):
+            insert_user(conn, invalid)
+    finally:
+        conn.close()
+
+
 def test_schema_version_mismatch_names_both_versions(tmp_path: Path) -> None:
     path = tmp_path / "identity.db"
     initialize(path)
@@ -197,6 +262,8 @@ def test_canonical_sites_rejects_malformed() -> None:
         canonicalize_sites(["dubai", 1])
     with pytest.raises(IdentitySitesError):
         canonicalize_sites(["dubai", "dubai"])
+    with pytest.raises(IdentitySitesError):
+        canonicalize_sites([SITE_SCOPE_WILDCARD, "dubai"])
 
 
 def test_forbidden_identity_columns_absent(tmp_path: Path) -> None:
@@ -234,8 +301,9 @@ def test_seed_covers_all_roles_wildcard_and_disabled() -> None:
     assert roles == set(IDENTITY_ROLES)
     assert any(row["sites"] == [SITE_SCOPE_WILDCARD] and row["role"] == "inspector" for row in users)
     assert any(row["active"] is False for row in users)
-    assert all("@" not in row["username"] or row["username"].startswith("syn.") for row in users)
     assert all(row["username"].startswith("syn.") for row in users)
+    assert all("@" not in row["username"] for row in users)
+    assert all(row["salt"] in row["password_hash"] for row in users)
 
 
 def _sql_dump(path: Path) -> str:
