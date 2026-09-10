@@ -81,13 +81,12 @@ class DrillError(Exception):
     """Hard drill failure (manifest, copy, mutation target, cleanup)."""
 
 
-def copy_ignore(directory: str, names: list[str]) -> set[str]:
-    """Ignore caches, VCS, and build outputs so the drill fits on CI disks."""
-    ignored = {name for name in names if name in IGNORE_DIR_NAMES}
-    parent = Path(directory).name
-    if parent == "web" and "dist" in names:
-        ignored.add("dist")
-    return ignored
+def copy_ignore(_directory: str, names: list[str]) -> set[str]:
+    """Ignore caches, VCS, and build outputs so the drill fits on CI disks.
+
+    ``dist`` is ignored in every directory (``web/dist`` and Python ``dist/``).
+    """
+    return {name for name in names if name in IGNORE_DIR_NAMES}
 
 
 def insert_line(text: str, payload: Mapping[str, Any]) -> str:
@@ -175,12 +174,13 @@ def score_gate(
 ) -> str:
     """Return ``pass``, ``inconclusive``, or ``missed``.
 
-    ``expected_exit_code`` is the gate's documented non-zero status (usually 1).
-    Scoring follows the AC: any non-zero exit plus the diagnostic substring
-    is a pass, so an unexpected but still failing code cannot be mistaken
-    for a miss.
+    ``expected_exit_code`` must be non-zero (the gate's documented failure
+    status, usually 1). Scoring follows the AC: any non-zero exit plus the
+    diagnostic substring is a pass, so an unexpected but still failing code
+    cannot be mistaken for a miss.
     """
-    del expected_exit_code
+    if expected_exit_code == 0:
+        raise DrillError("expected_exit_code must be non-zero")
     diagnostic_hit = expected_diagnostic in output
     if exit_code != 0 and diagnostic_hit:
         return "pass"
@@ -214,6 +214,11 @@ def load_manifest(path: Path) -> dict[str, Any]:
         missing = [key for key in REQUIRED_CASE_KEYS if key not in case]
         if missing:
             raise DrillError(f"case {case.get('id')!r} missing keys: {missing}")
+        expected_exit = case.get("expected_exit_code")
+        if not isinstance(expected_exit, int) or expected_exit == 0:
+            raise DrillError(
+                f"case {case.get('id')!r} expected_exit_code must be a non-zero int"
+            )
     gates = payload.get("gates_covered")
     if not isinstance(gates, list) or not gates:
         raise DrillError("mutations manifest must list gates_covered")
@@ -398,10 +403,20 @@ def run_drill(
     missing_gates = [g for g in REQUIRED_GATES if g not in covered]
     if missing_gates:
         raise DrillError(f"manifest gates_covered missing required gates: {missing_gates}")
+    unknown = [g for g in covered if g not in REQUIRED_GATES]
+    if unknown:
+        raise DrillError(f"manifest gates_covered has unknown gates: {unknown}")
     case_gates = {str(case["gate"]) for case in manifest["cases"]}
     uncovered = [g for g in covered if g not in case_gates]
     if uncovered:
         raise DrillError(f"gates listed as covered have no case: {uncovered}")
+    unlisted = [
+        f"{case['id']} ({case['gate']})"
+        for case in manifest["cases"]
+        if str(case["gate"]) not in covered
+    ]
+    if unlisted:
+        raise DrillError(f"case gate not listed in gates_covered: {unlisted}")
 
     results: list[dict[str, Any]] = []
     for case in manifest["cases"]:

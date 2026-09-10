@@ -30,7 +30,7 @@ def _load_drill():
 drill = _load_drill()
 
 
-def test_manifest_declares_four_required_gates() -> None:
+def test_manifest_declares_four_required_gates(tmp_path: Path) -> None:
     payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
     assert tuple(payload["gates_covered"]) == drill.REQUIRED_GATES
     ids = [case["id"] for case in payload["cases"]]
@@ -38,6 +38,32 @@ def test_manifest_declares_four_required_gates() -> None:
     assert {case["gate"] for case in payload["cases"]} == set(drill.REQUIRED_GATES)
     for case in payload["cases"]:
         assert (REPO / case["target"]).is_file(), case["target"]
+    with pytest.raises(drill.DrillError, match="expected_exit_code must be a non-zero"):
+        payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        payload["cases"][0]["expected_exit_code"] = 0
+        path = tmp_path / "zero_exit.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        drill.load_manifest(path)
+
+
+def test_run_drill_rejects_unknown_and_unlisted_gates(tmp_path: Path) -> None:
+    payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    extra = tmp_path / "extra_gate.json"
+    extra_payload = json.loads(json.dumps(payload))
+    extra_payload["gates_covered"] = list(payload["gates_covered"]) + ["not-a-gate"]
+    extra.write_text(json.dumps(extra_payload), encoding="utf-8")
+    with pytest.raises(drill.DrillError, match="unknown gates"):
+        drill.run_drill(repo=REPO, manifest_path=extra, python=sys.executable)
+
+    unlisted = tmp_path / "unlisted_gate.json"
+    unlisted_payload = json.loads(json.dumps(payload))
+    extra_case = dict(unlisted_payload["cases"][0])
+    extra_case["id"] = "orphan-gate-case"
+    extra_case["gate"] = "not-a-gate"
+    unlisted_payload["cases"] = list(unlisted_payload["cases"]) + [extra_case]
+    unlisted.write_text(json.dumps(unlisted_payload), encoding="utf-8")
+    with pytest.raises(drill.DrillError, match="not listed in gates_covered"):
+        drill.run_drill(repo=REPO, manifest_path=unlisted, python=sys.executable)
 
 
 def test_insert_line_end_and_after() -> None:
@@ -106,6 +132,13 @@ def test_score_gate_three_outcomes() -> None:
     )
     assert "inconclusive drill" in inconclusive
     assert "layering-types-leaf-import" in inconclusive
+    with pytest.raises(drill.DrillError, match="expected_exit_code must be non-zero"):
+        drill.score_gate(
+            exit_code=1,
+            output="types leaf purity",
+            expected_exit_code=0,
+            expected_diagnostic="types leaf purity",
+        )
 
 
 def test_copy_ignore_drops_heavy_directories(tmp_path: Path) -> None:
@@ -123,11 +156,7 @@ def test_copy_ignore_drops_heavy_directories(tmp_path: Path) -> None:
     assert "__pycache__" in ignored
     assert "src" not in ignored
     assert "data" not in ignored
-    web = tmp_path / "web"
-    web.mkdir()
-    web_ignored = drill.copy_ignore(str(web), ["dist", "src"])
-    assert "dist" in web_ignored
-    assert "src" not in web_ignored
+    assert "dist" in ignored
 
 
 def test_temp_directory_cleanup_on_exception(tmp_path: Path) -> None:
