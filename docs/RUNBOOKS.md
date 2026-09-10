@@ -549,4 +549,54 @@ operational / compliance stand-ins include:
 - [SLO.md](SLO.md)  
 - [OBSERVABILITY.md](OBSERVABILITY.md)  
 - `infra/monitoring/policies.yaml`  
-- `scripts/validate_monitoring.py`  
+- `scripts/validate_monitoring.py`
+
+---
+
+## Guardrail deliberate-break drill
+
+A required check that has never been observed failing is indistinguishable
+from a check that cannot fail. This drill is the dated evidence that the
+four guardrail gates still bite. **The refactor phase must not open until a
+green dated report is recorded** (CI artifact or a local run checked into
+the engineering-lead log).
+
+### How to run locally
+
+```bash
+uv run python scripts/guardrail_drill.py
+uv run pytest tests/test_guardrail_drill.py -q
+```
+
+The script copies the repository into throwaway directories (never the
+checked-out tree), applies one seeded mutation from
+`tests/fixtures/drill/mutations.json` per case, and runs only that case's
+gate. Mutations cover:
+
+1. Layering — illegal import on the types leaf (`scripts/check_layering.py`)
+2. Legal contract schema — drop a required legal field (`tests/test_legal_contract_schema.py`)
+3. Copy-lint — prohibited Appendix A phrase on a dashboard surface (`scripts/check_guardrail_copy.py`)
+4. Four-lane regression — drop `newcomer_effective` from the timeline payload (`tests/test_api.py`)
+
+### How to read the report
+
+Default output (gitignored):
+
+- `artifacts/guardrail-drill/report.json` — machine-readable: case id, gate,
+  mutation, exit code, `matched_diagnostic`, duration, outcome
+- `artifacts/guardrail-drill/summary.md` — dated human-readable summary
+
+`outcome` is `pass` only when the gate exits non-zero **and** the output
+contains the expected diagnostic substring. A non-zero exit without that
+substring is `inconclusive` (treated as failure). A zero exit is `missed`
+(`gate did not fail on seeded violation`). Either non-pass fails the drill.
+
+`gates_covered` lists the four gates. A newly added gate with no drill case
+will not appear there — add a mutations.json case before treating the drill
+as green.
+
+### Refactor-phase rule
+
+Do not open the cycle-breaking / layering refactor until this drill has a
+green dated report. A gate that cannot be shown to fail is not a gate.
+ 
