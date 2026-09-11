@@ -1,0 +1,4 @@
+# Operator-supplied remote state. Never commit real bucket names.
+# terraform init -backend-config=backend.hcl
+bucket = "example-tfstate"
+prefix = "identity/dev"

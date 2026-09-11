@@ -604,7 +604,7 @@ green dated report. A gate that cannot be shown to fail is not a gate.
 
 ## Guardrail CI jobs (required checks)
 
-These six jobs are merge-blocking once a maintainer enables them under
+These jobs are merge-blocking once a maintainer enables them under
 **Settings → Branches → Branch protection rules**. Enabling that setting is a
 **maintainer repository-settings action** — it is not automated by this
 repository. Exact GitHub check names (the job `name:` fields):
@@ -617,6 +617,7 @@ repository. Exact GitHub check names (the job `name:` fields):
 | `legal-lane-regression` | four-lane tests in `tests/test_legal_precedence.py` and `tests/test_api.py` |
 | `guardrail-drill` | `scripts/guardrail_drill.py` |
 | `identity-db-ceiling` | `scripts/check_identity_db_size.py` |
+| `identity-terraform` | `terraform fmt -check` / `validate` / `plan` (never apply) |
 
 `tests/test_ci_gates.py` fails the build if any of those job ids disappears,
 loses its `run` step, sets `continue-on-error`, or uses a non-SHA-pinned action.
@@ -675,3 +676,96 @@ Identity SQLite object over 8 MiB, a worker-personal-data column
 a broken role CHECK, or no identity object/DDL resolvable. Run
 `uv run python scripts/check_identity_db_size.py`. An absent identity set is
 never compliant. Artifact: `identity-db-ceiling`.
+
+### identity-terraform failed
+
+`terraform fmt -check`, `validate`, or `plan` failed against
+`infra/identity/fixtures/plan.tfvars`. Run those commands locally from
+`infra/identity` (init with `-backend=false`; never `terraform apply` in CI).
+Enabling this required check is a maintainer repository-settings action.
+
+---
+
+## Identity object (Cloud Storage)
+
+The operator identity SQLite snapshot lives in a **versioned** GCS bucket
+declared by `infra/identity`. IAM is split and non-negotiable: the Cloud Run
+runtime service account is `roles/storage.objectViewer` only; the operator
+group is `roles/storage.objectAdmin`. No principal holds both.
+
+Object key (every environment): `identity/heatguard-identity.db`.
+URI consumed by the service: `HEATGUARD_IDENTITY_OBJECT_URI` (refresh
+`HEATGUARD_IDENTITY_REFRESH_SECONDS=300`). The snapshot is downloaded into
+the existing `hg-tmp` in-memory volume at `/tmp` so the read-only container
+root is untouched.
+
+**Production identity data is Confidential. Never copy it into
+non-production.** Dev, staging, and prod each have their own bucket
+(`{prefix}-{environment}-identity`) and their own seeded object.
+
+Terraform apply requires real GCP credentials. CI only runs `fmt`,
+`validate`, and `plan` against placeholder `fixtures/plan.tfvars` — that
+plan-only job plus `tests/test_identity_infra.py` are the substitute for
+an apply-time integration test.
+
+Remote state:
+
+```bash
+terraform init \
+  -backend-config="bucket=${TFSTATE_BUCKET}" \
+  -backend-config="prefix=identity/${ENVIRONMENT}"
+```
+
+CI detaches `backend.tf` and plans against local state with placeholder
+`fixtures/plan.tfvars`. That is not an apply.
+
+`${PROJECT_ID}` and `${TFSTATE_BUCKET}` are operator-supplied; they are
+not committed.
+
+### Initial upload
+
+1. Apply `infra/identity` for the target environment (`dev` / `staging` /
+   `prod`) so the versioned bucket and IAM split exist.
+2. Build a non-production identity SQLite with
+   `scripts/build_identity_fixture.py` (or the operator tool). Do **not**
+   upload a production file to dev or staging.
+3. Upload generation 1:
+
+```bash
+gcloud storage cp heatguard-identity.db \
+  "gs://${BUCKET}/identity/heatguard-identity.db"
+```
+
+### Inspect generations
+
+```bash
+gcloud storage ls --all-versions "gs://${BUCKET}/identity/heatguard-identity.db"
+```
+
+Note the `#generation` suffix. Noncurrent generations are deleted after the
+lifecycle window (`noncurrent_version_retention_days`, default 30).
+
+### Restore from a superseded generation
+
+```bash
+gcloud storage cp \
+  "gs://${BUCKET}/identity/heatguard-identity.db#${GENERATION}" \
+  "gs://${BUCKET}/identity/heatguard-identity.db"
+```
+
+That writes a new live generation. Confirm the Cloud Run revision still has
+`HEATGUARD_IDENTITY_OBJECT_URI` pointing at this object; the loader refreshes
+on the 300 s loop (or the next process start).
+
+---
+
+## Egress
+
+Only these destinations are expected from the Cloud Run service. Anything
+else is unexpected egress.
+
+| Destination | Why | Direction |
+|---|---|---|
+| Open-Meteo (`archive-api.open-meteo.com`, `api.open-meteo.com`) | Archive + forecast weather for WBGT | egress HTTPS |
+| Cloud Storage identity object (`gs://…/identity/heatguard-identity.db`) | Read-only operator identity snapshot (ADR-1) | egress HTTPS (GCS) |
+
