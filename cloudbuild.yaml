@@ -21,6 +21,10 @@
 #   _CORS_ORIGINS Optional extra browser origins (comma-separated, no '*').
 #                 The live Cloud Run service URL is always applied after deploy;
 #                 use this only for custom domains / additional frontends.
+#   _IDENTITY_ENV Environment segment in the identity bucket name (default prod).
+#                 Bucket is ${PROJECT_ID}-${_IDENTITY_ENV}-identity; object is
+#                 identity/heatguard-identity.db. Snapshot is loaded into hg-tmp
+#                 (/tmp). Production identity is never copied into non-production.
 #
 # Env-var lists use gcloud's ^DELIM^ form so commas inside HEATGUARD_CORS_ORIGINS
 # are not treated as additional KEY=VALUE pairs.
@@ -30,6 +34,7 @@ substitutions:
   _SERVICE: heatguard
   _AR_REPO: heatguard
   _CORS_ORIGINS: ""
+  _IDENTITY_ENV: prod
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -71,7 +76,7 @@ steps:
           --max-instances=3 \
           --timeout=120 \
           --project="$PROJECT_ID" \
-          --set-env-vars="^@^HEATGUARD_DATA_DIR=/app/data@HEATGUARD_CACHE_DIR=/var/cache/heatguard@HEATGUARD_STATIC_DIR=/app/static@HEATGUARD_LANDING_DIR=/app/landing@NUMBA_CACHE_DIR=/tmp/numba_cache@HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://invalid.invalid" \
+          --set-env-vars="^@^HEATGUARD_DATA_DIR=/app/data@HEATGUARD_CACHE_DIR=/var/cache/heatguard@HEATGUARD_STATIC_DIR=/app/static@HEATGUARD_LANDING_DIR=/app/landing@NUMBA_CACHE_DIR=/tmp/numba_cache@HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://invalid.invalid@HEATGUARD_IDENTITY_OBJECT_URI=gs://${PROJECT_ID}-${_IDENTITY_ENV}-identity/identity/heatguard-identity.db@HEATGUARD_IDENTITY_REFRESH_SECONDS=300" \
           --add-volume=name=hg-cache,type=in-memory,size-limit=256Mi \
           --add-volume-mount=volume=hg-cache,mount-path=/var/cache/heatguard \
           --add-volume=name=hg-tmp,type=in-memory,size-limit=128Mi \
