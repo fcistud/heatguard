@@ -499,3 +499,27 @@ jobs:
           name: identity-db-ceiling
           path: artifacts/identity-ceiling-report.json
           if-no-files-found: ignore
+
+  identity-terraform:
+    name: identity-terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+      - name: fmt, validate, plan (never apply)
+        working-directory: infra/identity
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/infra/identity/fixtures/placeholder-adc.json
+        run: |
+          set -euo pipefail
+          terraform fmt -check
+          # Detach the GCS backend so plan uses local state without credentials.
+          # This job is plan-only (apply is forbidden).
+          mv backend.tf backend.tf.off
+          trap 'mv -f backend.tf.off backend.tf' EXIT
+          terraform init -input=false
+          terraform validate
+          terraform plan -var-file=fixtures/plan.tfvars -input=false -lock=false -refresh=false -no-color
