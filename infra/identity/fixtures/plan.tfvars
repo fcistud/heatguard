@@ -9,5 +9,3 @@ runtime_service_account           = "heatguard-runtime@example-project.iam.gserv
 operator_group                    = "heatguard-operators@example.com"
 noncurrent_version_retention_days = 30
 identity_object_name              = "identity/heatguard-identity.db"
-tfstate_bucket                    = "example-tfstate"
-tfstate_prefix                    = "identity/dev"

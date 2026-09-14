@@ -23,6 +23,7 @@ REQUIRED_GUARDRAIL_JOBS = (
     "legal-lane-regression",
     "guardrail-drill",
     "identity-db-ceiling",
+    "identity-terraform",
 )
 
 SHA_USES_RE = re.compile(

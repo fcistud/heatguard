@@ -30,6 +30,12 @@ WRITE_ROLES = frozenset(
     }
 )
 PLACEHOLDER_MARKERS = ("example", "placeholder", "YOUR_", "changeme")
+EXPECTED_IAM_BINDINGS = frozenset(
+    {
+        (RUNTIME_VIEWER_ROLE, "serviceAccount:${var.runtime_service_account}"),
+        (OPERATOR_WRITE_ROLE, "group:${var.operator_group}"),
+    }
+)
 
 
 @dataclass
@@ -49,6 +55,10 @@ def load_tf_sources(root: Path = TF_DIR) -> str:
     for path in sorted(root.glob("*.tf")):
         chunks.append(path.read_text(encoding="utf-8"))
     return "\n".join(chunks)
+
+
+def _normalize_member(expr: str) -> str:
+    return expr.strip().strip('"').replace(" ", "")
 
 
 def collect_iam_bindings(source: str) -> list[tuple[str, str]]:
@@ -103,19 +113,18 @@ def validate_identity_infra(
         result.fail(
             f"expected exactly two google_storage_bucket_iam_member bindings, found {len(bindings)}"
         )
-    roles = [role for role, _ in bindings]
-    if roles.count(RUNTIME_VIEWER_ROLE) != 1:
-        result.fail(f"expected exactly one {RUNTIME_VIEWER_ROLE} binding for the runtime account")
-    if roles.count(OPERATOR_WRITE_ROLE) != 1:
-        result.fail(f"expected exactly one {OPERATOR_WRITE_ROLE} binding for the operator group")
+    normalized = {(role, _normalize_member(member)) for role, member in bindings}
+    if normalized != EXPECTED_IAM_BINDINGS:
+        result.fail(
+            "IAM split must be exactly "
+            f"{sorted(EXPECTED_IAM_BINDINGS)}; found {sorted(normalized)}"
+        )
 
-    for role, member in bindings:
+    for role, member in normalized:
         if "runtime_service_account" in member and role in WRITE_ROLES:
             result.fail(
                 f"runtime service account must never receive a write role; found {role}"
             )
-        if "operator_group" in member and role == RUNTIME_VIEWER_ROLE and OPERATOR_WRITE_ROLE not in roles:
-            result.fail("operator group must hold the write role, not only objectViewer")
 
     if "HEATGUARD_IDENTITY_OBJECT_URI" not in cloudbuild_text:
         result.fail("cloudbuild.yaml must set HEATGUARD_IDENTITY_OBJECT_URI")
@@ -172,6 +181,23 @@ def test_missing_lifecycle_rule_fails() -> None:
     )
     assert not result.ok
     assert any("noncurrent" in err for err in result.errors)
+
+
+def test_swapped_iam_members_fail() -> None:
+    """objectViewer on the operator group (instead of the runtime SA) must fail."""
+    source = load_tf_sources().replace(
+        'member = "serviceAccount:${var.runtime_service_account}"',
+        'member = "group:${var.operator_group}"',
+        1,
+    )
+    result = validate_identity_infra(
+        tf_source=source,
+        cloudbuild_text=CLOUDBUILD.read_text(encoding="utf-8"),
+        workflow_text=WORKFLOW.read_text(encoding="utf-8"),
+        tfvars_text=FIXTURE_TFVARS.read_text(encoding="utf-8"),
+    )
+    assert not result.ok
+    assert any("IAM split must be exactly" in err for err in result.errors)
 
 
 def test_runtime_write_role_fails() -> None:

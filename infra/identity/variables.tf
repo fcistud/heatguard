@@ -50,13 +50,3 @@ variable "identity_object_name" {
   description = "Object key for the identity SQLite snapshot. Seeded per environment; never copy prod into non-prod."
   default     = "identity/heatguard-identity.db"
 }
-
-variable "tfstate_bucket" {
-  type        = string
-  description = "Remote-state GCS bucket. Passed to terraform init -backend-config=bucket=..."
-}
-
-variable "tfstate_prefix" {
-  type        = string
-  description = "Remote-state prefix. Passed to terraform init -backend-config=prefix=..."
-}

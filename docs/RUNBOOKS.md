@@ -694,10 +694,11 @@ runtime service account is `roles/storage.objectViewer` only; the operator
 group is `roles/storage.objectAdmin`. No principal holds both.
 
 Object key (every environment): `identity/heatguard-identity.db`.
-URI consumed by the service: `HEATGUARD_IDENTITY_OBJECT_URI` (refresh
-`HEATGUARD_IDENTITY_REFRESH_SECONDS=300`). The snapshot is downloaded into
-the existing `hg-tmp` in-memory volume at `/tmp` so the read-only container
-root is untouched.
+URI the revision already receives: `HEATGUARD_IDENTITY_OBJECT_URI` (refresh
+`HEATGUARD_IDENTITY_REFRESH_SECONDS=300`). The boot-time GCS loader (WO-019)
+downloads that object into the existing `hg-tmp` in-memory volume at `/tmp`
+so the read-only container root is untouched. Until that loader lands, boot
+still requires `HEATGUARD_IDENTITY_SNAPSHOT`.
 
 **Production identity data is Confidential. Never copy it into
 non-production.** Dev, staging, and prod each have their own bucket
@@ -754,8 +755,10 @@ gcloud storage cp \
 ```
 
 That writes a new live generation. Confirm the Cloud Run revision still has
-`HEATGUARD_IDENTITY_OBJECT_URI` pointing at this object; the loader refreshes
-on the 300 s loop (or the next process start).
+`HEATGUARD_IDENTITY_OBJECT_URI` pointing at this object. Once the WO-019
+loader is in place it refreshes on the 300 s loop (or the next process
+start). Until then, a restore does not change a running process that still
+boots from `HEATGUARD_IDENTITY_SNAPSHOT`.
 
 ---
 

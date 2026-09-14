@@ -23,8 +23,9 @@
 #                 use this only for custom domains / additional frontends.
 #   _IDENTITY_ENV Environment segment in the identity bucket name (default prod).
 #                 Bucket is ${PROJECT_ID}-${_IDENTITY_ENV}-identity; object is
-#                 identity/heatguard-identity.db. Snapshot is loaded into hg-tmp
-#                 (/tmp). Production identity is never copied into non-production.
+#                 identity/heatguard-identity.db. The WO-019 loader reads this
+#                 URI into hg-tmp (/tmp). Production identity is never copied
+#                 into non-production.
 #
 # Env-var lists use gcloud's ^DELIM^ form so commas inside HEATGUARD_CORS_ORIGINS
 # are not treated as additional KEY=VALUE pairs.
