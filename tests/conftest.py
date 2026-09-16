@@ -33,6 +33,29 @@ if _SESSION_FIXTURE.exists():
         json.dumps(_session_payload["principals"], separators=(",", ":")),
     )
 
+_IDENTITY_FIXTURE = Path(__file__).parent / "fixtures" / "identity" / "heatguard-identity-test.db"
+if _IDENTITY_FIXTURE.is_file():
+    os.environ.setdefault(
+        "HEATGUARD_IDENTITY_OBJECT_URI",
+        _IDENTITY_FIXTURE.resolve().as_uri(),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _boot_identity_snapshot(tmp_path: Path) -> None:
+    """Publish the committed fixture so identity_store is ready unless a test reboots."""
+    if not _IDENTITY_FIXTURE.is_file():
+        yield
+        return
+    from heatguard.identity.fetch import LocalFileFetcher
+    from heatguard.identity.snapshot import boot_identity_store
+
+    boot_identity_store(
+        fetcher=LocalFileFetcher(_IDENTITY_FIXTURE),
+        tmp_dir=tmp_path / "identity-snap",
+    )
+    yield
+
 from heatguard import canonical, golden
 from heatguard._paths import _REPO_ROOT
 from heatguard.types import Site, Weather, Worker

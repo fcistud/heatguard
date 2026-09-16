@@ -156,8 +156,20 @@ def _check_archive_caches() -> str | None:
     return None
 
 
+def _check_identity_store() -> str | None:
+    from .identity.snapshot import get_current, last_load_error
+
+    if get_current() is not None:
+        return None
+    err = last_load_error()
+    if err is not None:
+        return err.reason
+    return "unpublished"
+
+
 def default_checkers() -> list[DependencyCheck]:
     hard = [
+        DependencyCheck("identity_store", "hard", _check_identity_store),
         DependencyCheck("sites_registry", "hard", _check_sites),
         DependencyCheck("datasets_manifest", "hard", _check_manifest),
     ]

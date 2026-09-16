@@ -113,6 +113,29 @@ def _warm_caches() -> None:
                     service.build_demo(site, 100)
 
 
+def _boot_identity_store() -> None:
+    """Materialize the identity snapshot before warm caches. Never raises."""
+    from .identity.snapshot import boot_identity_store, last_load_error
+
+    started = time.perf_counter()
+    snapshot = boot_identity_store()
+    duration = round(time.perf_counter() - started, 3)
+    if snapshot is None:
+        err = last_load_error()
+        log.warning(
+            "heatguard.identity.boot_failed",
+            reason=(err.reason if err is not None else "unpublished"),
+            duration_seconds=duration,
+        )
+        return
+    log.info(
+        "heatguard.identity.boot",
+        generation=snapshot.generation,
+        principal_count=snapshot.principal_count,
+        duration_seconds=duration,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
@@ -126,6 +149,7 @@ async def lifespan(app: FastAPI):
     bind_session_auth(app)
     bind_auth_modes(app)
     bind_quota(app)
+    _boot_identity_store()
     v = sys.version_info
     log.info(
         "heatguard.runtime",

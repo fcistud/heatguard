@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -37,6 +38,18 @@ def resolve_cache_dir(
 
 
 CACHE_DIR = resolve_cache_dir()
+
+ENV_IDENTITY_TMP_DIR = "HEATGUARD_IDENTITY_TMP_DIR"
+DEFAULT_IDENTITY_TMP_DIR = Path("/tmp")
+
+
+def resolve_identity_tmp_dir(*, env: Mapping[str, str] | None = None) -> Path:
+    """Directory for the downloaded identity object (hg-tmp, default ``/tmp``)."""
+    environ = os.environ if env is None else env
+    override = environ.get(ENV_IDENTITY_TMP_DIR)
+    if override:
+        return Path(override)
+    return DEFAULT_IDENTITY_TMP_DIR
 
 
 def data_file(name: str) -> Path:

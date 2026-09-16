@@ -155,6 +155,28 @@ def test_api_live_and_ready_headers() -> None:
     rbody = ready.json()
     assert rbody["status"] in {"ready", "degraded"}
     assert "failed" in rbody and "degraded" in rbody
+    assert any(c["name"] == "identity_store" and c["ok"] for c in rbody["checks"])
+    from heatguard.identity.snapshot import get_current
+
+    snap = get_current()
+    assert snap is not None and snap.principal_count > 0
+
+
+def test_api_ready_503_when_identity_boot_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HEATGUARD_IDENTITY_OBJECT_URI", str(tmp_path / "missing.db"))
+    from heatguard.identity.snapshot import clear_snapshot, get_current
+
+    clear_snapshot()
+    clear_readiness_cache()
+    client = TestClient(app)
+    ready = client.get("/health/ready")
+    assert ready.status_code == 503
+    body = ready.json()
+    assert body["status"] == "not_ready"
+    assert any("identity_store" in f for f in body["failed"])
+    assert get_current() is None
 
 
 def test_api_ready_503_when_data_dir_broken(monkeypatch: pytest.MonkeyPatch) -> None:

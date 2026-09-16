@@ -49,6 +49,7 @@ def _user_row() -> dict:
 
 
 def test_identity_package_imports_only_stdlib_and_types() -> None:
+    """schema.py and __init__.py stay a types-layer leaf. Runtime loader modules may import more."""
     allowed_top = {
         "__future__",
         "json",
@@ -58,7 +59,8 @@ def test_identity_package_imports_only_stdlib_and_types() -> None:
         "heatguard",
     }
     identity_dir = _REPO_ROOT / "src" / "heatguard" / "identity"
-    for path in identity_dir.glob("*.py"):
+    leaf_files = (identity_dir / "schema.py", identity_dir / "__init__.py")
+    for path in leaf_files:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
