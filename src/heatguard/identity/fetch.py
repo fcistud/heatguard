@@ -10,11 +10,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Protocol
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 ENV_IDENTITY_OBJECT_URI = "HEATGUARD_IDENTITY_OBJECT_URI"
 ENV_IDENTITY_FETCH_TIMEOUT = "HEATGUARD_IDENTITY_FETCH_TIMEOUT_SECONDS"
 DEFAULT_FETCH_TIMEOUT_SECONDS = 30.0
+IDENTITY_CEILING_BYTES = 8_388_608  # 8 MiB — same cap as scripts/check_identity_db_size.py
 _METADATA_TOKEN_URL = (
     "http://metadata.google.internal/computeMetadata/v1/"
     "instance/service-accounts/default/token"
@@ -29,6 +30,17 @@ class IdentityLoadError(Exception):
         super().__init__(message)
         self.reason = reason
         self.message = message
+
+
+def assert_object_size(size: int) -> None:
+    """Reject empty or over-ceiling objects before the bytes are retained."""
+    if size == 0:
+        raise IdentityLoadError("corrupt", "identity object is zero bytes")
+    if size > IDENTITY_CEILING_BYTES:
+        raise IdentityLoadError(
+            "size_ceiling",
+            f"identity object is {size} bytes; ceiling is {IDENTITY_CEILING_BYTES}",
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +72,17 @@ class LocalFileFetcher:
         self.path = Path(path)
 
     def fetch(self) -> FetchedObject:
+        try:
+            size = self.path.stat().st_size
+        except FileNotFoundError as exc:
+            raise IdentityLoadError("missing_object", "identity object is missing") from exc
+        except PermissionError as exc:
+            raise IdentityLoadError(
+                "permission_denied", "identity object is not readable"
+            ) from exc
+        except OSError as exc:
+            raise IdentityLoadError("corrupt", "identity object could not be read") from exc
+        assert_object_size(size)
         try:
             payload = self.path.read_bytes()
         except FileNotFoundError as exc:
@@ -108,12 +131,26 @@ class GcsFetcher:
                 timeout=self.timeout_seconds,
             )
             _raise_for_gcs_status(meta)
-            generation = str(getattr(meta, "json")().get("generation", ""))
+            meta_payload = getattr(meta, "json")()
+            if not isinstance(meta_payload, dict):
+                raise IdentityLoadError("corrupt", "identity object metadata is corrupt")
+            try:
+                size = int(meta_payload["size"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise IdentityLoadError(
+                    "corrupt", "identity object metadata is missing size"
+                ) from exc
+            assert_object_size(size)
+            generation = str(meta_payload.get("generation") or "")
+            if not generation:
+                raise IdentityLoadError(
+                    "corrupt", "identity object metadata is missing generation"
+                )
             media = request(
                 "GET",
                 url,
                 headers=headers,
-                params={"alt": "media"},
+                params={"alt": "media", "generation": generation},
                 timeout=self.timeout_seconds,
             )
             _raise_for_gcs_status(media)
@@ -128,8 +165,6 @@ class GcsFetcher:
         payload = getattr(media, "content", b"")
         if not isinstance(payload, (bytes, bytearray)):
             payload = bytes(payload)
-        if not generation:
-            generation = "unknown"
         return FetchedObject(bytes(payload), generation)
 
 
@@ -199,7 +234,7 @@ def fetcher_from_env(env: Mapping[str, str] | None = None) -> IdentityFetcher:
     if parsed.scheme == "gs":
         return GcsFetcher(uri, timeout_seconds=timeout)
     if parsed.scheme == "file":
-        return LocalFileFetcher(Path(parsed.path))
+        return LocalFileFetcher(Path(unquote(parsed.path)))
     if parsed.scheme == "":
         return LocalFileFetcher(Path(uri))
     raise IdentityLoadError("invalid_uri", "identity object URI scheme is not supported")

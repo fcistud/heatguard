@@ -1,6 +1,8 @@
 """Boot-time identity snapshot loader (WO-019)."""
 from __future__ import annotations
 
+import os
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -73,6 +75,7 @@ def test_successful_load_from_committed_fixture(tmp_path: Path) -> None:
     assert snap.lookup("nobody") is None
     disabled = snap.lookup("syn.disabled")
     assert disabled is not None and disabled.active is False
+    assert list(tmp_path.glob("heatguard-identity.*.db")) == []
 
 
 def test_empty_store_is_not_allow_all(tmp_path: Path) -> None:
@@ -89,8 +92,9 @@ def test_empty_store_is_not_allow_all(tmp_path: Path) -> None:
 
 
 def test_readonly_connection_rejects_insert(tmp_path: Path) -> None:
-    snap = load_snapshot(LocalFileFetcher(SEEDED), tmp_dir=tmp_path)
-    dest = next(tmp_path.glob("heatguard-identity.*.db"))
+    dest = tmp_path / "ro.db"
+    shutil.copy(SEEDED, dest)
+    os.chmod(dest, 0o600)
     conn = open_readonly(dest)
     try:
         with pytest.raises(sqlite3.OperationalError, match="readonly"):
@@ -113,7 +117,9 @@ def test_readonly_connection_rejects_insert(tmp_path: Path) -> None:
             )
     finally:
         conn.close()
-    assert snap.lookup("syn.injected") is None
+    assert load_snapshot(LocalFileFetcher(dest), tmp_dir=tmp_path / "tmp").lookup(
+        "syn.injected"
+    ) is None
 
 
 def test_permission_denied_does_not_publish(tmp_path: Path) -> None:
@@ -245,12 +251,15 @@ def test_gcs_fetcher_permission_denied() -> None:
 
 def test_gcs_fetcher_downloads_generation(tmp_path: Path) -> None:
     payload = SEEDED.read_bytes()
+    calls: list[object] = []
 
     def request(_method: str, _url: str, **kwargs: object):
         params = kwargs.get("params") or {}
+        calls.append(params)
         if isinstance(params, dict) and params.get("alt") == "media":
+            assert params.get("generation") == "99"
             return _Resp(200, content=payload)
-        return _Resp(200, {"generation": "99"})
+        return _Resp(200, {"generation": "99", "size": str(len(payload))})
 
     fetcher = GcsFetcher(
         "gs://bucket/identity/heatguard-identity.db",
@@ -259,9 +268,81 @@ def test_gcs_fetcher_downloads_generation(tmp_path: Path) -> None:
     )
     fetched = fetcher.fetch()
     assert fetched.generation == "99"
+    assert len(calls) == 2
     snap = load_snapshot(MemoryFetcher(fetched.payload, fetched.generation), tmp_dir=tmp_path)
     assert snap.generation == "99"
     assert snap.principal_count == 5
+
+
+def test_gcs_rejects_oversize_before_media() -> None:
+    calls: list[object] = []
+
+    def request(_method: str, _url: str, **kwargs: object):
+        calls.append(kwargs.get("params"))
+        return _Resp(
+            200,
+            {"generation": "1", "size": str(IDENTITY_CEILING_BYTES + 1)},
+        )
+
+    fetcher = GcsFetcher(
+        "gs://bucket/obj.db",
+        token_provider=lambda: "tok",
+        request=request,
+    )
+    with pytest.raises(IdentityLoadError) as exc:
+        fetcher.fetch()
+    assert exc.value.reason == "size_ceiling"
+    assert len(calls) == 1
+
+
+def test_local_file_rejects_oversize_before_read(tmp_path: Path) -> None:
+    over = tmp_path / "too-big.db"
+    over.touch()
+    os.truncate(over, IDENTITY_CEILING_BYTES + 1)
+    with pytest.raises(IdentityLoadError) as exc:
+        LocalFileFetcher(over).fetch()
+    assert exc.value.reason == "size_ceiling"
+
+
+def test_file_uri_decodes_spaces(tmp_path: Path) -> None:
+    dest = tmp_path / "a b.db"
+    shutil.copy(SEEDED, dest)
+    fetcher = fetcher_from_env({ENV_IDENTITY_OBJECT_URI: dest.resolve().as_uri()})
+    assert isinstance(fetcher, LocalFileFetcher)
+    assert fetcher.path == dest.resolve()
+    assert load_snapshot(fetcher, tmp_dir=tmp_path / "tmp").principal_count == 5
+
+
+def test_forbidden_column_rejected(tmp_path: Path) -> None:
+    db = tmp_path / "forbidden.db"
+    conn = sqlite3.connect(db)
+    try:
+        conn.executescript((FIXTURE_DIR / "forbidden_column.sql").read_text(encoding="utf-8"))
+        conn.commit()
+    finally:
+        conn.close()
+    result = boot_identity_store(fetcher=LocalFileFetcher(db), tmp_dir=tmp_path / "tmp")
+    assert result is None
+    err = last_load_error()
+    assert err is not None and err.reason == "forbidden_column"
+
+
+def test_extra_role_check_rejected(tmp_path: Path) -> None:
+    db = tmp_path / "extra-role.db"
+    conn = sqlite3.connect(db)
+    try:
+        conn.executescript((FIXTURE_DIR / "extra_role.sql").read_text(encoding="utf-8"))
+        conn.execute(
+            "INSERT INTO schema_meta(key, value) VALUES (?, ?)",
+            ("schema_version", "1"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    result = boot_identity_store(fetcher=LocalFileFetcher(db), tmp_dir=tmp_path / "tmp")
+    assert result is None
+    err = last_load_error()
+    assert err is not None and err.reason == "schema_mismatch"
 
 
 def test_resolve_identity_tmp_dir_default_and_override(monkeypatch: pytest.MonkeyPatch) -> None:

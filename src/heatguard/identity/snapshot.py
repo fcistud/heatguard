@@ -6,6 +6,7 @@ SQLite open happen on boot (and later refresh stories). Logging stays in
 """
 from __future__ import annotations
 
+import os
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from typing import Mapping
 
 from .._paths import resolve_identity_tmp_dir
 from .fetch import (
+    IDENTITY_CEILING_BYTES,
     FetchedObject,
     IdentityFetcher,
     IdentityLoadError,
@@ -23,7 +25,7 @@ from .fetch import (
 from .schema import IdentitySchemaError, SCHEMA_VERSION
 from .store import open_readonly, read_principals
 
-IDENTITY_CEILING_BYTES = 8_388_608  # 8 MiB — same cap as scripts/check_identity_db_size.py
+# Re-export so tests keep importing the ceiling from snapshot.
 
 REASON_CORRUPT = "corrupt"
 REASON_DUPLICATE = "duplicate_username"
@@ -120,9 +122,8 @@ def load_snapshot(
     dest = _write_temp(fetched, Path(tmp_dir))
     try:
         principals = _materialize(dest)
-    except Exception:
+    finally:
         dest.unlink(missing_ok=True)
-        raise
     mapping = MappingProxyType(principals)
     return Snapshot(
         principals=mapping,
@@ -187,11 +188,21 @@ def _verify_payload(fetched: FetchedObject) -> None:
 
 
 def _write_temp(fetched: FetchedObject, tmp_dir: Path) -> Path:
+    dest = tmp_dir / f"heatguard-identity.{fetched.generation}.db"
+    fd: int | None = None
     try:
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        dest = tmp_dir / f"heatguard-identity.{fetched.generation}.db"
-        dest.write_bytes(fetched.payload)
+        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as handle:
+            fd = None
+            handle.write(fetched.payload)
     except OSError as exc:
+        if fd is not None:
+            os.close(fd)
+        try:
+            dest.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise IdentityLoadError(
             REASON_TMP_WRITE, "identity object could not be written to hg-tmp"
         ) from exc

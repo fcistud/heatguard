@@ -141,25 +141,25 @@ def test_readiness_memoisation_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_api_live_and_ready_headers() -> None:
-    client = TestClient(app)
-    live = client.get("/health/live")
-    assert live.status_code == 200
-    assert live.headers.get("cache-control") == "no-store"
-    body = live.json()
-    assert body["status"] == "ok"
-    assert "version" in body and "uptime_seconds" in body
+    with TestClient(app) as client:
+        live = client.get("/health/live")
+        assert live.status_code == 200
+        assert live.headers.get("cache-control") == "no-store"
+        body = live.json()
+        assert body["status"] == "ok"
+        assert "version" in body and "uptime_seconds" in body
 
-    ready = client.get("/health/ready")
-    assert ready.status_code == 200
-    assert ready.headers.get("cache-control") == "no-store"
-    rbody = ready.json()
-    assert rbody["status"] in {"ready", "degraded"}
-    assert "failed" in rbody and "degraded" in rbody
-    assert any(c["name"] == "identity_store" and c["ok"] for c in rbody["checks"])
-    from heatguard.identity.snapshot import get_current
+        ready = client.get("/health/ready")
+        assert ready.status_code == 200
+        assert ready.headers.get("cache-control") == "no-store"
+        rbody = ready.json()
+        assert rbody["status"] in {"ready", "degraded"}
+        assert "failed" in rbody and "degraded" in rbody
+        assert any(c["name"] == "identity_store" and c["ok"] for c in rbody["checks"])
+        from heatguard.identity.snapshot import get_current
 
-    snap = get_current()
-    assert snap is not None and snap.principal_count > 0
+        snap = get_current()
+        assert snap is not None and snap.principal_count > 0
 
 
 def test_api_ready_503_when_identity_boot_fails(
@@ -170,13 +170,13 @@ def test_api_ready_503_when_identity_boot_fails(
 
     clear_snapshot()
     clear_readiness_cache()
-    client = TestClient(app)
-    ready = client.get("/health/ready")
-    assert ready.status_code == 503
-    body = ready.json()
-    assert body["status"] == "not_ready"
-    assert any("identity_store" in f for f in body["failed"])
-    assert get_current() is None
+    with TestClient(app) as client:
+        ready = client.get("/health/ready")
+        assert ready.status_code == 503
+        body = ready.json()
+        assert body["status"] == "not_ready"
+        assert any("identity_store" in f for f in body["failed"])
+        assert get_current() is None
 
 
 def test_api_ready_503_when_data_dir_broken(monkeypatch: pytest.MonkeyPatch) -> None:
