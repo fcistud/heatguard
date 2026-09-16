@@ -284,7 +284,9 @@ jobs:
             --read-only \
             --tmpfs /tmp:rw,mode=1777 \
             --tmpfs /var/cache/heatguard:rw,mode=1777,uid=10001,gid=10001 \
+            -v "$PWD/tests/fixtures/identity/heatguard-identity-test.db:/identity/heatguard-identity.db:ro" \
             -e HEATGUARD_CACHE_DIR=/var/cache/heatguard \
+            -e HEATGUARD_IDENTITY_OBJECT_URI=file:///identity/heatguard-identity.db \
             --env-file /tmp/hg-api-key.env \
             heatguard:ci
           healthy=0
