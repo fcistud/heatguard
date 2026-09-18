@@ -24,6 +24,7 @@ REQUIRED_GUARDRAIL_JOBS = (
     "guardrail-drill",
     "identity-db-ceiling",
     "identity-terraform",
+    "boundary-terraform",
 )
 
 SHA_USES_RE = re.compile(

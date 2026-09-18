@@ -618,11 +618,12 @@ repository. Exact GitHub check names (the job `name:` fields):
 | `guardrail-drill` | `scripts/guardrail_drill.py` |
 | `identity-db-ceiling` | `scripts/check_identity_db_size.py` |
 | `identity-terraform` | `terraform fmt -check` / `validate` / `plan` (never apply) |
+| `boundary-terraform` | `terraform fmt -check` / `validate` / `plan` for `infra/terraform` (never apply) |
 
 `tests/test_ci_gates.py` fails the build if any of those job ids disappears,
 loses its `run` step, sets `continue-on-error`, or uses a non-SHA-pinned action.
 
-Local run of all six (clean tree, exit 0):
+Local run of the copy/legal/layering subset (clean tree, exit 0):
 
 ```bash
 uv run python scripts/check_layering.py
@@ -683,6 +684,15 @@ never compliant. Artifact: `identity-db-ceiling`.
 `infra/identity/fixtures/plan.tfvars`. Run those commands locally from
 `infra/identity` (init with `-backend=false`; never `terraform apply` in CI).
 Enabling this required check is a maintainer repository-settings action.
+
+### boundary-terraform failed
+
+`terraform fmt -check`, `validate`, or `plan` failed against
+`infra/terraform` placeholder tfvars. Run those commands locally from
+`infra/terraform/bootstrap` and `infra/terraform/envs/<env>` (env roots:
+move `backend.tf` aside or `init -backend=false`; never `terraform apply`
+in CI). Enabling this required check is a maintainer repository-settings
+action.
 
 ---
 
@@ -762,13 +772,100 @@ boots from `HEATGUARD_IDENTITY_SNAPSHOT`.
 
 ---
 
+## Boundary infrastructure
+
+Secret Manager containers, Memorystore (quota), and the Serverless VPC Access
+connector are declared in `infra/terraform/`. Apply is manual behind GitHub
+Environment `boundary-terraform`. CI never applies.
+
+A missing or revoked secret version fails the Cloud Run revision at start —
+that is correct. Do not work around it with a permissive default.
+
+### Rotate the session signing key
+
+```bash
+# Add a new version (does not delete the previous version).
+printf '%s' "${NEW_SIGNING_SECRET}" | gcloud secrets versions add \
+  "heatguard-${ENV}-session-signing" --data-file=-
+
+# Cloud Run continues to pin :latest. Confirm the new revision starts, then
+# disable the previous version number.
+gcloud secrets versions disable "${PREV_VERSION}" \
+  --secret="heatguard-${ENV}-session-signing"
+```
+
+Existing JWTs signed with the old key fail verification after the revision
+picks up `:latest`. Re-login is expected.
+
+### Disable an integrator secret version
+
+```bash
+gcloud secrets versions disable "${VERSION}" \
+  --secret="heatguard-${ENV}-integrator-digests"
+```
+
+If `:latest` now points at a disabled version, the next Cloud Run revision
+fails to start until a live version is added. Re-add with
+`gcloud secrets versions add` using the synthetic helper for staging
+(`python scripts/generate_boundary_secret_payloads.py --print-gcloud`).
+
+### Revert the VPC connector attachment
+
+```bash
+gcloud run services update heatguard --region="${REGION}" --clear-vpc-connector
+```
+
+Quota then fail-opens to per-instance buckets and latches
+`ratelimit_store_unavailable`. Re-attach after the connector exists:
+
+```bash
+gcloud run services update heatguard --region="${REGION}" \
+  --vpc-connector="heatguard-${ENV}-quota" \
+  --vpc-egress=private-ranges-only
+```
+
+### Staging apply and smoke check
+
+Order: bootstrap state bucket (local state) → `envs/staging apply` → add
+synthetic secret versions → Cloud Build with `_BOUNDARY_ENV=staging` and
+`_QUOTA_REDIS_HOST` from `terraform output redis_host`.
+
+```bash
+cd infra/terraform/envs/staging
+terraform init -backend-config=backend.hcl
+terraform apply -var-file=operator.tfvars
+python scripts/generate_boundary_secret_payloads.py --print-gcloud   # from repo root
+# From a Cloud Run revision (staging):
+#   1. gcloud run services describe … --format='yaml(spec.template.spec.containers[0].env)'
+#      confirms HEATGUARD_API_KEY_PEPPER / DIGESTS / SESSION_SIGNING_SECRET
+#      are secretKeyRef, not plaintext.
+#   2. Bounded TCP: timeout 0.05s connect to redis_host:redis_port through
+#      the connector (quota consume on GET /health/ready must stay ready or
+#      degraded, never not_ready, if Redis is down).
+```
+
+| Date | Project | Result | Operator |
+|------|---------|--------|----------|
+| (pending first staging apply) | — | Not exercised in this change — no GCP credentials in CI. Record pass/fail here after the first staging apply. | — |
+
+State unlock if apply dies mid-run:
+
+```bash
+terraform force-unlock LOCK_ID
+```
+
+---
+
 ## Egress
 
 Only these destinations are expected from the Cloud Run service. Anything
-else is unexpected egress.
+else is unexpected egress. Open-Meteo and the identity object remain the
+**public** outbound HTTPS dependencies; Memorystore is private-range only
+(`--vpc-egress=private-ranges-only`) so it does not widen public egress.
 
 | Destination | Why | Direction |
 |---|---|---|
 | Open-Meteo (`archive-api.open-meteo.com`, `api.open-meteo.com`) | Archive + forecast weather for WBGT | egress HTTPS |
 | Cloud Storage identity object (`gs://…/identity/heatguard-identity.db`) | Read-only operator identity snapshot (ADR-1) | egress HTTPS (GCS) |
+| Memorystore Redis (private IP, `HEATGUARD_QUOTA_REDIS_URL`) | Shared quota counters (WO-008/WO-009) | private-range TCP via VPC connector |
 

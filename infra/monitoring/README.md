@@ -10,6 +10,11 @@ from version control.
 | `notification_channels.yaml` | Channel references (data sources / placeholders) |
 | `alerts.tf.example` | Optional Terraform shape for `google_monitoring_alert_policy` |
 
+Applied infrastructure (Secret Manager, Memorystore, VPC connector) lives in
+`infra/terraform/` — see that README for bootstrap, cost, and the reviewed
+plan gate. This monitoring YAML is still validated offline and is not applied
+by the boundary Terraform roots.
+
 Validate locally (PyYAML is in the `dev` extra):
 
 ```bash

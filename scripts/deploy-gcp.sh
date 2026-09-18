@@ -50,6 +50,10 @@ gcloud services enable \
   run.googleapis.com \
   cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
+  redis.googleapis.com \
+  vpcaccess.googleapis.com \
+  servicenetworking.googleapis.com \
   --project="${PROJECT}"
 
 if ! gcloud artifacts repositories describe "${AR_REPO}" \
@@ -63,6 +67,9 @@ if ! gcloud artifacts repositories describe "${AR_REPO}" \
 fi
 
 echo "==> Building and deploying via Cloud Build"
+# Boundary Terraform (infra/terraform) must already be applied: secret
+# containers, Memorystore, and the VPC connector. Override hosts after apply:
+#   --substitutions=_QUOTA_REDIS_HOST=...,_VPC_CONNECTOR=heatguard-prod-quota
 gcloud builds submit \
   --project="${PROJECT}" \
   --config=cloudbuild.yaml \

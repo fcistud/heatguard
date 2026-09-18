@@ -26,6 +26,11 @@
 #                 identity/heatguard-identity.db. The WO-019 loader reads this
 #                 URI into hg-tmp (/tmp). Production identity is never copied
 #                 into non-production.
+#   _BOUNDARY_ENV Environment segment for Secret Manager / Redis / VPC connector
+#                 names (default prod). Must match infra/terraform/envs/<env>.
+#   _QUOTA_REDIS_HOST Memorystore host from terraform output redis_host. Empty
+#                 keeps HEATGUARD_QUOTA_REDIS_URL unset (in-process fallback).
+#   _VPC_CONNECTOR Serverless VPC Access connector name (terraform output).
 #
 # Env-var lists use gcloud's ^DELIM^ form so commas inside HEATGUARD_CORS_ORIGINS
 # are not treated as additional KEY=VALUE pairs.
@@ -36,6 +41,9 @@ substitutions:
   _AR_REPO: heatguard
   _CORS_ORIGINS: ""
   _IDENTITY_ENV: prod
+  _BOUNDARY_ENV: prod
+  _QUOTA_REDIS_HOST: ""
+  _VPC_CONNECTOR: heatguard-prod-quota
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -65,7 +73,12 @@ steps:
         echo "Deploying ${IMAGE}@${DIGEST}"
         # Boot-safe production env. CORS origins are locked to the live service URL
         # (plus optional _CORS_ORIGINS) immediately after deploy — do not leave a
-        # placeholder origin in the shipped revision.
+        # placeholder origin in the shipped revision. Secret values stay in
+        # Secret Manager; this file only names the containers.
+        REDIS_ENV=""
+        if [ -n "${_QUOTA_REDIS_HOST}" ]; then
+          REDIS_ENV="@HEATGUARD_QUOTA_REDIS_URL=redis://${_QUOTA_REDIS_HOST}:6379/0"
+        fi
         gcloud run deploy "${_SERVICE}" \
           --image="${IMAGE}@${DIGEST}" \
           --region="${_REGION}" \
@@ -77,7 +90,10 @@ steps:
           --max-instances=3 \
           --timeout=120 \
           --project="$PROJECT_ID" \
-          --set-env-vars="^@^HEATGUARD_DATA_DIR=/app/data@HEATGUARD_CACHE_DIR=/var/cache/heatguard@HEATGUARD_STATIC_DIR=/app/static@HEATGUARD_LANDING_DIR=/app/landing@NUMBA_CACHE_DIR=/tmp/numba_cache@HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://invalid.invalid@HEATGUARD_IDENTITY_OBJECT_URI=gs://${PROJECT_ID}-${_IDENTITY_ENV}-identity/identity/heatguard-identity.db@HEATGUARD_IDENTITY_REFRESH_SECONDS=300" \
+          --vpc-connector="${_VPC_CONNECTOR}" \
+          --vpc-egress=private-ranges-only \
+          --set-secrets="HEATGUARD_API_KEY_PEPPER=heatguard-${_BOUNDARY_ENV}-hmac-pepper:latest,HEATGUARD_API_KEY_DIGESTS=heatguard-${_BOUNDARY_ENV}-integrator-digests:latest,HEATGUARD_SESSION_SIGNING_SECRET=heatguard-${_BOUNDARY_ENV}-session-signing:latest" \
+          --set-env-vars="^@^HEATGUARD_DATA_DIR=/app/data@HEATGUARD_CACHE_DIR=/var/cache/heatguard@HEATGUARD_STATIC_DIR=/app/static@HEATGUARD_LANDING_DIR=/app/landing@NUMBA_CACHE_DIR=/tmp/numba_cache@HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://invalid.invalid@HEATGUARD_IDENTITY_OBJECT_URI=gs://${PROJECT_ID}-${_IDENTITY_ENV}-identity/identity/heatguard-identity.db@HEATGUARD_IDENTITY_REFRESH_SECONDS=300@HEATGUARD_AUTH_MODE=dual@HEATGUARD_QUOTA_CAPACITY=10000@HEATGUARD_QUOTA_REFILL_PER_SEC=1000@HEATGUARD_QUOTA_REDIS_CONNECT_TIMEOUT=0.05@HEATGUARD_QUOTA_REDIS_COMMAND_TIMEOUT=0.05@HEATGUARD_QUOTA_REDIS_BREAKER_FAILURES=3@HEATGUARD_QUOTA_REDIS_BREAKER_COOLDOWN_SEC=5${REDIS_ENV}" \
           --add-volume=name=hg-cache,type=in-memory,size-limit=256Mi \
           --add-volume-mount=volume=hg-cache,mount-path=/var/cache/heatguard \
           --add-volume=name=hg-tmp,type=in-memory,size-limit=128Mi \
