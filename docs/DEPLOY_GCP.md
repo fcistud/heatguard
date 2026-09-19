@@ -56,7 +56,7 @@ export PROJECT_ID=YOUR_PROJECT_ID
 export REGION=us-central1
 export AR_REPO=heatguard
 
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com redis.googleapis.com vpcaccess.googleapis.com storage.googleapis.com
 
 gcloud artifacts repositories create "${AR_REPO}" \
   --repository-format=docker \
@@ -162,6 +162,12 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 | `HEATGUARD_SESSION_KID` | unset | If set, the JWT `kid` header must match; missing or mismatched `kid` is refused. |
 | `HEATGUARD_IDENTITY_SNAPSHOT` | _(required)_ | JSON object of principal id → `{roles, sites, token_version, active}`. Empty or malformed JSON fails boot. Wildcard `sites: ["*"]` is inspector-only. |
 | `HEATGUARD_SESSION_CLOCK_SKEW_SECONDS` | `30` | Expiry/iat clock-skew tolerance (0–120). Documented default is 30 seconds. |
+| `HEATGUARD_AUTH_MODE` | `dual` | Baseline enforcement mode (`dual` or `enforce`). Per-group overrides: `HEATGUARD_AUTH_MODE_<GROUP>`. |
+| `HEATGUARD_QUOTA_CAPACITY` | `10000` | Default token-bucket capacity. |
+| `HEATGUARD_QUOTA_REFILL_PER_SEC` | `1000` | Default refill rate. |
+| `HEATGUARD_QUOTA_REDIS_URL` | unset | Memorystore URL (`redis://HOST:PORT/0`). Empty keeps in-process buckets (degraded). |
+| `HEATGUARD_QUOTA_REDIS_CONNECT_TIMEOUT` | `0.05` | Shared-store connect timeout (seconds). |
+| `HEATGUARD_QUOTA_REDIS_COMMAND_TIMEOUT` | `0.05` | Shared-store command timeout (seconds). |
 
 > **gcloud comma footgun:** `--set-env-vars` / `--update-env-vars` split on commas by default.
 > When `HEATGUARD_CORS_ORIGINS` lists multiple origins, use the caret delimiter form:
@@ -171,6 +177,8 @@ Set `HEATGUARD_WARM_DEMOS=1` on Cloud Run for demos (`--update-env-vars`) if col
 > **Integrator API keys:** mount `HEATGUARD_API_KEY_PEPPER` and `HEATGUARD_API_KEY_DIGESTS` as Cloud Run secret references. The digest bundle is a JSON object, not comma-separated — still use `^@^` if you combine it with other `--update-env-vars` / `--update-secrets` flags. Local/offline tests use `tests/fixtures/api_key_digests.json` (synthetic only); regenerate with `python scripts/generate_api_key_digests.py`.
 >
 > **Session JWTs:** mount `HEATGUARD_SESSION_SIGNING_SECRET` and `HEATGUARD_IDENTITY_SNAPSHOT` as Cloud Run secret references. Local/offline tests use `tests/fixtures/session_tokens.json` (synthetic only); regenerate with `python scripts/generate_session_token_fixture.py`. Clock-skew default is 30 seconds.
+>
+> **Boundary Terraform:** apply `infra/terraform` before the next Cloud Build. Secret versions are added out of band (`python scripts/generate_boundary_secret_payloads.py` for staging). Memorystore is reached through the VPC connector with `--vpc-egress=private-ranges-only` so Open-Meteo and the identity object stay on public HTTPS.
 
 ---
 
@@ -237,4 +245,15 @@ Connect the repo to [Cloud Build triggers](https://cloud.google.com/build/docs/a
 
 ## Cost note
 
-With min instances = 0, idle cost is near zero; you pay per request and build time. A hackathon demo typically stays within free-tier credits if traffic is low.
+With Cloud Run min instances = 0, **idle request cost** is near zero. Enabling
+the shared quota store adds always-on Memorystore BASIC 1 GiB plus a Serverless
+VPC Access connector (e2-micro, min 2) — see `infra/terraform/README.md`.
+Per-instance-only quota was rejected: it is cheaper but under-counts by up to
+3× at max-instances=3.
+
+Public outbound HTTPS remains Open-Meteo (archive + forecast) and the Cloud
+Storage identity object. Memorystore is private-range TCP through the
+connector, not an additional public egress target.
+
+A hackathon demo that **skips** Memorystore (no `_QUOTA_REDIS_HOST`) stays
+within typical free-tier credits if traffic is low.

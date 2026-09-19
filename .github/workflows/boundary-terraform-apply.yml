@@ -1,0 +1,33 @@
+name: Boundary Terraform apply gate
+
+# Apply is never automated from pull requests. This workflow exists so the
+# GitHub Environment `boundary-terraform` (required reviewers) is the apply
+# gate. After approval, operators run terraform apply locally with remote state.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Terraform env root to record as reviewed
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+permissions:
+  contents: read
+
+jobs:
+  apply-gate:
+    name: Record reviewed apply intent
+    runs-on: ubuntu-latest
+    environment: boundary-terraform
+    steps:
+      - name: Apply stays manual
+        run: |
+          set -euo pipefail
+          echo "GitHub Environment boundary-terraform approved for ${{ inputs.environment }}."
+          echo "Do not terraform apply from GitHub Actions."
+          echo "Operators: cd infra/terraform/envs/${{ inputs.environment }} && terraform apply"
