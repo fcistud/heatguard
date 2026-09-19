@@ -30,7 +30,11 @@
 #                 names (default prod). Must match infra/terraform/envs/<env>.
 #   _QUOTA_REDIS_HOST Memorystore host from terraform output redis_host. Empty
 #                 keeps HEATGUARD_QUOTA_REDIS_URL unset (in-process fallback).
-#   _VPC_CONNECTOR Serverless VPC Access connector name (terraform output).
+#   _VPC_CONNECTOR Optional connector name override. Empty derives
+#                 heatguard-${_BOUNDARY_ENV}-quota so staging cannot attach prod.
+#   _RUNTIME_SERVICE_ACCOUNT Cloud Run runtime SA email matching Terraform
+#                 var.runtime_service_account. Empty leaves the existing
+#                 revision SA unchanged — do not guess a live email here.
 #
 # Env-var lists use gcloud's ^DELIM^ form so commas inside HEATGUARD_CORS_ORIGINS
 # are not treated as additional KEY=VALUE pairs.
@@ -43,7 +47,8 @@ substitutions:
   _IDENTITY_ENV: prod
   _BOUNDARY_ENV: prod
   _QUOTA_REDIS_HOST: ""
-  _VPC_CONNECTOR: heatguard-prod-quota
+  _VPC_CONNECTOR: ""
+  _RUNTIME_SERVICE_ACCOUNT: ""
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -79,6 +84,11 @@ steps:
         if [ -n "${_QUOTA_REDIS_HOST}" ]; then
           REDIS_ENV="@HEATGUARD_QUOTA_REDIS_URL=redis://${_QUOTA_REDIS_HOST}:6379/0"
         fi
+        CONNECTOR="${_VPC_CONNECTOR:-heatguard-${_BOUNDARY_ENV}-quota}"
+        SA_ARGS=()
+        if [ -n "${_RUNTIME_SERVICE_ACCOUNT}" ]; then
+          SA_ARGS+=(--service-account="${_RUNTIME_SERVICE_ACCOUNT}")
+        fi
         gcloud run deploy "${_SERVICE}" \
           --image="${IMAGE}@${DIGEST}" \
           --region="${_REGION}" \
@@ -90,7 +100,8 @@ steps:
           --max-instances=3 \
           --timeout=120 \
           --project="$PROJECT_ID" \
-          --vpc-connector="${_VPC_CONNECTOR}" \
+          "${SA_ARGS[@]}" \
+          --vpc-connector="${CONNECTOR}" \
           --vpc-egress=private-ranges-only \
           --set-secrets="HEATGUARD_API_KEY_PEPPER=heatguard-${_BOUNDARY_ENV}-hmac-pepper:latest,HEATGUARD_API_KEY_DIGESTS=heatguard-${_BOUNDARY_ENV}-integrator-digests:latest,HEATGUARD_SESSION_SIGNING_SECRET=heatguard-${_BOUNDARY_ENV}-session-signing:latest" \
           --set-env-vars="^@^HEATGUARD_DATA_DIR=/app/data@HEATGUARD_CACHE_DIR=/var/cache/heatguard@HEATGUARD_STATIC_DIR=/app/static@HEATGUARD_LANDING_DIR=/app/landing@NUMBA_CACHE_DIR=/tmp/numba_cache@HEATGUARD_ENV=production@HEATGUARD_CORS_ORIGINS=https://invalid.invalid@HEATGUARD_IDENTITY_OBJECT_URI=gs://${PROJECT_ID}-${_IDENTITY_ENV}-identity/identity/heatguard-identity.db@HEATGUARD_IDENTITY_REFRESH_SECONDS=300@HEATGUARD_AUTH_MODE=dual@HEATGUARD_QUOTA_CAPACITY=10000@HEATGUARD_QUOTA_REFILL_PER_SEC=1000@HEATGUARD_QUOTA_REDIS_CONNECT_TIMEOUT=0.05@HEATGUARD_QUOTA_REDIS_COMMAND_TIMEOUT=0.05@HEATGUARD_QUOTA_REDIS_BREAKER_FAILURES=3@HEATGUARD_QUOTA_REDIS_BREAKER_COOLDOWN_SEC=5${REDIS_ENV}" \

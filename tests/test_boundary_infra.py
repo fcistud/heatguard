@@ -18,6 +18,7 @@ WORKFLOW = REPO / ".github" / "workflows" / "ci.yml"
 APPLY_WORKFLOW = REPO / ".github" / "workflows" / "boundary-terraform-apply.yml"
 RUNBOOKS = REPO / "docs" / "RUNBOOKS.md"
 DEPLOY = REPO / "docs" / "DEPLOY_GCP.md"
+DEPLOY_SCRIPT = REPO / "scripts" / "deploy-gcp.sh"
 README = TF_ROOT / "README.md"
 MONITORING_README = REPO / "infra" / "monitoring" / "README.md"
 STAGING_SECRETS = REPO / "tests" / "fixtures" / "boundary" / "staging-secrets.json"
@@ -198,6 +199,12 @@ def validate_boundary_infra(
         result.fail("cloudbuild.yaml must attach the VPC connector")
     if "private-ranges-only" not in cloudbuild_text:
         result.fail("cloudbuild.yaml must set vpc-egress=private-ranges-only")
+    if "heatguard-${_BOUNDARY_ENV}-quota" not in cloudbuild_text:
+        result.fail("cloudbuild.yaml must derive the VPC connector from _BOUNDARY_ENV")
+    if re.search(r"_VPC_CONNECTOR:\s*heatguard-prod-quota", cloudbuild_text):
+        result.fail("cloudbuild.yaml must not hardcode the production connector as the default")
+    if "_RUNTIME_SERVICE_ACCOUNT" not in cloudbuild_text:
+        result.fail("cloudbuild.yaml must accept a runtime service-account substitution")
 
     if re.search(r"(?m)^\s*terraform\s+apply\b", workflow_text):
         result.fail("CI must never run terraform apply")
@@ -363,6 +370,15 @@ def test_env_roots_exist() -> None:
     for env in ENVS:
         assert (TF_ROOT / "envs" / env / "main.tf").is_file()
         assert (TF_ROOT / "envs" / env / "backend.tf").is_file()
+
+
+def test_deploy_script_enables_storage_and_passes_boundary_substitutions() -> None:
+    text = DEPLOY_SCRIPT.read_text(encoding="utf-8")
+    assert "storage.googleapis.com" in text
+    assert "_QUOTA_REDIS_HOST=" in text
+    assert "_BOUNDARY_ENV=" in text
+    assert "_RUNTIME_SERVICE_ACCOUNT=" in text
+    assert "GCP_QUOTA_REDIS_HOST" in text
 
 
 def test_staging_secret_fixture_is_synthetic() -> None:

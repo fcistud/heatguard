@@ -45,8 +45,9 @@ The state bucket cannot create itself through the backend it stores.
 5. Add secret versions (synthetic staging helper:
    `python scripts/generate_boundary_secret_payloads.py --print-gcloud`).
 6. Cloud Build substitutions: `_BOUNDARY_ENV`, `_QUOTA_REDIS_HOST` from
-   `terraform output redis_host`, `_VPC_CONNECTOR` from
-   `terraform output vpc_connector_name`.
+   `terraform output redis_host`, optional `_VPC_CONNECTOR` (defaults to
+   `heatguard-${_BOUNDARY_ENV}-quota`), optional `_RUNTIME_SERVICE_ACCOUNT`
+   matching `var.runtime_service_account`.
 
 ### Importing console-created resources
 

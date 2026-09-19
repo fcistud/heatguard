@@ -56,7 +56,7 @@ export PROJECT_ID=YOUR_PROJECT_ID
 export REGION=us-central1
 export AR_REPO=heatguard
 
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com redis.googleapis.com vpcaccess.googleapis.com
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com redis.googleapis.com vpcaccess.googleapis.com storage.googleapis.com
 
 gcloud artifacts repositories create "${AR_REPO}" \
   --repository-format=docker \

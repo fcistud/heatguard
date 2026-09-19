@@ -54,6 +54,7 @@ gcloud services enable \
   redis.googleapis.com \
   vpcaccess.googleapis.com \
   servicenetworking.googleapis.com \
+  storage.googleapis.com \
   --project="${PROJECT}"
 
 if ! gcloud artifacts repositories describe "${AR_REPO}" \
@@ -66,14 +67,24 @@ if ! gcloud artifacts repositories describe "${AR_REPO}" \
     --description="HeatGuard container images"
 fi
 
+BOUNDARY_ENV="${GCP_BOUNDARY_ENV:-prod}"
+IDENTITY_ENV="${GCP_IDENTITY_ENV:-${BOUNDARY_ENV}}"
+QUOTA_REDIS_HOST="${GCP_QUOTA_REDIS_HOST:-}"
+VPC_CONNECTOR="${GCP_VPC_CONNECTOR:-}"
+RUNTIME_SA="${GCP_RUNTIME_SERVICE_ACCOUNT:-}"
+
 echo "==> Building and deploying via Cloud Build"
 # Boundary Terraform (infra/terraform) must already be applied: secret
-# containers, Memorystore, and the VPC connector. Override hosts after apply:
-#   --substitutions=_QUOTA_REDIS_HOST=...,_VPC_CONNECTOR=heatguard-prod-quota
+# containers, Memorystore, and the VPC connector. After apply, pass the
+# Memorystore host and runtime SA so quota is not silently in-process:
+#   GCP_BOUNDARY_ENV=staging GCP_QUOTA_REDIS_HOST=10.x.x.x \
+#   GCP_RUNTIME_SERVICE_ACCOUNT=heatguard-runtime@PROJECT.iam.gserviceaccount.com \
+#   scripts/deploy-gcp.sh
+# Empty _VPC_CONNECTOR derives heatguard-${_BOUNDARY_ENV}-quota.
 gcloud builds submit \
   --project="${PROJECT}" \
   --config=cloudbuild.yaml \
-  --substitutions="_REGION=${REGION},_SERVICE=${SERVICE},_AR_REPO=${AR_REPO}"
+  --substitutions="_REGION=${REGION},_SERVICE=${SERVICE},_AR_REPO=${AR_REPO},_BOUNDARY_ENV=${BOUNDARY_ENV},_IDENTITY_ENV=${IDENTITY_ENV},_QUOTA_REDIS_HOST=${QUOTA_REDIS_HOST},_VPC_CONNECTOR=${VPC_CONNECTOR},_RUNTIME_SERVICE_ACCOUNT=${RUNTIME_SA}"
 
 URL="$(gcloud run services describe "${SERVICE}" \
   --region="${REGION}" --project="${PROJECT}" \

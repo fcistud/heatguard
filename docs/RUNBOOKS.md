@@ -828,7 +828,9 @@ gcloud run services update heatguard --region="${REGION}" \
 
 Order: bootstrap state bucket (local state) → `envs/staging apply` → add
 synthetic secret versions → Cloud Build with `_BOUNDARY_ENV=staging` and
-`_QUOTA_REDIS_HOST` from `terraform output redis_host`.
+`_QUOTA_REDIS_HOST` from `terraform output redis_host` (the VPC connector
+name is derived as `heatguard-${_BOUNDARY_ENV}-quota` unless
+`_VPC_CONNECTOR` is set).
 
 ```bash
 cd infra/terraform/envs/staging
