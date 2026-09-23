@@ -20,6 +20,17 @@ from heatguard.types import IDENTITY_ROLES, SITE_SCOPE_WILDCARD
 SCHEMA_VERSION = 1
 SCHEMA_VERSION_KEY = "schema_version"
 
+# Shared with scripts/validate_identity_object.py and the write path so the
+# CI guard and the schema cannot drift on size or volatile-state columns.
+IDENTITY_SIZE_CEILING_BYTES = 8 * 1024 * 1024  # 8 MiB
+VOLATILE_STATE_COLUMNS = frozenset(
+    {
+        "failed_login_count",
+        "lockout_until",
+        "last_login_at",
+    }
+)
+
 FORBIDDEN_IDENTITY_COLUMNS = frozenset(
     {
         "age",

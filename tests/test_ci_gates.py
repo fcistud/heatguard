@@ -23,6 +23,7 @@ REQUIRED_GUARDRAIL_JOBS = (
     "legal-lane-regression",
     "guardrail-drill",
     "identity-db-ceiling",
+    "identity-object-guard",
     "identity-terraform",
     "boundary-terraform",
 )

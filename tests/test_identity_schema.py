@@ -11,8 +11,10 @@ from heatguard._paths import _REPO_ROOT
 from heatguard.canonical import dumps as canonical_dumps
 from heatguard.identity.schema import (
     FORBIDDEN_IDENTITY_COLUMNS,
+    IDENTITY_SIZE_CEILING_BYTES,
     SCHEMA_VERSION,
     USERS_COLUMNS,
+    VOLATILE_STATE_COLUMNS,
     IdentityDuplicateError,
     IdentityError,
     IdentitySchemaError,
@@ -286,6 +288,7 @@ def test_forbidden_identity_columns_absent(tmp_path: Path) -> None:
     finally:
         conn.close()
     assert names.isdisjoint(FORBIDDEN_IDENTITY_COLUMNS)
+    assert names.isdisjoint(VOLATILE_STATE_COLUMNS)
     for forbidden in (
         "age",
         "weight_kg",
@@ -295,6 +298,15 @@ def test_forbidden_identity_columns_absent(tmp_path: Path) -> None:
         "crew_id",
     ):
         assert forbidden in FORBIDDEN_IDENTITY_COLUMNS
+    from heatguard.identity.fetch import IDENTITY_CEILING_BYTES
+
+    assert IDENTITY_SIZE_CEILING_BYTES == 8 * 1024 * 1024
+    assert IDENTITY_CEILING_BYTES == IDENTITY_SIZE_CEILING_BYTES
+    assert VOLATILE_STATE_COLUMNS == frozenset(
+        {"failed_login_count", "lockout_until", "last_login_at"}
+    )
+    assert VOLATILE_STATE_COLUMNS.isdisjoint(USERS_COLUMNS)
+    assert VOLATILE_STATE_COLUMNS.isdisjoint(FORBIDDEN_IDENTITY_COLUMNS)
 
 
 def test_seed_covers_all_roles_wildcard_and_disabled() -> None:
