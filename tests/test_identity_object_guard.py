@@ -165,6 +165,104 @@ def test_volatile_column_absent_passes(tmp_path: Path) -> None:
     assert not any("volatile-state" in err for err in result.errors)
 
 
+def _exec_sql(dest: Path, sql: str) -> Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.unlink(missing_ok=True)
+    conn = sqlite3.connect(dest)
+    try:
+        conn.executescript(sql)
+        conn.commit()
+    finally:
+        conn.close()
+    return dest
+
+
+def test_forbidden_column_case_variant_fails(tmp_path: Path) -> None:
+    sql = """
+    CREATE TABLE users (
+        username TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        kdf_params TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('supervisor', 'ohs_officer', 'compliance_officer', 'inspector')),
+        sites TEXT NOT NULL,
+        token_version INTEGER NOT NULL DEFAULT 1,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at_utc TEXT NOT NULL,
+        updated_at_utc TEXT NOT NULL,
+        AGE INTEGER
+    );
+    CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    INSERT INTO schema_meta(key, value) VALUES ('schema_version', '1');
+    """
+    db = _exec_sql(tmp_path / "age-case.db", sql)
+    result = vm.validate_identity_object(db, repo_root=REPO)
+    assert not result.ok
+    joined = "\n".join(result.errors)
+    assert "AGE" in joined
+    assert "forbidden" in joined
+
+
+def test_volatile_column_case_variant_fails(tmp_path: Path) -> None:
+    sql = """
+    CREATE TABLE users (
+        username TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        kdf_params TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('supervisor', 'ohs_officer', 'compliance_officer', 'inspector')),
+        sites TEXT NOT NULL,
+        token_version INTEGER NOT NULL DEFAULT 1,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at_utc TEXT NOT NULL,
+        updated_at_utc TEXT NOT NULL,
+        Failed_Login_Count INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    INSERT INTO schema_meta(key, value) VALUES ('schema_version', '1');
+    """
+    db = _exec_sql(tmp_path / "volatile-case.db", sql)
+    result = vm.validate_identity_object(db, repo_root=REPO)
+    assert not result.ok
+    joined = "\n".join(result.errors)
+    assert "Failed_Login_Count" in joined
+    assert "volatile-state" in joined
+
+
+def test_wildcard_unicode_escape_on_supervisor_fails(tmp_path: Path) -> None:
+    path = tmp_path / "unicode-star.db"
+    initialize(path)
+    conn = sqlite3.connect(path)
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO users (
+                    username, password_hash, salt, kdf_params, role, sites,
+                    token_version, active, created_at_utc, updated_at_utc
+                ) VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+                """,
+                (
+                    "syn.supervisor.escaped",
+                    "$argon2id$v=19$m=8,t=1,p=1$UkVEQUNUX1RFU1RfU0FMVA$UkVEQUNUX1RFU1RfSEFTSA",
+                    "REDACT_TEST_SALT",
+                    '{"m":8,"p":1,"t":1}',
+                    "supervisor",
+                    '["\\u002a"]',
+                    "2024-01-01T00:00:00Z",
+                    "2024-01-01T00:00:00Z",
+                ),
+            )
+    finally:
+        conn.close()
+    result = vm.validate_identity_object(path, repo_root=REPO)
+    assert not result.ok
+    joined = "\n".join(result.errors)
+    assert "syn.supervisor.escaped" in joined
+    assert "wildcard" in joined
+    assert "\\u002a" not in joined
+
+
 def test_altered_role_check_fails(tmp_path: Path) -> None:
     db = _db_from_sql("altered_role_check.sql", tmp_path / "altered.db")
     result = vm.validate_identity_object(db, repo_root=REPO)

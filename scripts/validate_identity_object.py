@@ -175,6 +175,11 @@ def redact_secrets(text: str) -> str:
     return redacted
 
 
+def _matching_columns(cols: list[str], denied: frozenset[str]) -> list[str]:
+    denied_cf = {name.casefold() for name in denied}
+    return sorted(col for col in cols if col.casefold() in denied_cf)
+
+
 def _quote_ident(name: str) -> str:
     if not SAFE_IDENT_RE.match(name):
         raise ValueError(f"unsafe sqlite identifier: {name!r}")
@@ -273,13 +278,15 @@ def _check_columns(
         result.fail(f"{path}: cannot inspect columns: {exc}")
         return
     for relation, cols in sorted(columns.items()):
-        forbidden = sorted(invariants.forbidden_columns.intersection(cols))
+        # SQLite identifiers are case-insensitive; compare casefolded so
+        # AGE / Failed_Login_Count cannot slip past the deny lists.
+        forbidden = _matching_columns(cols, invariants.forbidden_columns)
         if forbidden:
             result.fail(
                 f"{path}:{relation}: forbidden worker-personal-data "
                 f"column(s) {forbidden}"
             )
-        volatile = sorted(invariants.volatile_columns.intersection(cols))
+        volatile = _matching_columns(cols, invariants.volatile_columns)
         if volatile:
             result.fail(
                 f"{path}:{relation}: volatile-state column(s) {volatile}"
@@ -319,11 +326,11 @@ def _check_wildcard_scope(
     result: ValidationResult,
 ) -> None:
     wildcard = invariants.wildcard
-    like_pattern = f"%{wildcard}%"
     try:
+        # Inspect every row after JSON parse. A LIKE on the raw text misses
+        # unicode-escaped wildcards such as ["\u002a"].
         rows = connection.execute(
-            "SELECT username, role, sites FROM users WHERE sites LIKE ?",
-            (like_pattern,),
+            "SELECT username, role, sites FROM users"
         ).fetchall()
     except sqlite3.Error as exc:
         result.fail(f"{path}: cannot inspect site scope: {exc}")
