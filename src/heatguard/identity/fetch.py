@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Callable, Mapping, Protocol
 from urllib.parse import quote, unquote, urlparse
 
+from .schema import IDENTITY_SIZE_CEILING_BYTES as IDENTITY_CEILING_BYTES
+
 ENV_IDENTITY_OBJECT_URI = "HEATGUARD_IDENTITY_OBJECT_URI"
 ENV_IDENTITY_FETCH_TIMEOUT = "HEATGUARD_IDENTITY_FETCH_TIMEOUT_SECONDS"
 DEFAULT_FETCH_TIMEOUT_SECONDS = 30.0
-IDENTITY_CEILING_BYTES = 8_388_608  # 8 MiB — same cap as scripts/check_identity_db_size.py
 _METADATA_TOKEN_URL = (
     "http://metadata.google.internal/computeMetadata/v1/"
     "instance/service-accounts/default/token"

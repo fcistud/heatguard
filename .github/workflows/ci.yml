@@ -502,6 +502,21 @@ jobs:
           path: artifacts/identity-ceiling-report.json
           if-no-files-found: ignore
 
+  identity-object-guard:
+    name: identity-object-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.CANONICAL_PYTHON }}
+      - name: Install uv (pinned)
+        run: pip install "uv==${{ env.UV_VERSION }}"
+      - name: Sync frozen lock (api + ml + dev)
+        run: uv sync --frozen --extra api --extra ml --extra dev
+      - name: Validate identity object invariants
+        run: uv run python scripts/validate_identity_object.py tests/fixtures/identity/heatguard-identity-test.db
+
   identity-terraform:
     name: identity-terraform
     runs-on: ubuntu-latest

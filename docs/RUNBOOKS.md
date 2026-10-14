@@ -617,6 +617,7 @@ repository. Exact GitHub check names (the job `name:` fields):
 | `legal-lane-regression` | four-lane tests in `tests/test_legal_precedence.py` and `tests/test_api.py` |
 | `guardrail-drill` | `scripts/guardrail_drill.py` |
 | `identity-db-ceiling` | `scripts/check_identity_db_size.py` |
+| `identity-object-guard` | `scripts/validate_identity_object.py` |
 | `identity-terraform` | `terraform fmt -check` / `validate` / `plan` (never apply) |
 | `boundary-terraform` | `terraform fmt -check` / `validate` / `plan` for `infra/terraform` (never apply) |
 
@@ -641,6 +642,8 @@ uv run pytest tests/test_legal_precedence.py \
   -q
 uv run python scripts/guardrail_drill.py
 uv run python scripts/check_identity_db_size.py
+uv run python scripts/validate_identity_object.py \
+  tests/fixtures/identity/heatguard-identity-test.db
 ```
 
 ### arch-contract failed
@@ -677,6 +680,18 @@ Identity SQLite object over 8 MiB, a worker-personal-data column
 a broken role CHECK, or no identity object/DDL resolvable. Run
 `uv run python scripts/check_identity_db_size.py`. An absent identity set is
 never compliant. Artifact: `identity-db-ceiling`.
+
+### identity-object-guard failed
+
+The offline identity-object validator rejected the committed fixture (or
+the path you passed). Typical causes: object over 8 MiB, `schema_version`
+mismatch, altered or missing `users.role` CHECK, a forbidden worker-
+personal-data column, a volatile-state column (`failed_login_count`,
+`lockout_until`, `last_login_at`), or wildcard site scope on a
+non-inspector principal. Run
+`uv run python scripts/validate_identity_object.py <path>` and fix every
+reported line before uploading. See the identity-object deliberate-break
+drill below.
 
 ### identity-terraform failed
 
@@ -733,6 +748,42 @@ CI detaches `backend.tf` and plans against local state with placeholder
 `${PROJECT_ID}` and `${TFSTATE_BUCKET}` are operator-supplied; they are
 not committed.
 
+### Identity object deliberate-break drill
+
+A guard that has never been seen to fail is not a guard. Before uploading
+any identity object, prove `scripts/validate_identity_object.py` rejects
+the committed invalid fixtures and accepts the non-production fixture.
+
+```bash
+# Must exit 0
+uv run python scripts/validate_identity_object.py \
+  tests/fixtures/identity/heatguard-identity-test.db
+
+# Materialize throwaway invalid databases (never upload these)
+uv run python tests/fixtures/identity/invalid/generate.py \
+  --dest /tmp/identity-invalid
+
+# Each of these must exit 1 with a specific diagnostic
+uv run python scripts/validate_identity_object.py \
+  /tmp/identity-invalid/over_ceiling.db
+# expected: exceeds identity ceiling
+
+uv run python scripts/validate_identity_object.py \
+  /tmp/identity-invalid/forbidden_column.db
+# expected: forbidden worker-personal-data column(s) ['age']
+
+uv run python scripts/validate_identity_object.py \
+  /tmp/identity-invalid/altered_role_check.db
+# expected: users.role CHECK constraint must list exactly
+
+uv run python scripts/validate_identity_object.py \
+  /tmp/identity-invalid/supervisor_wildcard.db
+# expected: principal 'syn.supervisor.wildcard' has wildcard site scope
+```
+
+`tests/test_identity_object_guard.py` is the automated form of this drill.
+Do not upload an object whose local validation is not exit 0.
+
 ### Initial upload
 
 1. Apply `infra/identity` for the target environment (`dev` / `staging` /
@@ -740,7 +791,10 @@ not committed.
 2. Build a non-production identity SQLite with
    `scripts/build_identity_fixture.py` (or the operator tool). Do **not**
    upload a production file to dev or staging.
-3. Upload generation 1:
+3. Run the deliberate-break drill above, then validate the file you
+   intend to upload:
+   `uv run python scripts/validate_identity_object.py heatguard-identity.db`
+4. Upload generation 1:
 
 ```bash
 gcloud storage cp heatguard-identity.db \
